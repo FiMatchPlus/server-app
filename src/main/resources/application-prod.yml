@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: ${db.url}
+    username: ${db.username}
+    password: ${db.password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+
+logging:
+  level:
+    com.stockone19: INFO
+    org.springframework.jdbc: WARN
+    org.springframework.cache: WARN
+    org.springframework.web: WARN

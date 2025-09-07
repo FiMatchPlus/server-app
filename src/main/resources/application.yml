@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: backendtest
+  profiles:
+    active: prod
+    include: secrets
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    mongodb:
+      uri: ${mongodb.uri}
+    redis:
+      host: ${redis.host}
+      port: ${redis.port}
+      password: ${redis.password:}
+      timeout: 2000ms
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    com.stockone19: DEBUG
+    org.springframework.jdbc: DEBUG
+    org.springframework.cache: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+app:
+  stock:
+    cache:
+      ttl: 3600
+      key-pattern: "{ticker}^{yyyy-MM-dd'T'HH:mm:ss}"
