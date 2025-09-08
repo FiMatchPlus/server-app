@@ -7,6 +7,7 @@ on:
       - 'src/**'
       - 'build.gradle'
       - 'Dockerfile'
+      - '.github/workflows/**'
 
 env:
   REGISTRY: ghcr.io
@@ -74,13 +75,25 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
+          
   trigger-deployment:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
     steps:
+      - name: Prepare safe commit message
+        id: commit
+        run: |
+          # 커밋 메시지 이스케이프 처리
+          SAFE_MESSAGE=$(echo '${{ github.event.head_commit.message }}' | \
+            head -1 | \
+            tr -d '\000-\037\177' | \
+            sed 's/"/\\"/g' | \
+            sed "s/'/\\'/g" | \
+            cut -c1-200)
+          echo "message=${SAFE_MESSAGE}" >> $GITHUB_OUTPUT
+          
       - name: Trigger deployment
         uses: peter-evans/repository-dispatch@v3
         with:
@@ -92,5 +105,5 @@ jobs:
               "service": "api-server",
               "image_tag": "${{ needs.build-and-push.outputs.image-tag }}",
               "commit_sha": "${{ github.sha }}",
-              "commit_message": "${{ github.event.head_commit.message }}"
+              "commit_message": "${{ steps.commit.outputs.message }}"
             }
