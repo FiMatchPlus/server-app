@@ -106,5 +106,3 @@ public class StockController {
         return ApiResponse.success("종목 검색이 완료되었습니다", response);
     }
 }
-
-
