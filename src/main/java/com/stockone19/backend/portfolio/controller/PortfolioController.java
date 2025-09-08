@@ -1,4 +1,104 @@
 package com.stockone19.backend.portfolio.controller;
 
+import com.stockone19.backend.common.dto.ApiResponse;
+import com.stockone19.backend.portfolio.dto.*;
+import com.stockone19.backend.portfolio.service.PortfolioService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+
+@Slf4j
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/portfolios")
 public class PortfolioController {
+
+    private final PortfolioService portfolioService;
+
+    /**
+     * 사용자 포트폴리오 통합 합계 정보 조회 (포트폴리오 페이지 헤더)
+     * <ul>
+     *     <li>총 자산 합계</li>
+     *     <li>전일대비 수익 금액</li>
+     *     <li>전일대비 수익률</li>
+     * </ul>
+     * */
+    @GetMapping("/summary")
+    public ApiResponse<PortfolioSummaryResponse> getPortfolioSummary(@RequestParam Long userId) {
+        log.info("GET /api/portfolios/summary - userId: {}", userId);
+
+        PortfolioSummaryResponse response = portfolioService.getPortfolioSummary(userId);
+        return ApiResponse.success("포트폴리오 통합 정보를 조회합니다", response);
+    }
+
+    /**
+     * 새로운 포트폴리오 생성
+     * <ul>
+     *     <li>포트폴리오 기본 정보 (이름, 설명, 총 자산)</li>
+     *     <li>보유 종목 정보 (종목 코드, 이름, 수량, 가격, 비중 등)</li>
+     *     <li>투자 규칙 (리밸런싱, 손절, 익절 전략)</li>
+     * </ul>
+     * */
+    @PostMapping
+    public ApiResponse<CreatePortfolioResult> createPortfolio(
+            @Valid @RequestBody CreatePortfolioRequest request) {
+        log.info("POST /api/portfolios - name: {}", request.name());
+
+        CreatePortfolioResult data = portfolioService.createPortfolio(request);
+        return ApiResponse.success("새로운 포트폴리오를 생성합니다", data);
+    }
+
+    /**
+     * 단일 대표 포트폴리오 요약 정보 조회 (메인 페이지용)
+     * <ul>
+     *     <li>포트폴리오 이름</li>
+     *     <li>총 자산</li>
+     *     <li>보유 종목별 이름, 비중, 전일대비등락률</li>
+     *     <li>전일대비등락금액 합계</li>
+     *     <li>전일대비등락률 (추가 필요)</li>
+     * </ul>
+     * */
+    @GetMapping("/{portfolioId}/short")
+    public ApiResponse<PortfolioShortResponse> getPortfolioShort(@PathVariable Long portfolioId) {
+        log.info("GET /api/portfolios/{}/short", portfolioId);
+
+        PortfolioShortResponse response = portfolioService.getPortfolioShort(portfolioId);
+        return ApiResponse.success("대표 포트폴리오 조회", response);
+    }
+
+    /**
+     * 단일 포트폴리오 상세 정보 조회 (포트폴리오 페이지용)
+     * <ul>
+     *     <li>포트폴리오 식별자</li>
+     *     <li>보유 종목별 이름, 비중, 금액, 전일대비등락률</li>
+     *     <li>전략 문서 id</li>
+     * </ul>
+     * */
+    @GetMapping("/{portfolioId}/long")
+    public ApiResponse<PortfolioLongResponse> getPortfolioLong(@PathVariable Long portfolioId) {
+        log.info("GET /api/portfolios/{}/long", portfolioId);
+
+        PortfolioLongResponse response = portfolioService.getPortfolioLong(portfolioId);
+        return ApiResponse.success("단일 포트폴리오 조회", response);
+    }
+
+    /**
+     * 사용자 포트폴리오 리스트 조회 (포트폴리오 페이지용) - 포트폴리오 항목별 정보
+     * <ul>
+     *     <li>포트폴리오 제목</li>
+     *     <li>포트폴리오 설명</li>
+     *     <li>자산 합계</li>
+     *     <li>전일대비등락금액 합계</li>
+     *     <li>전일대비등락률 (추가 필요)</li>
+     *     <li>보유 종목별 ticker, 이름, 비중</li>
+     * </ul>
+     * */
+    @GetMapping
+    public ApiResponse<PortfolioListResponse> getPortfolioList(@RequestParam Long userId) {
+        log.info("GET /api/portfolios - userId: {}", userId);
+
+        PortfolioListResponse response = portfolioService.getPortfolioList(userId);
+        return ApiResponse.success("사용자의 포트폴리오 목록을 조회합니다", response);
+    }
 }
