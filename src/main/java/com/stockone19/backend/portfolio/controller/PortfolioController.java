@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/portfolios")
+@RequestMapping("/portfolios")
 public class PortfolioController {
 
     private final PortfolioService portfolioService;
