@@ -79,14 +79,8 @@ jobs:
   trigger-deployment:
    needs: build-and-push
    runs-on: ubuntu-latest
-   if: github.ref == 'refs/heads/main'
    
    steps:
-     - name: Debug deployment trigger
-       run: |
-         echo "Repository: StockOne19/investment-deployment"
-         echo "Token exists: ${{ secrets.DEPLOYMENT_TOKEN != '' }}"
-         echo "Image tag: ${{ steps.image-info.outputs.tag }}"
      - name: Extract single image tag
        id: image-info
        run: |
@@ -97,7 +91,7 @@ jobs:
        uses: peter-evans/repository-dispatch@v3
        with:
          token: ${{ secrets.DEPLOYMENT_TOKEN }}
-         repository: your-org/investment-deployment
+         repository: StockOne19/deploy
          event-type: api-server-updated
          client-payload: |
            {
