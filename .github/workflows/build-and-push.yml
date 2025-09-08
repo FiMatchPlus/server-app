@@ -79,7 +79,6 @@ jobs:
   trigger-deployment:
    needs: build-and-push
    runs-on: ubuntu-latest
-   if: github.ref == 'refs/heads/main'
    
    steps:
      - name: Extract single image tag
