@@ -33,6 +33,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
+          
+      # Secrets에서 application-secrets.yml 파일 생성
+      - name: Create application-secrets.yml
+        run: |
+          mkdir -p src/main/resources
+          echo '${{ secrets.SECRETS }}' > src/main/resources/application-secrets.yml
 
       - name: Run tests
         run: ./gradlew test
