@@ -8,10 +8,6 @@ public record PortfolioLongResponse(
         String ruleId
 ) {
 
-    public static ApiResponse<PortfolioLongResponse> success(String message, PortfolioLongResponse data) {
-        return ApiResponse.success(message, data);
-    }
-
     public record HoldingDetail(
             String name,
             double weight,
