@@ -2,7 +2,7 @@ name: Build and Push API Server
 
 on:
   push:
-    branches: [main]
+    branches: [main, deploy]
     paths:
       - 'src/**'
       - 'build.gradle'
@@ -82,6 +82,11 @@ jobs:
    if: github.ref == 'refs/heads/main'
    
    steps:
+     - name: Debug deployment trigger
+       run: |
+         echo "Repository: StockOne19/investment-deployment"
+         echo "Token exists: ${{ secrets.DEPLOYMENT_TOKEN != '' }}"
+         echo "Image tag: ${{ steps.image-info.outputs.tag }}"
      - name: Extract single image tag
        id: image-info
        run: |
