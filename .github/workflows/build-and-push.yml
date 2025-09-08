@@ -77,33 +77,26 @@ jobs:
           cache-to: type=gha,mode=max
           
   trigger-deployment:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Prepare safe commit message
-        id: commit
-        run: |
-          # 커밋 메시지 이스케이프 처리
-          SAFE_MESSAGE=$(echo '${{ github.event.head_commit.message }}' | \
-            head -1 | \
-            tr -d '\000-\037\177' | \
-            sed 's/"/\\"/g' | \
-            sed "s/'/\\'/g" | \
-            cut -c1-200)
-          echo "message=${SAFE_MESSAGE}" >> $GITHUB_OUTPUT
-          
-      - name: Trigger deployment
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.DEPLOYMENT_TOKEN }}
-          repository: your-org/investment-deployment
-          event-type: api-server-updated
-          client-payload: |
-            {
-              "service": "api-server",
-              "image_tag": "${{ needs.build-and-push.outputs.image-tag }}",
-              "commit_sha": "${{ github.sha }}",
-              "commit_message": "${{ steps.commit.outputs.message }}"
-            }
+   needs: build-and-push
+   runs-on: ubuntu-latest
+   if: github.ref == 'refs/heads/main'
+   
+   steps:
+     - name: Extract single image tag
+       id: image-info
+       run: |
+         FIRST_TAG=$(echo '${{ needs.build-and-push.outputs.image-tag }}' | head -1)
+         echo "tag=${FIRST_TAG}" >> $GITHUB_OUTPUT
+         
+     - name: Trigger deployment
+       uses: peter-evans/repository-dispatch@v3
+       with:
+         token: ${{ secrets.DEPLOYMENT_TOKEN }}
+         repository: your-org/investment-deployment
+         event-type: api-server-updated
+         client-payload: |
+           {
+             "service": "api-server",
+             "image_tag": "${{ steps.image-info.outputs.tag }}",
+             "commit_sha": "${{ github.sha }}"
+           }
