@@ -1,6 +1,6 @@
 spring:
   application:
-    name: backendtest
+    name: backend
   profiles:
     active: prod
     include: secrets
