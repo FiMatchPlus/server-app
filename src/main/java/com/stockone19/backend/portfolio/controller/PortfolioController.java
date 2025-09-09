@@ -37,7 +37,7 @@ public class PortfolioController {
      * <ul>
      *     <li>포트폴리오 기본 정보 (이름, 설명, 총 자산)</li>
      *     <li>보유 종목 정보 (종목 코드, 이름, 수량, 가격, 비중 등)</li>
-     *     <li>투자 규칙 (리밸런싱, 손절, 익절 전략)</li>
+     *     <li>매매 규칙 (리밸런싱, 손절, 익절 전략)</li>
      * </ul>
      * */
     @PostMapping
