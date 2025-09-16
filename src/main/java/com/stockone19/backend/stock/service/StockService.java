@@ -38,10 +38,7 @@ public class StockService {
         List<StockPrice> latestPrices = findLatestPricesByTickers(tickers);
         List<StockPriceResponse.StockPriceData> priceDataList = convertToStockPriceDataList(stocks, latestPrices);
 
-        return StockPriceResponse.success(
-                "주식 가격 정보를 성공적으로 조회했습니다.",
-                priceDataList
-        );
+        return StockPriceResponse.success(priceDataList);
     }
 
     public StockPriceResponse getCurrentPriceForSingle(String ticker) {
@@ -73,7 +70,7 @@ public class StockService {
                 )
         );
 
-        return StockPriceResponse.success("단일 종목 현재가를 조회했습니다.", data);
+        return StockPriceResponse.success(data);
     }
 
     private double parseDouble(Object value) {

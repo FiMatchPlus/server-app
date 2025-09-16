@@ -6,19 +6,12 @@ import java.time.Instant;
 import java.util.List;
 
 public record StockPriceResponse(
-        String status,
-        String message,
-        @JsonFormat(shape = JsonFormat.Shape.STRING)
-        Instant timestamp,
         MarketStatus marketStatus,
         List<StockPriceData> data
 ) {
 
-    public static StockPriceResponse success(String message, List<StockPriceData> data) {
+    public static StockPriceResponse success(List<StockPriceData> data) {
         return new StockPriceResponse(
-                "success",
-                message,
-                Instant.now(),
                 MarketStatus.current(),
                 data
         );
