@@ -27,7 +27,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             rs.getString("name"),
             rs.getString("description"),
             rs.getString("rule_id"),
-            rs.getBoolean("is_main"),
+            "Y".equals(rs.getString("is_main")),
             rs.getTimestamp("created_at").toLocalDateTime(),
             rs.getTimestamp("updated_at").toLocalDateTime(),
             rs.getLong("user_id")
@@ -58,7 +58,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id
             FROM portfolios
             WHERE user_id = ?
-            ORDER BY is_main DESC, created_at DESC
+            ORDER BY CASE WHEN is_main = 'Y' THEN 0 ELSE 1 END, created_at DESC
             """;
 
         return jdbcTemplate.query(sql, PORTFOLIO_ROW_MAPPER, userId);
@@ -81,7 +81,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         String sql = """
             SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id
             FROM portfolios
-            WHERE user_id = ? AND is_main = true
+            WHERE user_id = ? AND is_main = 'Y'
             """;
 
         List<Portfolio> results = jdbcTemplate.query(sql, PORTFOLIO_ROW_MAPPER, userId);
@@ -109,7 +109,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             ps.setString(1, portfolio.name());
             ps.setString(2, portfolio.description());
             ps.setString(3, portfolio.ruleId());
-            ps.setBoolean(4, portfolio.isMain());
+            ps.setString(4, portfolio.isMain() ? "Y" : "N");
             ps.setTimestamp(5, java.sql.Timestamp.valueOf(portfolio.createdAt()));
             ps.setTimestamp(6, java.sql.Timestamp.valueOf(portfolio.updatedAt()));
             ps.setLong(7, portfolio.userId());
@@ -132,7 +132,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
 
         jdbcTemplate.update(sql,
                 portfolio.name(), portfolio.description(), portfolio.ruleId(),
-                portfolio.isMain(), java.sql.Timestamp.valueOf(portfolio.updatedAt()), portfolio.id()
+                portfolio.isMain() ? "Y" : "N", java.sql.Timestamp.valueOf(portfolio.updatedAt()), portfolio.id()
         );
 
         return portfolio;
