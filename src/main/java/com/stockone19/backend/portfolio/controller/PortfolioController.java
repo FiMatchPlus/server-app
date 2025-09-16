@@ -59,11 +59,12 @@ public class PortfolioController {
      *     <li>전일대비등락률 (추가 필요)</li>
      * </ul>
      * */
-    @GetMapping("/{portfolioId}/short")
-    public ApiResponse<PortfolioShortResponse> getPortfolioShort(@PathVariable Long portfolioId) {
-        log.info("GET /api/portfolios/{}/short", portfolioId);
+    @GetMapping("/main")
+    public ApiResponse<PortfolioShortResponse> getPortfolioShort() {
+        Long userId = 1L; // 고정된 userId 값 (나중에 인증/인가 로직 추가 예정)
+        log.info("GET /api/portfolios/main - userId: {}", userId);
 
-        PortfolioShortResponse response = portfolioService.getPortfolioShort(portfolioId);
+        PortfolioShortResponse response = portfolioService.getMainPortfolioShort(userId);
         return ApiResponse.success("대표 포트폴리오 조회", response);
     }
 

@@ -144,6 +144,21 @@ public class PortfolioService {
     }
 
     /**
+     * 사용자의 메인 포트폴리오 요약 정보 조회 (일간 변동률 포함)
+     *
+     * @param userId 사용자 식별자
+     * @return 해당 사용자의 메인 포트폴리오 요약 정보 (이름, 총 가치, 보유 종목 요약, 일간 변동률)
+     */
+    public PortfolioShortResponse getMainPortfolioShort(Long userId) {
+        log.info("Getting main portfolio short info for userId: {}", userId);
+
+        Portfolio mainPortfolio = portfolioRepository.findMainPortfolioByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Main Portfolio", "userId", userId));
+
+        return getPortfolioShort(mainPortfolio.id());
+    }
+
+    /**
      * 포트폴리오 요약 정보 조회 (일간 변동률 포함)
      *
      * @param portfolioId 포트폴리오 식별자
