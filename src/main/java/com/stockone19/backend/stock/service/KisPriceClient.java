@@ -1,13 +1,16 @@
 package com.stockone19.backend.stock.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Component
 public class KisPriceClient {
 
@@ -44,10 +47,21 @@ public class KisPriceClient {
                 .header("tr_id", "FHKST01010100")
                 .header("custtype", "P")
                 .retrieve()
+                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                        response -> logAndExtractError(response))
                 .bodyToMono(KisQuoteResponse.class);
 
         KisQuoteResponse body = responseMono.block();
         return body;
+    }
+
+    private Mono<Throwable> logAndExtractError(ClientResponse response) {
+        return response.bodyToMono(String.class)
+                .defaultIfEmpty("")
+                .map(body -> {
+                    log.error("KIS inquire-price error: status={}, body={}", response.statusCode(), body);
+                    return new RuntimeException("KIS API error: " + response.statusCode());
+                });
     }
 
 }
