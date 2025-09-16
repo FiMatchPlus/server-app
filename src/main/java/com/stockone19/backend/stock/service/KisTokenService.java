@@ -46,7 +46,7 @@ public class KisTokenService {
                 .uri("/oauth2/tokenP")
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE + "; charset=" + StandardCharsets.UTF_8)
                 .body(BodyInserters.fromValue(Map.of(
-                        "grant_type", "Bearer",
+                        "grant_type", "client_credentials",
                         "appkey", appKey,
                         "appsecret", appSecret
                 )))

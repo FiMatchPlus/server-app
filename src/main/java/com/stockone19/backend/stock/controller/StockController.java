@@ -108,6 +108,9 @@ public class StockController {
 
     /**
      * 단일 종목 현재가 조회
+     * <ul>
+     *     <li>종목 선택 카드</li>
+     * </ul>
      */
     @GetMapping("/now")
     public ApiResponse<StockPriceResponse> getCurrentPriceNow(
