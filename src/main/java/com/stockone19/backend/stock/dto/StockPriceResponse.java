@@ -45,7 +45,8 @@ public record StockPriceResponse(
             double currentPrice,
             double previousClose,
             double dailyRate,
-            double dailyChange
+            double dailyChange,
+            double marketCap
     ) {}
 }
 

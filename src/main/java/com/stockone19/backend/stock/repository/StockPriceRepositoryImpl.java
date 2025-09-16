@@ -100,6 +100,25 @@ public class StockPriceRepositoryImpl implements StockPriceRepository {
                 stockCodes.toArray(), intervalUnit
         );
     }
+
+    @Override
+    public java.math.BigDecimal findLatestClosePriceByTicker(String ticker) {
+        String sql = """
+            SELECT close_price
+            FROM stock_prices
+            WHERE stock_code = ?
+            ORDER BY datetime DESC
+            LIMIT 1
+            """;
+
+        List<java.math.BigDecimal> results = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> rs.getBigDecimal("close_price"),
+                ticker
+        );
+
+        return results.isEmpty() ? java.math.BigDecimal.ZERO : results.get(0);
+    }
 }
 
 

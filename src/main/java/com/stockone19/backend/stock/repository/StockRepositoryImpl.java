@@ -38,9 +38,7 @@ public class StockRepositoryImpl implements StockRepository {
     private static final RowMapper<StockSearchResult> STOCK_SEARCH_RESULT_ROW_MAPPER = (rs, rowNum) -> StockSearchResult.of(
             rs.getString("ticker"),
             rs.getString("name"),
-            rs.getString("industry_name"),
-            rs.getBigDecimal("price"),
-            rs.getBigDecimal("change_percent")
+            rs.getString("industry_name")
     );
 
     @Override
@@ -145,9 +143,7 @@ public class StockRepositoryImpl implements StockRepository {
     @Override
     public List<StockSearchResult> searchByNameOrTickerWithPrice(String keyword, int limit) {
         String sql = """
-                SELECT s.ticker, s.name, s.industry_name,
-                       0 as price,
-                       0 as change_percent
+                SELECT s.ticker, s.name, s.industry_name
                 FROM stocks s
                 WHERE s.is_active = ?
                   AND (LOWER(s.ticker) LIKE LOWER(?)
