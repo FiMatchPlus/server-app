@@ -1,9 +1,8 @@
 package com.stockone19.backend.portfolio.service;
 
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
-import com.stockone19.backend.portfolio.domain.HoldingSnapshot;
+import com.stockone19.backend.portfolio.domain.Holding;
 import com.stockone19.backend.portfolio.domain.Portfolio;
-import com.stockone19.backend.portfolio.domain.PortfolioSnapshot;
 import com.stockone19.backend.portfolio.domain.Rules;
 import com.stockone19.backend.portfolio.dto.*;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
@@ -44,16 +43,13 @@ public class PortfolioService {
         double totalDailyChange = 0.0;
 
         for (Portfolio portfolio : portfolios) {
-            PortfolioSnapshot snapshot = portfolioRepository.findLatestSnapshotByPortfolioId(portfolio.id())
-                    .orElse(null);
-
-            if (snapshot != null) {
-                totalAssets += snapshot.currentValue();
-                totalDailyChange += snapshot.getDailyChange();
-                // 가중 평균으로 수익률 계산
-                if (totalAssets > 0) {
-                    totalDailyReturn += (snapshot.getDailyReturn() * snapshot.currentValue() / totalAssets);
-                }
+            List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolio.id());
+            PortfolioTotals totals = computeTotalsFromHoldings(holdings);
+            totalAssets += totals.totalAssets;
+            totalDailyChange += totals.dailyChange;
+            // 가중 평균 수익률 계산 (총합 기준)
+            if (totals.totalAssets > 0) {
+                totalDailyReturn += (totals.dailyReturnPercent * totals.totalAssets / Math.max(totalAssets, 1e-9));
             }
         }
 
@@ -96,8 +92,22 @@ public class PortfolioService {
         );
         Portfolio savedPortfolio = portfolioRepository.save(portfolio);
 
-        // 초기 생성 시에는 snapshot/holding_snapshots를 생성하지 않음
-        log.info("Skipping initial snapshot and holdings persistence at portfolio creation.");
+        // 3. holdings 테이블에 보유 종목 저장
+        if (request.holdings() != null && !request.holdings().isEmpty()) {
+            for (CreatePortfolioRequest.HoldingRequest holdingRequest : request.holdings()) {
+                Holding holding = Holding.create(
+                        savedPortfolio.id(),
+                        holdingRequest.symbol(),
+                        holdingRequest.shares(),
+                        holdingRequest.currentPrice(),
+                        holdingRequest.totalValue(),
+                        holdingRequest.change(),
+                        holdingRequest.changePercent(),
+                        holdingRequest.weight()
+                );
+                portfolioRepository.saveHolding(holding);
+            }
+        }
 
         return new CreatePortfolioResult(
                 savedPortfolio.id(),
@@ -158,27 +168,25 @@ public class PortfolioService {
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
 
-        PortfolioSnapshot latestSnapshot = portfolioRepository.findLatestSnapshotByPortfolioId(portfolioId)
-                .orElseThrow(() -> new ResourceNotFoundException("PortfolioSnapshot", "portfolioId", portfolioId));
-
-        List<HoldingSnapshot> holdings = portfolioRepository.findHoldingsBySnapshotId(latestSnapshot.id());
+        List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
 
         List<PortfolioShortResponse.HoldingSummary> holdingSummaries = holdings.stream()
                 .map(this::createHoldingSummary)
                 .collect(Collectors.toList());
 
+        PortfolioTotals totals = computeTotalsFromHoldings(holdings);
         return new PortfolioShortResponse(
                 portfolio.name(),
-                latestSnapshot.currentValue(),
+                totals.totalAssets,
                 holdingSummaries,
-                latestSnapshot.getDailyChange()
+                totals.dailyChange
         );
     }
 
-    private PortfolioShortResponse.HoldingSummary createHoldingSummary(HoldingSnapshot holding) {
+    private PortfolioShortResponse.HoldingSummary createHoldingSummary(Holding holding) {
         try {
             // Stock 정보를 PostgreSQL에서 가져오기
-            Stock stock = stockService.getStockByTicker(holding.stockCode());
+            Stock stock = stockService.getStockByTicker(holding.symbol());
 
             // 현재가 정보를 가져와서 dailyRate 계산
             double currentPrice = stockService.getCurrentPrice(stock.ticker());
@@ -191,7 +199,7 @@ public class PortfolioService {
                     dailyRate
             );
         } catch (Exception e) {
-            log.warn("Failed to get stock information for holding: {}, error: {}", holding.stockCode(), e.getMessage());
+            log.warn("Failed to get stock information for holding: {}, error: {}", holding.symbol(), e.getMessage());
             return new PortfolioShortResponse.HoldingSummary(
                     "Unknown Stock",
                     holding.weight(),
@@ -205,7 +213,6 @@ public class PortfolioService {
         return ((currentPrice - previousClose) / previousClose) * 100;
     }
 
-    // todo: Rules 조회해서 Response에 추가
     /**
      * 포트폴리오 상세 정보 조회 (보유 종목 상세 포함)
      *
@@ -218,10 +225,7 @@ public class PortfolioService {
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
 
-        PortfolioSnapshot latestSnapshot = portfolioRepository.findLatestSnapshotByPortfolioId(portfolioId)
-                .orElseThrow(() -> new ResourceNotFoundException("PortfolioSnapshot", "portfolioId", portfolioId));
-
-        List<HoldingSnapshot> holdings = portfolioRepository.findHoldingsBySnapshotId(latestSnapshot.id());
+        List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
 
         List<PortfolioLongResponse.HoldingDetail> holdingDetails = holdings.stream()
                 .map(this::createHoldingDetail)
@@ -234,10 +238,10 @@ public class PortfolioService {
         );
     }
 
-    private PortfolioLongResponse.HoldingDetail createHoldingDetail(HoldingSnapshot holding) {
+    private PortfolioLongResponse.HoldingDetail createHoldingDetail(Holding holding) {
         try {
             // Stock 정보를 PostgreSQL에서 가져오기
-            Stock stock = stockService.getStockByTicker(holding.stockCode());
+            Stock stock = stockService.getStockByTicker(holding.symbol());
 
             // 현재가 정보를 가져와서 dailyRate 계산
             double currentPrice = stockService.getCurrentPrice(stock.ticker());
@@ -247,15 +251,15 @@ public class PortfolioService {
             return new PortfolioLongResponse.HoldingDetail(
                     stock.name(),
                     holding.weight(),
-                    holding.value(),
+                    holding.totalValue(),
                     dailyRate
             );
         } catch (Exception e) {
-            log.warn("Failed to get stock information for holding: {}, error: {}", holding.stockCode(), e.getMessage());
+            log.warn("Failed to get stock information for holding: {}, error: {}", holding.symbol(), e.getMessage());
             return new PortfolioLongResponse.HoldingDetail(
                     "Unknown Stock",
                     holding.weight(),
-                    holding.value(),
+                    holding.totalValue(),
                     0.0
             );
         }
@@ -280,12 +284,11 @@ public class PortfolioService {
     }
 
     private PortfolioListResponse.PortfolioListItem createPortfolioListItem(Portfolio portfolio) {
-        PortfolioSnapshot snapshot = portfolioRepository.findLatestSnapshotByPortfolioId(portfolio.id())
-                .orElse(null);
-
-        double totalAssets = snapshot != null ? snapshot.currentValue() : 0.0;
-        double dailyRate = snapshot != null ? snapshot.getDailyReturn() : 0.0;
-        double dailyChange = snapshot != null ? snapshot.getDailyChange() : 0.0;
+        List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolio.id());
+        PortfolioTotals totals = computeTotalsFromHoldings(holdings);
+        double totalAssets = totals.totalAssets;
+        double dailyRate = totals.dailyReturnPercent;
+        double dailyChange = totals.dailyChange;
 
         // Holding stocks 정보 가져오기
         List<PortfolioListResponse.HoldingStock> holdingStocks = getHoldingStocks(portfolio.id());
@@ -302,26 +305,19 @@ public class PortfolioService {
 
     private List<PortfolioListResponse.HoldingStock> getHoldingStocks(Long portfolioId) {
         try {
-            PortfolioSnapshot latestSnapshot = portfolioRepository.findLatestSnapshotByPortfolioId(portfolioId)
-                    .orElse(null);
-
-            if (latestSnapshot == null) {
-                return List.of();
-            }
-
-            List<HoldingSnapshot> holdings = portfolioRepository.findHoldingsBySnapshotId(latestSnapshot.id());
+            List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
 
             return holdings.stream()
                     .map(holding -> {
                         try {
-                            Stock stock = stockService.getStockByTicker(holding.stockCode());
+                            Stock stock = stockService.getStockByTicker(holding.symbol());
                             return new PortfolioListResponse.HoldingStock(
                                     stock.ticker(),
                                     stock.name(),
                                     holding.weight()
                             );
                         } catch (Exception e) {
-                            log.warn("Failed to get stock information for holding: {}, error: {}", holding.stockCode(), e.getMessage());
+                            log.warn("Failed to get stock information for holding: {}, error: {}", holding.symbol(), e.getMessage());
                             return new PortfolioListResponse.HoldingStock(
                                     "Unknown",
                                     "Unknown Stock",
@@ -334,5 +330,34 @@ public class PortfolioService {
             log.warn("Failed to get holding stocks for portfolio: {}, error: {}", portfolioId, e.getMessage());
             return List.of();
         }
+    }
+
+    private static class PortfolioTotals {
+        final double totalAssets;
+        final double dailyChange;
+        final double dailyReturnPercent;
+
+        PortfolioTotals(double totalAssets, double dailyChange, double dailyReturnPercent) {
+            this.totalAssets = totalAssets;
+            this.dailyChange = dailyChange;
+            this.dailyReturnPercent = dailyReturnPercent;
+        }
+    }
+
+    private PortfolioTotals computeTotalsFromHoldings(List<Holding> holdings) {
+        double totalAssets = 0.0;
+        double dailyChange = 0.0;
+        for (Holding holding : holdings) {
+            try {
+                double currentPrice = stockService.getCurrentPrice(holding.symbol());
+                double previousClose = stockService.getPreviousClose(holding.symbol());
+                totalAssets += currentPrice * holding.shares();
+                dailyChange += (currentPrice - previousClose) * holding.shares();
+            } catch (Exception e) {
+                log.warn("Failed to compute metrics for holding: {} - {}", holding.symbol(), e.getMessage());
+            }
+        }
+        double dailyReturnPercent = totalAssets > 0 ? (dailyChange / totalAssets) * 100 : 0.0;
+        return new PortfolioTotals(totalAssets, dailyChange, dailyReturnPercent);
     }
 }

@@ -2,7 +2,7 @@ package com.stockone19.backend.portfolio.repository;
 
 import com.stockone19.backend.portfolio.domain.Portfolio;
 import com.stockone19.backend.portfolio.domain.PortfolioSnapshot;
-import com.stockone19.backend.portfolio.domain.HoldingSnapshot;
+import com.stockone19.backend.portfolio.domain.Holding;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -33,23 +33,20 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             rs.getLong("user_id")
     );
 
-    private static final RowMapper<PortfolioSnapshot> SNAPSHOT_ROW_MAPPER = (rs, rowNum) -> PortfolioSnapshot.of(
-            rs.getLong("id"),
-            rs.getTimestamp("recorded_at").toLocalDateTime(),
-            rs.getDouble("base_value"),
-            rs.getDouble("current_value"),
-            rs.getLong("portfolio_id")
-    );
+    
 
-    private static final RowMapper<HoldingSnapshot> HOLDING_ROW_MAPPER = (rs, rowNum) -> HoldingSnapshot.of(
+    private static final RowMapper<Holding> HOLDING_ROW_MAPPER = (rs, rowNum) -> Holding.of(
             rs.getLong("id"),
-            rs.getTimestamp("recorded_at").toLocalDateTime(),
-            rs.getDouble("price"),
-            rs.getInt("quantity"),
-            rs.getDouble("value"),
+            rs.getLong("portfolio_id"),
+            rs.getString("symbol"),
+            rs.getInt("shares"),
+            rs.getDouble("current_price"),
+            rs.getDouble("total_value"),
+            (Double) rs.getObject("change_amount"),
+            (Double) rs.getObject("change_percent"),
             rs.getDouble("weight"),
-            rs.getLong("portfolio_snapshot_id"),
-            rs.getString("stock_id")
+            rs.getTimestamp("created_at").toLocalDateTime(),
+            rs.getTimestamp("updated_at").toLocalDateTime()
     );
 
     @Override
@@ -138,41 +135,8 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         return portfolio;
     }
 
-    @Override
-    public List<PortfolioSnapshot> findSnapshotsByPortfolioId(Long portfolioId) {
-        String sql = """
-            SELECT id, recorded_at, base_value, current_value, portfolio_id
-            FROM portfolio_snapshots
-            WHERE portfolio_id = ?
-            ORDER BY recorded_at DESC
-            """;
-
-        return jdbcTemplate.query(sql, SNAPSHOT_ROW_MAPPER, portfolioId);
-    }
-
-    @Override
-    public Optional<PortfolioSnapshot> findLatestSnapshotByPortfolioId(Long portfolioId) {
-        String sql = """
-            SELECT id, recorded_at, base_value, current_value, portfolio_id
-            FROM portfolio_snapshots
-            WHERE portfolio_id = ?
-            ORDER BY recorded_at DESC
-            LIMIT 1
-            """;
-
-        List<PortfolioSnapshot> results = jdbcTemplate.query(sql, SNAPSHOT_ROW_MAPPER, portfolioId);
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-    }
-
-    @Override
-    public PortfolioSnapshot saveSnapshot(PortfolioSnapshot snapshot) {
-        if (snapshot.id() == null) {
-            return insertSnapshot(snapshot);
-        } else {
-            return updateSnapshot(snapshot);
-        }
-    }
-
+    // snapshots are not used in current implementation
+    @SuppressWarnings("unused")
     private PortfolioSnapshot insertSnapshot(PortfolioSnapshot snapshot) {
         String sql = """
             INSERT INTO portfolio_snapshots (recorded_at, base_value, current_value, portfolio_id)
@@ -195,6 +159,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         );
     }
 
+    @SuppressWarnings("unused")
     private PortfolioSnapshot updateSnapshot(PortfolioSnapshot snapshot) {
         String sql = """
             UPDATE portfolio_snapshots
@@ -210,52 +175,46 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         return snapshot;
     }
 
-    @Override
-    public List<HoldingSnapshot> findHoldingsBySnapshotId(Long snapshotId) {
+    public Holding saveHolding(Holding holding) {
         String sql = """
-            SELECT id, recorded_at, price, quantity, value, weight, portfolio_snapshot_id, stock_id
-            FROM holding_snapshots
-            WHERE portfolio_snapshot_id = ?
-            ORDER BY weight DESC
-            """;
-
-        return jdbcTemplate.query(sql, HOLDING_ROW_MAPPER, snapshotId);
-    }
-
-    @Override
-    public HoldingSnapshot saveHolding(HoldingSnapshot holding) {
-        if (holding.id() == null) {
-            return insertHolding(holding);
-        } else {
-            return updateHolding(holding);
-        }
-    }
-
-    private HoldingSnapshot insertHolding(HoldingSnapshot holding) {
-        String sql = """
-            INSERT INTO holding_snapshots (recorded_at, price, quantity, value, weight, portfolio_snapshot_id, stock_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO holdings (portfolio_id, symbol, shares, current_price, total_value, change_amount, change_percent, weight, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setTimestamp(1, java.sql.Timestamp.valueOf(holding.recordedAt()));
-            ps.setDouble(2, holding.price());
-            ps.setInt(3, holding.quantity());
-            ps.setDouble(4, holding.value());
-            ps.setDouble(5, holding.weight());
-            ps.setLong(6, holding.portfolioSnapshotId());
-            ps.setString(7, holding.stockCode());
+            ps.setLong(1, holding.portfolioId());
+            ps.setString(2, holding.symbol());
+            ps.setInt(3, holding.shares());
+            ps.setDouble(4, holding.currentPrice());
+            ps.setDouble(5, holding.totalValue());
+            if (holding.changeAmount() == null) ps.setNull(6, java.sql.Types.NUMERIC); else ps.setDouble(6, holding.changeAmount());
+            if (holding.changePercent() == null) ps.setNull(7, java.sql.Types.NUMERIC); else ps.setDouble(7, holding.changePercent());
+            ps.setDouble(8, holding.weight());
+            ps.setTimestamp(9, java.sql.Timestamp.valueOf(holding.createdAt()));
+            ps.setTimestamp(10, java.sql.Timestamp.valueOf(holding.updatedAt()));
             return ps;
         }, keyHolder);
 
         Long id = extractGeneratedId(keyHolder);
-        return HoldingSnapshot.of(
-                id, holding.recordedAt(), holding.price(), holding.quantity(),
-                holding.value(), holding.weight(), holding.portfolioSnapshotId(), holding.stockCode()
+        return Holding.of(
+                id, holding.portfolioId(), holding.symbol(), holding.shares(), holding.currentPrice(), holding.totalValue(),
+                holding.changeAmount(), holding.changePercent(), holding.weight(), holding.createdAt(), holding.updatedAt()
         );
     }
+
+    public List<Holding> findHoldingsByPortfolioId(Long portfolioId) {
+        String sql = """
+            SELECT id, portfolio_id, symbol, shares, current_price, total_value, change_amount, change_percent, weight, created_at, updated_at
+            FROM holdings
+            WHERE portfolio_id = ?
+            ORDER BY weight DESC
+            """;
+        return jdbcTemplate.query(sql, HOLDING_ROW_MAPPER, portfolioId);
+    }
+
+    
 
     private static Long extractGeneratedId(KeyHolder keyHolder) {
         if (keyHolder == null) {
@@ -308,20 +267,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         throw new IllegalStateException("Could not retrieve generated id from KeyHolder");
     }
 
-    private HoldingSnapshot updateHolding(HoldingSnapshot holding) {
-        String sql = """
-            UPDATE holding_snapshots
-            SET recorded_at = ?, price = ?, quantity = ?, value = ?, weight = ?
-            WHERE id = ?
-            """;
-
-        jdbcTemplate.update(sql,
-                java.sql.Timestamp.valueOf(holding.recordedAt()),
-                holding.price(), holding.quantity(), holding.value(), holding.weight(), holding.id()
-        );
-
-        return holding;
-    }
+    
 }
 
 
