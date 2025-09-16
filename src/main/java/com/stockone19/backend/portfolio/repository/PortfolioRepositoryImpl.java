@@ -35,19 +35,26 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
 
     
 
-    private static final RowMapper<Holding> HOLDING_ROW_MAPPER = (rs, rowNum) -> Holding.of(
-            rs.getLong("id"),
-            rs.getLong("portfolio_id"),
-            rs.getString("symbol"),
-            rs.getInt("shares"),
-            rs.getDouble("current_price"),
-            rs.getDouble("total_value"),
-            (Double) rs.getObject("change_amount"),
-            (Double) rs.getObject("change_percent"),
-            rs.getDouble("weight"),
-            rs.getTimestamp("created_at").toLocalDateTime(),
-            rs.getTimestamp("updated_at").toLocalDateTime()
-    );
+    private static final RowMapper<Holding> HOLDING_ROW_MAPPER = (rs, rowNum) -> {
+        java.math.BigDecimal changeAmount = rs.getBigDecimal("change_amount");
+        java.math.BigDecimal changePercent = rs.getBigDecimal("change_percent");
+        Double changeAmountVal = changeAmount != null ? changeAmount.doubleValue() : null;
+        Double changePercentVal = changePercent != null ? changePercent.doubleValue() : null;
+
+        return Holding.of(
+                rs.getLong("id"),
+                rs.getLong("portfolio_id"),
+                rs.getString("symbol"),
+                rs.getInt("shares"),
+                rs.getDouble("current_price"),
+                rs.getDouble("total_value"),
+                changeAmountVal,
+                changePercentVal,
+                rs.getDouble("weight"),
+                rs.getTimestamp("created_at").toLocalDateTime(),
+                rs.getTimestamp("updated_at").toLocalDateTime()
+        );
+    };
 
     @Override
     public List<Portfolio> findByUserId(Long userId) {
