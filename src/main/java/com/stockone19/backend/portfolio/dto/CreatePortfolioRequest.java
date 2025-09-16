@@ -1,5 +1,4 @@
 package com.stockone19.backend.portfolio.dto;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -19,7 +18,6 @@ public record CreatePortfolioRequest(
         @NotNull(message = "보유 종목은 필수입니다")
         List<HoldingRequest> holdings,
 
-        @NotNull(message = "규칙은 필수입니다")
         RulesRequest rules
 ) {
 

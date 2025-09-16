@@ -75,16 +75,22 @@ public class PortfolioService {
         Long userId = 1L; // 고정된 userId 값
         log.info("Creating portfolio for userId: {}, name: {}", userId, request.name());
 
-        // 1. Rules를 MongoDB에 저장
-        Rules rules = createRulesFromRequest(request.rules());
-        Rules savedRules = rulesRepository.save(rules);
-        log.info("Rules saved to MongoDB with id: {}", savedRules.getId());
+        // 1. Rules를 MongoDB에 저장 (선택 사항)
+        String ruleId = null;
+        if (request.rules() != null) {
+            Rules rules = createRulesFromRequest(request.rules());
+            Rules savedRules = rulesRepository.save(rules);
+            ruleId = savedRules.getId();
+            log.info("Rules saved to MongoDB with id: {}", ruleId);
+        } else {
+            log.info("No rules provided. Skipping rules save.");
+        }
 
         // 2. Portfolio 생성 (MongoDB에서 받은 ruleId 사용)
         Portfolio portfolio = Portfolio.create(
                 request.name(),
                 request.description(),
-                savedRules.getId(), // MongoDB에서 받은 ruleId
+                ruleId, // MongoDB에서 받은 ruleId (없을 수 있음)
                 false, // 새로 생성하는 포트폴리오는 메인 포트폴리오가 아님
                 userId
         );
@@ -138,6 +144,9 @@ public class PortfolioService {
     }
 
     private static List<Rules.RuleItem> getRuleItems(List<CreatePortfolioRequest.RuleItemRequest> rulesRequest) {
+        if (rulesRequest == null) {
+            return List.of();
+        }
         return rulesRequest.stream()
                 .map(item -> new Rules.RuleItem(item.category(), item.threshold(), item.description()))
                 .collect(Collectors.toList());
