@@ -9,6 +9,7 @@ import com.stockone19.backend.stock.repository.StockRepository;
 import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.domain.StockPrice;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,16 +18,19 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 public class StockService {
 
     private final StockRepository stockRepository;
     private final StockPriceRepository stockPriceRepository;
+    private final KisPriceClient kisPriceClient;
 
-    public StockService(StockRepository stockRepository, StockPriceRepository stockPriceRepository) {
+    public StockService(StockRepository stockRepository, StockPriceRepository stockPriceRepository, KisPriceClient kisPriceClient) {
         this.stockRepository = stockRepository;
         this.stockPriceRepository = stockPriceRepository;
+        this.kisPriceClient = kisPriceClient;
     }
 
     public StockPriceResponse getStockPrices(List<String> tickers) {
@@ -38,6 +42,82 @@ public class StockService {
                 "주식 가격 정보를 성공적으로 조회했습니다.",
                 priceDataList
         );
+    }
+
+    public StockPriceResponse getCurrentPriceForSingle(String ticker) {
+        Stock stock = getStockByTicker(ticker);
+
+        KisQuoteResponse quote = kisPriceClient.fetchQuote(ticker);
+        java.util.Map<String, Object> out = quote != null ? quote.output() : null;
+        if (out == null) {
+            throw new RuntimeException("KIS quote response is empty");
+        }
+
+        KisParsed parsed = parseKisOutput(out);
+        log.info(
+                "KIS quote - status: {}, name: {}, prpr: {}, vrss: {}, sign: {}, ctrt: {}, mcap: {}",
+                parsed.status, parsed.korName, parsed.currentPrice, parsed.dailyChange, parsed.sign, parsed.dailyRate, parsed.marketCap
+        );
+
+        double previousClose = stockPriceRepository.findLatestClosePriceByTicker(ticker).doubleValue();
+
+        List<StockPriceResponse.StockPriceData> data = List.of(
+                new StockPriceResponse.StockPriceData(
+                        stock.ticker(),
+                        stock.name(),
+                        parsed.currentPrice,
+                        previousClose,
+                        parsed.dailyRate,
+                        parsed.dailyChange,
+                        parsed.marketCap
+                )
+        );
+
+        return StockPriceResponse.success("단일 종목 현재가를 조회했습니다.", data);
+    }
+
+    private double parseDouble(Object value) {
+        if (value == null) return 0.0;
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
+
+    private KisParsed parseKisOutput(java.util.Map<String, Object> out) {
+        KisParsed parsed = new KisParsed();
+        parsed.currentPrice = parseDouble(out.get("stck_prpr"));
+        String signCode = String.valueOf(out.get("prdy_vrss_sign"));
+        double multiplier = signToMultiplier(signCode);
+        parsed.dailyChange = parseDouble(out.get("prdy_vrss")) * multiplier;
+        parsed.dailyRate = parseDouble(out.get("prdy_ctrt")) * multiplier;
+        parsed.marketCap = parseDouble(out.get("hts_avls"));
+        parsed.status = String.valueOf(out.get("iscd_stat_cls_code"));
+        parsed.korName = String.valueOf(out.get("bstp_kor_isnm"));
+        parsed.sign = signCode;
+        return parsed;
+    }
+
+    private static class KisParsed {
+        double currentPrice;
+        double dailyChange;
+        double dailyRate;
+        double marketCap;
+        String status;
+        String korName;
+        String sign;
+    }
+
+    private double signToMultiplier(String signCode) {
+        if (signCode == null) return 1.0;
+        // KIS 관례: 1/2(상한/상승)=+, 3(보합)=0 영향, 4/5(하락/하한)=-
+        return switch (signCode) {
+            case "1", "2" -> 1.0;
+            case "4", "5" -> -1.0;
+            case "3" -> 0.0;
+            default -> 1.0;
+        };
     }
 
     public StockDetailResponse getStockDetail(String ticker, String interval) {
@@ -83,9 +163,7 @@ public class StockService {
                 .map(result -> StockSearchResponse.StockSearchData.of(
                         result.ticker(),
                         result.name(),
-                        result.industryName(),
-                        result.price().doubleValue(),
-                        result.changePercent().doubleValue()
+                        result.industryName()
                 ))
                 .collect(Collectors.toList());
 
@@ -171,7 +249,8 @@ public class StockService {
         return new StockPriceResponse.StockPriceData(
                 stock.ticker(),
                 stock.name(),
-                0.0, 0.0, 0.0, 0.0
+                0.0, 0.0, 0.0, 0.0,
+                0.0
         );
     }
 
@@ -187,7 +266,8 @@ public class StockService {
                 currentPrice,
                 previousClose,
                 dailyRate,
-                dailyChange
+                dailyChange,
+                0.0
         );
     }
 

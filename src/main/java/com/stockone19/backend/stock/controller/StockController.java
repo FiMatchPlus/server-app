@@ -105,4 +105,16 @@ public class StockController {
         StockSearchResponse response = stockService.searchStocks(keyword, limit);
         return ApiResponse.success("종목 검색이 완료되었습니다", response);
     }
+
+    /**
+     * 단일 종목 현재가 조회
+     */
+    @GetMapping("/now")
+    public ApiResponse<StockPriceResponse> getCurrentPriceNow(
+            @RequestParam("code") String code
+    ) {
+        log.info("GET /api/stocks/now - code: {}", code);
+        StockPriceResponse response = stockService.getCurrentPriceForSingle(code);
+        return ApiResponse.success("단일 종목의 현재가를 조회합니다", response);
+    }
 }

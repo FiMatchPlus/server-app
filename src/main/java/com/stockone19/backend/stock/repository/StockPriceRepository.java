@@ -42,6 +42,11 @@ public interface StockPriceRepository {
      * @return 주식 가격 히스토리 목록
      */
     List<StockPrice> findLatestByStockIdsAndInterval(List<String> stockCodes, String intervalUnit);
+
+    /**
+     * stock_prices 테이블에서 해당 ticker(stock_code)의 가장 최근 close_price 반환
+     */
+    java.math.BigDecimal findLatestClosePriceByTicker(String ticker);
 }
 
 

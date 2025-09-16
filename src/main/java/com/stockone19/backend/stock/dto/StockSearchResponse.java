@@ -14,12 +14,10 @@ public record StockSearchResponse(
     public record StockSearchData(
             String symbol,
             String name,
-            String sector,
-            double price,
-            double changePercent
+            String sector
     ) {
-        public static StockSearchData of(String symbol, String name, String sector, double price, double changePercent) {
-            return new StockSearchData(symbol, name, sector, price, changePercent);
+        public static StockSearchData of(String symbol, String name, String sector) {
+            return new StockSearchData(symbol, name, sector);
         }
     }
 }
