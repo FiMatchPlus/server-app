@@ -96,29 +96,8 @@ public class PortfolioService {
         );
         Portfolio savedPortfolio = portfolioRepository.save(portfolio);
 
-        // 3. PortfolioSnapshot 생성
-        PortfolioSnapshot snapshot = PortfolioSnapshot.create(
-                request.totalValue(),
-                request.totalValue(),
-                savedPortfolio.id()
-        );
-        PortfolioSnapshot savedSnapshot = portfolioRepository.saveSnapshot(snapshot);
-
-        // 4. HoldingSnapshot 생성
-        for (CreatePortfolioRequest.HoldingRequest holdingRequest : request.holdings()) {
-            // Stock 조회
-            Stock stock = stockService.getStockByTicker(holdingRequest.symbol());
-
-            HoldingSnapshot holding = HoldingSnapshot.create(
-                    holdingRequest.currentPrice(),
-                    holdingRequest.shares(),
-                    holdingRequest.totalValue(),
-                    holdingRequest.weight(),
-                    savedSnapshot.id(),
-                    stock.ticker()
-            );
-            portfolioRepository.saveHolding(holding);
-        }
+        // 초기 생성 시에는 snapshot/holding_snapshots를 생성하지 않음
+        log.info("Skipping initial snapshot and holdings persistence at portfolio creation.");
 
         return new CreatePortfolioResult(
                 savedPortfolio.id(),
