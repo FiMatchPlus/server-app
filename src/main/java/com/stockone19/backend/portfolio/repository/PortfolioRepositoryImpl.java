@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -116,7 +116,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             return ps;
         }, keyHolder);
 
-        Long id = keyHolder.getKey().longValue();
+        Long id = extractGeneratedId(keyHolder);
         return Portfolio.of(
                 id, portfolio.name(), portfolio.description(), portfolio.ruleId(),
                 portfolio.isMain(), portfolio.createdAt(), portfolio.updatedAt(), portfolio.userId()
@@ -189,7 +189,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             return ps;
         }, keyHolder);
 
-        Long id = keyHolder.getKey().longValue();
+        Long id = extractGeneratedId(keyHolder);
         return PortfolioSnapshot.of(
                 id, snapshot.recordedAt(), snapshot.baseValue(), snapshot.currentValue(), snapshot.portfolioId()
         );
@@ -250,11 +250,62 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             return ps;
         }, keyHolder);
 
-        Long id = Objects.requireNonNull(keyHolder.getKey()).longValue();
+        Long id = extractGeneratedId(keyHolder);
         return HoldingSnapshot.of(
                 id, holding.recordedAt(), holding.price(), holding.quantity(),
                 holding.value(), holding.weight(), holding.portfolioSnapshotId(), holding.stockCode()
         );
+    }
+
+    private static Long extractGeneratedId(KeyHolder keyHolder) {
+        if (keyHolder == null) {
+            throw new IllegalStateException("KeyHolder is null");
+        }
+
+        Map<String, Object> keys = keyHolder.getKeys();
+        if (keys != null && !keys.isEmpty()) {
+            Object idObj = null;
+            if (keys.containsKey("id")) {
+                idObj = keys.get("id");
+            } else if (keys.containsKey("ID")) {
+                idObj = keys.get("ID");
+            } else if (keys.containsKey("Id")) {
+                idObj = keys.get("Id");
+            } else {
+                for (Object value : keys.values()) {
+                    if (value instanceof Number) {
+                        idObj = value;
+                        break;
+                    }
+                }
+            }
+
+            if (idObj instanceof Number) {
+                return ((Number) idObj).longValue();
+            }
+        }
+
+        Number singleKey = keyHolder.getKey();
+        if (singleKey != null) {
+            return singleKey.longValue();
+        }
+
+        if (keyHolder.getKeyList() != null && !keyHolder.getKeyList().isEmpty()) {
+            Map<String, Object> first = keyHolder.getKeyList().get(0);
+            Object idObj = first.get("id");
+            if (idObj == null) idObj = first.get("ID");
+            if (idObj == null) idObj = first.get("Id");
+            if (idObj instanceof Number) {
+                return ((Number) idObj).longValue();
+            }
+            for (Object value : first.values()) {
+                if (value instanceof Number) {
+                    return ((Number) value).longValue();
+                }
+            }
+        }
+
+        throw new IllegalStateException("Could not retrieve generated id from KeyHolder");
     }
 
     private HoldingSnapshot updateHolding(HoldingSnapshot holding) {
