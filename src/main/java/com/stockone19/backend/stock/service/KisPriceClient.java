@@ -38,7 +38,7 @@ public class KisPriceClient {
                         .queryParam("FID_INPUT_ISCD", ticker)
                         .build())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE + "; charset=UTF-8")
-                .header("authorization", token)
+                .header("authorization", "Bearer " + token)
                 .header("appkey", appKey)
                 .header("appsecret", appSecret)
                 .header("tr_id", "FHKST01010100")
