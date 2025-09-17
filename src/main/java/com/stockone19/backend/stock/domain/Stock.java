@@ -43,7 +43,7 @@ public class Stock {
     private String exchange;
 
     @Convert(converter = BooleanToYNConverter.class)
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_active", nullable = false, columnDefinition = "bpchar(1)")
     private boolean isActive;
 
     @Column(name = "industry_code")

@@ -13,6 +13,8 @@ spring:
       max-lifetime: 1200000
   jpa:
     show-sql: true
+    hibernate:
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
