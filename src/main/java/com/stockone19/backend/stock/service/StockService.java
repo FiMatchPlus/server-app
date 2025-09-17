@@ -7,6 +7,7 @@ import com.stockone19.backend.stock.repository.StockPriceRepository;
 import com.stockone19.backend.stock.repository.StockRepository;
 import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.domain.StockPrice;
+import com.stockone19.backend.stock.domain.PriceChangeSign;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -64,7 +65,8 @@ public class StockService {
                         parsed.currentPrice,
                         parsed.dailyRate,
                         parsed.dailyChange,
-                        parsed.marketCap
+                        parsed.marketCap,
+                        parsed.sign
                 )
         );
 
@@ -84,13 +86,12 @@ public class StockService {
         KisParsed parsed = new KisParsed();
         parsed.currentPrice = parseDouble(out.get("stck_prpr"));
         String signCode = String.valueOf(out.get("prdy_vrss_sign"));
-        double multiplier = signToMultiplier(signCode);
-        parsed.dailyChange = parseDouble(out.get("prdy_vrss")) * multiplier;
-        parsed.dailyRate = parseDouble(out.get("prdy_ctrt")) * multiplier;
+        parsed.sign = PriceChangeSign.fromCode(signCode);
+        parsed.dailyChange = parseDouble(out.get("prdy_vrss"));
+        parsed.dailyRate = parseDouble(out.get("prdy_ctrt"));
         parsed.marketCap = parseDouble(out.get("hts_avls"));
         parsed.status = String.valueOf(out.get("iscd_stat_cls_code"));
         parsed.korName = String.valueOf(out.get("bstp_kor_isnm"));
-        parsed.sign = signCode;
         return parsed;
     }
 
@@ -101,19 +102,9 @@ public class StockService {
         double marketCap;
         String status;
         String korName;
-        String sign;
+        PriceChangeSign sign;
     }
 
-    private double signToMultiplier(String signCode) {
-        if (signCode == null) return 1.0;
-        // KIS 관례: 1/2(상한/상승)=+, 3(보합)=0 영향, 4/5(하락/하한)=-
-        return switch (signCode) {
-            case "1", "2" -> 1.0;
-            case "4", "5" -> -1.0;
-            case "3" -> 0.0;
-            default -> 1.0;
-        };
-    }
 
     public StockDetailResponse getStockDetail(String ticker, String interval) {
         Stock stock = getStockByTicker(ticker);
@@ -232,12 +223,11 @@ public class StockService {
                 try {
                     String ticker = output.interShrnIscd();
                     double currentPrice = Double.parseDouble(output.inter2Prpr());
-                    String signCode = output.prdyVrssSign();
-                    double multiplier = signToMultiplier(signCode);
-                    double dailyChangeRate = parseDouble(output.prdyCtrt()) * multiplier;
-                    double dailyChangePrice = parseDouble(output.inter2PrdyVrss()) * multiplier;
+                    PriceChangeSign sign = PriceChangeSign.fromCode(output.prdyVrssSign());
+                    double dailyChangeRate = parseDouble(output.prdyCtrt());
+                    double dailyChangePrice = parseDouble(output.inter2PrdyVrss());
                     
-                    priceMap.put(ticker, new StockPriceInfo(currentPrice, dailyChangeRate, dailyChangePrice));
+                    priceMap.put(ticker, new StockPriceInfo(currentPrice, dailyChangeRate, dailyChangePrice, sign));
                 } catch (NumberFormatException e) {
                     log.warn("가격 데이터 파싱 오류 - 종목: {}, 현재가: {}, 전일대비: {}", 
                             output.interShrnIscd(), output.inter2Prpr(), output.inter2PrdyVrss());
@@ -254,7 +244,7 @@ public class StockService {
     /**
      * 종목 가격 정보를 담는 레코드
      */
-    public record StockPriceInfo(double currentPrice, double dailyChangeRate, double dailyChangePrice) {}
+    public record StockPriceInfo(double currentPrice, double dailyChangeRate, double dailyChangePrice, PriceChangeSign sign) {}
 
     // Private helper methods
 
@@ -294,7 +284,8 @@ public class StockService {
                 stock.getTicker(),
                 stock.getName(),
                 0.0, 0.0, 0.0,
-                0.0
+                0.0,
+                PriceChangeSign.FLAT
         );
     }
 
@@ -302,6 +293,9 @@ public class StockService {
         double currentPrice = latestPrice.getClosePrice().doubleValue();
         double dailyChange = latestPrice.getChangeAmount().doubleValue();
         double dailyRate = latestPrice.getChangeRate().doubleValue();
+        
+        // DB 데이터에서는 변동률 부호로 PriceChangeSign 추정
+        PriceChangeSign sign = estimateSignFromRate(dailyRate);
 
         return new StockPriceResponse.StockPriceData(
                 stock.getTicker(),
@@ -309,7 +303,8 @@ public class StockService {
                 currentPrice,
                 dailyRate,
                 dailyChange,
-                0.0
+                0.0,
+                sign
         );
     }
 
@@ -355,19 +350,24 @@ public class StockService {
         return new StockDetailResponse.SummaryData(
                 stock.getTicker(),
                 stock.getName(),
-                0.0, 0.0, 0.0, 0L, 0.0
+                0.0, 0.0, 0.0, 0L, 0.0,
+                PriceChangeSign.FLAT
         );
     }
 
     private StockDetailResponse.SummaryData createSummaryDataFromPrice(Stock stock, StockPrice latestPrice) {
+        double dailyRate = latestPrice.getChangeRate().doubleValue();
+        PriceChangeSign sign = estimateSignFromRate(dailyRate);
+        
         return new StockDetailResponse.SummaryData(
                 stock.getTicker(),
                 stock.getName(),
                 latestPrice.getClosePrice().doubleValue(),
-                latestPrice.getChangeRate().doubleValue(),
+                dailyRate,
                 latestPrice.getChangeAmount().doubleValue(),
                 latestPrice.getVolume(),
-                0.0 // marketCap은 별도 계산 필요
+                0.0, // marketCap은 별도 계산 필요
+                sign
         );
     }
 
@@ -384,5 +384,19 @@ public class StockService {
                 chartData,
                 summaryData
         );
+    }
+
+    /**
+     * DB 데이터의 변동률로부터 PriceChangeSign을 추정하는 헬퍼 메서드
+     * (실제 KIS API 부호 정보가 없는 경우 사용)
+     */
+    private PriceChangeSign estimateSignFromRate(double dailyRate) {
+        if (dailyRate > 0) {
+            return PriceChangeSign.RISE;
+        } else if (dailyRate < 0) {
+            return PriceChangeSign.FALL;
+        } else {
+            return PriceChangeSign.FLAT;
+        }
     }
 }

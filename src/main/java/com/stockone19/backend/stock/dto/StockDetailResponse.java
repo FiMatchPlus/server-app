@@ -2,6 +2,7 @@ package com.stockone19.backend.stock.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.stockone19.backend.common.util.DateTimeUtil;
+import com.stockone19.backend.stock.domain.PriceChangeSign;
 
 import java.time.Instant;
 import java.util.List;
@@ -67,6 +68,7 @@ public record StockDetailResponse(
             double dailyRate,
             double dailyChange,
             long volume,
-            double marketCap
+            double marketCap,
+            PriceChangeSign sign
     ) {}
 }

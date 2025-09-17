@@ -1,6 +1,7 @@
 package com.stockone19.backend.stock.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.stockone19.backend.stock.domain.PriceChangeSign;
 
 import java.time.Instant;
 import java.util.List;
@@ -38,7 +39,8 @@ public record StockPriceResponse(
             double currentPrice,
             double dailyRate,
             double dailyChange,
-            double marketCap
+            double marketCap,
+            PriceChangeSign sign
     ) {}
 }
 
