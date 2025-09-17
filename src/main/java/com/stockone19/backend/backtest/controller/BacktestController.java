@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -84,6 +85,23 @@ public class BacktestController {
         BacktestSummary summary = backtestService.getBacktestDetail(backtestId);
         
         return ApiResponse.success("백테스트 상세 정보를 조회했습니다", summary);
+    }
+
+    /**
+     * 포트폴리오별 백테스트 상태 조회
+     * <ul>
+     *     <li>해당 포트폴리오의 모든 백테스트 ID와 상태만 조회</li>
+     *     <li>Map 형태로 반환 (백테스트 ID -> 상태)</li>
+     * </ul>
+     */
+    @GetMapping("/portfolios/{portfolioId}/status")
+    public ApiResponse<Map<String, String>> getBacktestStatusesByPortfolioId(@PathVariable Long portfolioId) {
+        
+        log.info("GET /api/backtests/portfolios/{}/status", portfolioId);
+        
+        Map<String, String> backtestStatuses = backtestService.getBacktestStatusesByPortfolioId(portfolioId);
+        
+        return ApiResponse.success("포트폴리오 백테스트 상태 목록을 조회했습니다", backtestStatuses);
     }
 
     /**
