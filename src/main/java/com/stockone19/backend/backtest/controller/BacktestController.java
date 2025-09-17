@@ -6,12 +6,14 @@ import com.stockone19.backend.backtest.dto.CreateBacktestResult;
 import com.stockone19.backend.backtest.dto.BacktestResponse;
 import com.stockone19.backend.backtest.dto.BacktestResponseMapper;
 import com.stockone19.backend.backtest.dto.BacktestSummary;
+import com.stockone19.backend.backtest.dto.BacktestExecutionResponse;
 import com.stockone19.backend.backtest.service.BacktestService;
 import com.stockone19.backend.common.dto.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -82,5 +84,25 @@ public class BacktestController {
         BacktestSummary summary = backtestService.getBacktestDetail(backtestId);
         
         return ApiResponse.success("백테스트 상세 정보를 조회했습니다", summary);
+    }
+
+    /**
+     * 백테스트 실행 (WebFlux)
+     * <ul>
+     *     <li>외부 백테스트 서버에 요청을 전송하여 백테스트 실행</li>
+     *     <li>비동기 논블로킹 방식으로 처리</li>
+     *     <li>기존 record 클래스들을 활용하여 결과 처리</li>
+     * </ul>
+     */
+    @PostMapping("/{backtestId}/execute")
+    public Mono<ApiResponse<BacktestExecutionResponse>> executeBacktest(@PathVariable Long backtestId) {
+        log.info("POST /api/backtests/{}/execute", backtestId);
+        
+        return backtestService.executeBacktestReactive(backtestId)
+                .map(result -> ApiResponse.success("백테스트 실행이 완료되었습니다", result))
+                .onErrorResume(error -> {
+                    log.error("백테스트 실행 실패: backtestId={}, error={}", backtestId, error.getMessage());
+                    return Mono.just(ApiResponse.error("백테스트 실행 실패: " + error.getMessage()));
+                });
     }
 }

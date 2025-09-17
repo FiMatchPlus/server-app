@@ -1,5 +1,6 @@
 package com.stockone19.backend.backtest.domain;
 
+import com.stockone19.backend.backtest.dto.BacktestStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -41,6 +42,10 @@ public class Backtest {
     @Column(name = "rule_id", length = 30)
     private String ruleId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private BacktestStatus status = BacktestStatus.CREATED;
+
     public Backtest(Long portfolioId, String title, String description, 
                     LocalDateTime startAt, LocalDateTime endAt, String ruleId) {
         this.portfolioId = portfolioId;
@@ -74,5 +79,9 @@ public class Backtest {
 
     public void updateRuleId(String ruleId) {
         this.ruleId = ruleId;
+    }
+
+    public void updateStatus(BacktestStatus status) {
+        this.status = status;
     }
 }
