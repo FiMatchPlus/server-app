@@ -128,7 +128,7 @@ public class StockService {
     }
 
     public List<StockDetailResponse.ChartData> getChartData(String stockId, String intervalUnit, LocalDateTime startDate, LocalDateTime endDate, int limit) {
-        List<StockPrice> prices = stockPriceRepository.findByStockIdAndInterval(
+        List<StockPrice> prices = stockPriceRepository.findByStockCodeAndInterval(
                 stockId, intervalUnit, startDate, endDate, limit
         );
 
@@ -200,7 +200,7 @@ public class StockService {
      * @throws RuntimeException 종목을 찾을 수 없거나 가격 데이터가 없는 경우
      */
     public double getCurrentPrice(String ticker) {
-        StockPrice latestPrice = stockPriceRepository.findFirstByStockIdAndIntervalUnitOrderByDatetimeDesc(ticker, "1d");
+        StockPrice latestPrice = stockPriceRepository.findFirstByStockCodeAndIntervalUnitOrderByDatetimeDesc(ticker, "1d");
         if (latestPrice == null) {
             throw new RuntimeException("가격 데이터를 찾을 수 없습니다: " + ticker);
         }
@@ -263,7 +263,7 @@ public class StockService {
     }
 
     private List<StockPrice> findLatestPricesByTickers(List<String> tickers) {
-        return stockPriceRepository.findLatestByStockIdsAndInterval(tickers, "1d");
+        return stockPriceRepository.findLatestByStockCodesAndInterval(tickers, "1d");
     }
 
     private List<StockPriceResponse.StockPriceData> convertToStockPriceDataList(List<Stock> stocks, List<StockPrice> latestPrices) {
@@ -284,7 +284,7 @@ public class StockService {
 
     private StockPrice findLatestPriceForStock(String ticker, List<StockPrice> latestPrices) {
         return latestPrices.stream()
-                .filter(price -> price.getStockId().equals(ticker))
+                .filter(price -> price.getStockCode().equals(ticker))
                 .findFirst()
                 .orElse(null);
     }
@@ -317,7 +317,7 @@ public class StockService {
     private List<StockDetailResponse.ChartData> getChartDataForDetail(String ticker, String interval) {
         LocalDateTime endDate = LocalDateTime.now();
         LocalDateTime startDate = endDate.minusDays(30);
-        List<StockPrice> chartPrices = stockPriceRepository.findByStockIdAndInterval(
+        List<StockPrice> chartPrices = stockPriceRepository.findByStockCodeAndInterval(
                 ticker, interval, startDate, endDate, 100
         );
 
@@ -342,7 +342,7 @@ public class StockService {
     }
 
     private StockDetailResponse.SummaryData createSummaryData(Stock stock, String ticker, String interval) {
-        StockPrice latestPrice = stockPriceRepository.findFirstByStockIdAndIntervalUnitOrderByDatetimeDesc(ticker, interval);
+        StockPrice latestPrice = stockPriceRepository.findFirstByStockCodeAndIntervalUnitOrderByDatetimeDesc(ticker, interval);
 
         if (latestPrice == null) {
             return createEmptySummaryData(stock);

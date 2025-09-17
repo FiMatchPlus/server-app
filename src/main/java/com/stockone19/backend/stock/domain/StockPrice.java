@@ -18,7 +18,7 @@ public class StockPrice {
     private Long id;
 
     @Column(name = "stock_code", nullable = false)
-    private String stockId;
+    private String stockCode;
 
     @Column(nullable = false)
     private LocalDateTime datetime;
@@ -47,14 +47,11 @@ public class StockPrice {
     @Column(name = "change_rate", precision = 15, scale = 2)
     private BigDecimal changeRate;
 
-    // Stock과의 관계는 stockId(ticker) 기반이므로 @ManyToOne 대신 필드로 유지
-    // 필요시 서비스 레이어에서 조인
-
-    public StockPrice(String stockId, LocalDateTime datetime, String intervalUnit,
+    public StockPrice(String stockCode, LocalDateTime datetime, String intervalUnit,
                       BigDecimal openPrice, BigDecimal highPrice, BigDecimal lowPrice,
                       BigDecimal closePrice, Long volume, BigDecimal changeAmount,
                       BigDecimal changeRate) {
-        this.stockId = stockId;
+        this.stockCode = stockCode;
         this.datetime = datetime;
         this.intervalUnit = intervalUnit;
         this.openPrice = openPrice;
@@ -68,7 +65,7 @@ public class StockPrice {
 
     public static StockPrice of(
             Long id,
-            String stockId,
+            String stockCode,
             LocalDateTime datetime,
             String intervalUnit,
             BigDecimal openPrice,
@@ -79,7 +76,7 @@ public class StockPrice {
             BigDecimal changeAmount,
             BigDecimal changeRate
     ) {
-        StockPrice stockPrice = new StockPrice(stockId, datetime, intervalUnit,
+        StockPrice stockPrice = new StockPrice(stockCode, datetime, intervalUnit,
                 openPrice, highPrice, lowPrice, closePrice, volume,
                 changeAmount, changeRate);
         stockPrice.id = id;  // ID는 직접 설정 (데이터베이스에서 조회시)

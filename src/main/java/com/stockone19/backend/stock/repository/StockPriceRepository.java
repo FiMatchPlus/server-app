@@ -15,12 +15,12 @@ public interface StockPriceRepository extends JpaRepository<StockPrice, Long> {
      */
     @Query(value = """
         SELECT sp FROM StockPrice sp 
-        WHERE sp.stockId = :stockCode 
+        WHERE sp.stockCode = :stockCode 
         AND sp.intervalUnit = :intervalUnit 
         AND sp.datetime BETWEEN :startDate AND :endDate 
         ORDER BY sp.datetime DESC
         """)
-    List<StockPrice> findByStockIdAndInterval(
+    List<StockPrice> findByStockCodeAndInterval(
             @Param("stockCode") String stockCode,
             @Param("intervalUnit") String intervalUnit,
             @Param("startDate") LocalDateTime startDate,
@@ -31,23 +31,23 @@ public interface StockPriceRepository extends JpaRepository<StockPrice, Long> {
     /**
      * 특정 종목의 최신 가격 데이터를 조회합니다.
      */
-    StockPrice findFirstByStockIdAndIntervalUnitOrderByDatetimeDesc(String stockCode, String intervalUnit);
+    StockPrice findFirstByStockCodeAndIntervalUnitOrderByDatetimeDesc(String stockCode, String intervalUnit);
 
     /**
      * 여러 종목의 최신 가격 데이터를 조회합니다.
      */
     @Query(value = """
         SELECT sp FROM StockPrice sp 
-        WHERE sp.stockId IN :stockCodes 
+        WHERE sp.stockCode IN :stockCodes 
         AND sp.intervalUnit = :intervalUnit 
         AND sp.datetime = (
             SELECT MAX(sp2.datetime) 
             FROM StockPrice sp2 
-            WHERE sp2.stockId = sp.stockId 
+            WHERE sp2.stockCode = sp.stockCode 
             AND sp2.intervalUnit = :intervalUnit
         )
         """)
-    List<StockPrice> findLatestByStockIdsAndInterval(
+    List<StockPrice> findLatestByStockCodesAndInterval(
             @Param("stockCodes") List<String> stockCodes, 
             @Param("intervalUnit") String intervalUnit
     );
