@@ -28,7 +28,7 @@ public class Stock {
 
     private String region;
 
-    @Column(columnDefinition = "bpchar(3)")
+    @Column
     private String currency;
 
     @Column(name = "major_code")
@@ -43,7 +43,7 @@ public class Stock {
     private String exchange;
 
     @Convert(converter = BooleanToYNConverter.class)
-    @Column(name = "is_active", nullable = false, columnDefinition = "bpchar(1)")
+    @Column(name = "is_active", nullable = false)
     private boolean isActive;
 
     @Column(name = "industry_code")
