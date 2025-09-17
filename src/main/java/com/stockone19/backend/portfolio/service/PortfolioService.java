@@ -293,6 +293,7 @@ public class PortfolioService {
         List<PortfolioListResponse.HoldingStock> holdingStocks = getHoldingStocks(portfolio.id());
 
         return new PortfolioListResponse.PortfolioListItem(
+                portfolio.id(),
                 portfolio.name(),
                 portfolio.description(),
                 holdingStocks,
