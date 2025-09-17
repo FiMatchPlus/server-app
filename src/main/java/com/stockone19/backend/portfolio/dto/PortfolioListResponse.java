@@ -7,6 +7,7 @@ public record PortfolioListResponse(
 ) {
 
     public record PortfolioListItem(
+            Long id,
             String name,
             String description,
             List<HoldingStock> holdingStocks,
