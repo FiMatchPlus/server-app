@@ -221,6 +221,34 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         return jdbcTemplate.query(sql, HOLDING_ROW_MAPPER, portfolioId);
     }
 
+    @Override
+    public boolean existsSnapshotByPortfolioId(Long portfolioId) {
+        String sql = """
+            SELECT COUNT(*) FROM portfolio_snapshots 
+            WHERE portfolio_id = ?
+            """;
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, portfolioId);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public List<PortfolioSnapshot> findSnapshotsByPortfolioId(Long portfolioId) {
+        String sql = """
+            SELECT id, recorded_at, base_value, current_value, portfolio_id
+            FROM portfolio_snapshots
+            WHERE portfolio_id = ?
+            ORDER BY recorded_at ASC
+            """;
+        
+        return jdbcTemplate.query(sql, (rs, rowNum) -> PortfolioSnapshot.of(
+                rs.getLong("id"),
+                rs.getTimestamp("recorded_at").toLocalDateTime(),
+                rs.getDouble("base_value"),
+                rs.getDouble("current_value"),
+                rs.getLong("portfolio_id")
+        ), portfolioId);
+    }
+
     
 
     private static Long extractGeneratedId(KeyHolder keyHolder) {

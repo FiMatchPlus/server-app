@@ -1,13 +1,18 @@
 package com.stockone19.backend.backtest.controller;
 
+import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.dto.CreateBacktestRequest;
 import com.stockone19.backend.backtest.dto.CreateBacktestResult;
+import com.stockone19.backend.backtest.dto.BacktestResponse;
+import com.stockone19.backend.backtest.dto.BacktestResponseMapper;
 import com.stockone19.backend.backtest.service.BacktestService;
 import com.stockone19.backend.common.dto.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -16,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class BacktestController {
 
     private final BacktestService backtestService;
+    private final BacktestResponseMapper backtestResponseMapper;
 
     /**
      * 백테스트 생성
@@ -39,5 +45,24 @@ public class BacktestController {
         
         CreateBacktestResult result = backtestService.createBacktest(portfolioId, request);
         return ApiResponse.success("백테스트가 생성되었습니다", result);
+    }
+
+    /**
+     * 포트폴리오별 백테스트 조회
+     * <ul>
+     *     <li>해당 포트폴리오의 모든 백테스트 목록 조회</li>
+     *     <li>portfolio_snapshots 데이터 존재 여부로 상태 판단</li>
+     *     <li>완료된 백테스트의 경우 지표와 일별 수익률 포함</li>
+     * </ul>
+     */
+    @GetMapping("/portfolio/{portfolioId}")
+    public ApiResponse<List<BacktestResponse>> getBacktestsByPortfolioId(@PathVariable Long portfolioId) {
+        
+        log.info("GET /api/backtests/portfolio/{}", portfolioId);
+        
+        List<Backtest> backtests = backtestService.getBacktestsByPortfolioId(portfolioId);
+        List<BacktestResponse> responses = backtestResponseMapper.toResponseList(backtests, portfolioId);
+        
+        return ApiResponse.success("포트폴리오 백테스트 목록을 조회했습니다", responses);
     }
 }

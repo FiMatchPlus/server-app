@@ -85,6 +85,7 @@ public class BacktestService {
         return backtestRepository.findByPortfolioIdOrderByCreatedAtDesc(portfolioId);
     }
 
+
     private boolean hasRules(CreateBacktestRequest.RulesRequest rules) {
         return (rules.stopLoss() != null && !rules.stopLoss().isEmpty()) ||
                (rules.takeProfit() != null && !rules.takeProfit().isEmpty()) ||
