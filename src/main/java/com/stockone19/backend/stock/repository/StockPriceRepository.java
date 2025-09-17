@@ -1,53 +1,56 @@
 package com.stockone19.backend.stock.repository;
 
 import com.stockone19.backend.stock.domain.StockPrice;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface StockPriceRepository {
+public interface StockPriceRepository extends JpaRepository<StockPrice, Long> {
 
     /**
      * 특정 종목의 가격 히스토리를 조회합니다.
-     *
-     * @param stockCode 종목 ID
-     * @param intervalUnit 시간 간격 ('1m', '1d', '1W', '1Y')
-     * @param startDate 시작 날짜
-     * @param endDate 종료 날짜
-     * @param limit 조회할 레코드 수 제한
-     * @return 주식 가격 히스토리 목록
      */
+    @Query(value = """
+        SELECT sp FROM StockPrice sp 
+        WHERE sp.stockId = :stockCode 
+        AND sp.intervalUnit = :intervalUnit 
+        AND sp.datetime BETWEEN :startDate AND :endDate 
+        ORDER BY sp.datetime DESC
+        """)
     List<StockPrice> findByStockIdAndInterval(
-            String stockCode,
-            String intervalUnit,
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            int limit
+            @Param("stockCode") String stockCode,
+            @Param("intervalUnit") String intervalUnit,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("limit") int limit
     );
 
     /**
      * 특정 종목의 최신 가격 데이터를 조회합니다.
-     *
-     * @param stockCode 종목 ID
-     * @param intervalUnit 시간 간격
-     * @return 최신 주식 가격 데이터
      */
-    StockPrice findLatestByStockIdAndInterval(String stockCode, String intervalUnit);
+    StockPrice findFirstByStockIdAndIntervalUnitOrderByDatetimeDesc(String stockCode, String intervalUnit);
 
     /**
      * 여러 종목의 최신 가격 데이터를 조회합니다.
-     *
-     * @param stockCodes 종목 ID 목록
-     * @param intervalUnit 시간 간격
-     * @return 주식 가격 히스토리 목록
      */
-    List<StockPrice> findLatestByStockIdsAndInterval(List<String> stockCodes, String intervalUnit);
+    @Query(value = """
+        SELECT sp FROM StockPrice sp 
+        WHERE sp.stockId IN :stockCodes 
+        AND sp.intervalUnit = :intervalUnit 
+        AND sp.datetime = (
+            SELECT MAX(sp2.datetime) 
+            FROM StockPrice sp2 
+            WHERE sp2.stockId = sp.stockId 
+            AND sp2.intervalUnit = :intervalUnit
+        )
+        """)
+    List<StockPrice> findLatestByStockIdsAndInterval(
+            @Param("stockCodes") List<String> stockCodes, 
+            @Param("intervalUnit") String intervalUnit
+    );
 
-    /**
-     * stock_prices 테이블에서 해당 ticker(stock_code)의 가장 최근 close_price 반환
-     */
-    java.math.BigDecimal findLatestClosePriceByTicker(String ticker);
 }
-
-
 

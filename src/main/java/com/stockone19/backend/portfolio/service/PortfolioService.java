@@ -54,7 +54,7 @@ public class PortfolioService {
 
     private List<Holding> getAllUserHoldings(Long userId) {
         List<Portfolio> portfolios = portfolioRepository.findByUserId(userId);
-        
+
         return portfolios.stream()
                 .flatMap(portfolio -> portfolioRepository.findHoldingsByPortfolioId(portfolio.id()).stream())
                 .collect(Collectors.toList());
@@ -78,9 +78,8 @@ public class PortfolioService {
             
             if (priceInfo != null) {
                 double currentPrice = priceInfo.currentPrice();
-                double previousClose = priceInfo.previousClose();
                 double currentValue = currentPrice * holding.shares();
-                double dailyChange = (currentPrice - previousClose) * holding.shares();
+                double dailyChange = priceInfo.dailyChangePrice() * holding.shares();
                 
                 totalAssets += currentValue;
                 totalDailyChange += dailyChange;
@@ -201,63 +200,61 @@ public class PortfolioService {
     public PortfolioShortResponse getPortfolioShort(Long portfolioId) {
         log.info("Getting portfolio short info for portfolioId: {}", portfolioId);
 
-        Portfolio portfolio = portfolioRepository.findById(portfolioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
+        PortfolioData data = getPortfolioData(portfolioId);
 
-        List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
-
-        if (holdings.isEmpty()) {
+        if (data.holdings().isEmpty()) {
             return new PortfolioShortResponse(
-                    portfolio.name(),
+                    data.portfolio().name(),
                     0.0,
                     List.of(),
                     0.0
             );
         }
 
-        // 모든 종목의 티커를 수집
-        List<String> tickers = holdings.stream()
-                .map(Holding::symbol)
+        List<PortfolioShortResponse.HoldingSummary> holdingSummaries = data.holdings().stream()
+                .map(holding -> createHoldingSummaryWithMaps(holding, data.stockMap(), data.priceMap()))
                 .collect(Collectors.toList());
 
-        // KIS API로 한 번에 가격 정보 조회
-        Map<String, StockService.StockPriceInfo> priceMap = stockService.getMultiCurrentPrices(tickers);
-
-        List<PortfolioShortResponse.HoldingSummary> holdingSummaries = holdings.stream()
-                .map(holding -> createHoldingSummaryWithPrice(holding, priceMap))
-                .collect(Collectors.toList());
-
-        PortfolioTotals totals = computeTotalsFromHoldingsWithPriceMap(holdings, priceMap);
+        PortfolioTotals totals = computeTotalsFromHoldingsWithPriceMap(data.holdings(), data.priceMap());
         return new PortfolioShortResponse(
-                portfolio.name(),
+                data.portfolio().name(),
                 totals.totalAssets,
                 holdingSummaries,
                 totals.dailyChange
         );
     }
 
-    private PortfolioShortResponse.HoldingSummary createHoldingSummaryWithPrice(Holding holding, Map<String, StockService.StockPriceInfo> priceMap) {
+    private PortfolioShortResponse.HoldingSummary createHoldingSummaryWithMaps(
+            Holding holding, 
+            Map<String, Stock> stockMap, 
+            Map<String, StockService.StockPriceInfo> priceMap) {
         try {
-            // Stock 정보를 PostgreSQL에서 가져오기
-            Stock stock = stockService.getStockByTicker(holding.symbol());
-            StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
-
-            if (priceInfo == null) {
-                log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
+            // Stock 정보를 Map에서 조회 (DB 쿼리 없음)
+            Stock stock = stockMap.get(holding.symbol());
+            if (stock == null) {
+                log.warn("Stock not found for ticker: {}", holding.symbol());
                 return new PortfolioShortResponse.HoldingSummary(
-                        stock.name(),
+                        "Unknown Stock",
                         holding.weight(),
                         0.0
                 );
             }
 
-            // KIS API에서 가져온 현재가와 전일종가 사용
-            double currentPrice = priceInfo.currentPrice();
-            double previousClose = priceInfo.previousClose();
-            double dailyRate = calculateDailyRate(currentPrice, previousClose);
+            StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
+            if (priceInfo == null) {
+                log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
+                return new PortfolioShortResponse.HoldingSummary(
+                        stock.getName(),
+                        holding.weight(),
+                        0.0
+                );
+            }
+
+            // KIS API에서 가져온 일간 변동률 사용
+            double dailyRate = priceInfo.dailyChangeRate();
 
             return new PortfolioShortResponse.HoldingSummary(
-                    stock.name(),
+                    stock.getName(),
                     holding.weight(),
                     dailyRate
             );
@@ -271,10 +268,7 @@ public class PortfolioService {
         }
     }
 
-    private double calculateDailyRate(double currentPrice, double previousClose) {
-        if (previousClose == 0) return 0.0;
-        return ((currentPrice - previousClose) / previousClose) * 100;
-    }
+
 
 
     /**
@@ -286,64 +280,64 @@ public class PortfolioService {
     public PortfolioLongResponse getPortfolioLong(Long portfolioId) {
         log.info("Getting portfolio long info for portfolioId: {}", portfolioId);
 
-        Portfolio portfolio = portfolioRepository.findById(portfolioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
+        PortfolioData data = getPortfolioData(portfolioId);
 
-        List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
-
-        if (holdings.isEmpty()) {
+        if (data.holdings().isEmpty()) {
             return new PortfolioLongResponse(
-                    portfolio.id(),
+                    data.portfolio().id(),
                     List.of(),
-                    portfolio.ruleId()
+                    data.portfolio().ruleId()
             );
         }
 
-        // 모든 종목의 티커를 수집
-        List<String> tickers = holdings.stream()
-                .map(Holding::symbol)
-                .collect(Collectors.toList());
-
-        // KIS API로 한 번에 가격 정보 조회
-        Map<String, StockService.StockPriceInfo> priceMap = stockService.getMultiCurrentPrices(tickers);
-
-        List<PortfolioLongResponse.HoldingDetail> holdingDetails = holdings.stream()
-                .map(holding -> createHoldingDetailWithPrice(holding, priceMap))
+        List<PortfolioLongResponse.HoldingDetail> holdingDetails = data.holdings().stream()
+                .map(holding -> createHoldingDetailWithMaps(holding, data.stockMap(), data.priceMap()))
                 .collect(Collectors.toList());
 
         return new PortfolioLongResponse(
-                portfolio.id(),
+                data.portfolio().id(),
                 holdingDetails,
-                portfolio.ruleId()
+                data.portfolio().ruleId()
         );
     }
 
-    private PortfolioLongResponse.HoldingDetail createHoldingDetailWithPrice(Holding holding, Map<String, StockService.StockPriceInfo> priceMap) {
+    private PortfolioLongResponse.HoldingDetail createHoldingDetailWithMaps(
+            Holding holding, 
+            Map<String, Stock> stockMap, 
+            Map<String, StockService.StockPriceInfo> priceMap) {
         try {
-            // Stock 정보를 PostgreSQL에서 가져오기
-            Stock stock = stockService.getStockByTicker(holding.symbol());
-            StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
-            
-            if (priceInfo == null) {
-                log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
+            // Stock 정보를 Map에서 조회 (DB 쿼리 없음)
+            Stock stock = stockMap.get(holding.symbol());
+            if (stock == null) {
+                log.warn("Stock not found for ticker: {}", holding.symbol());
                 return new PortfolioLongResponse.HoldingDetail(
-                        stock.name(),
+                        "Unknown Stock",
                         holding.weight(),
                         holding.totalValue(),
                         0.0
                 );
             }
 
-            // KIS API에서 가져온 현재가와 전일종가 사용
+            StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
+            if (priceInfo == null) {
+                log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
+                return new PortfolioLongResponse.HoldingDetail(
+                        stock.getName(),
+                        holding.weight(),
+                        holding.totalValue(),
+                        0.0
+                );
+            }
+
+            // KIS API에서 가져온 현재가와 일간 변동률 사용
             double currentPrice = priceInfo.currentPrice();
-            double previousClose = priceInfo.previousClose();
-            double dailyRate = calculateDailyRate(currentPrice, previousClose);
+            double dailyRate = priceInfo.dailyChangeRate();
 
             // 현재 가치 계산 (수량 * 현재가)
             double currentValue = holding.shares() * currentPrice;
 
             return new PortfolioLongResponse.HoldingDetail(
-                    stock.name(),
+                    stock.getName(),
                     holding.weight(),
                     currentValue,
                     dailyRate
@@ -358,6 +352,7 @@ public class PortfolioService {
             );
         }
     }
+
 
     /**
      * 사용자 포트폴리오 리스트 조회
@@ -377,7 +372,7 @@ public class PortfolioService {
         // 모든 포트폴리오의 모든 종목을 수집
         List<Holding> allHoldings = portfolios.stream()
                 .flatMap(portfolio -> portfolioRepository.findHoldingsByPortfolioId(portfolio.id()).stream())
-                .collect(Collectors.toList());
+                .toList();
 
         if (allHoldings.isEmpty()) {
             return new PortfolioListResponse(portfolios.stream()
@@ -409,7 +404,9 @@ public class PortfolioService {
         return new PortfolioListResponse(portfolioItems);
     }
 
-    private PortfolioListResponse.PortfolioListItem createPortfolioListItemWithPriceMap(Portfolio portfolio, Map<String, StockService.StockPriceInfo> priceMap) {
+    private PortfolioListResponse.PortfolioListItem createPortfolioListItemWithPriceMap(
+            Portfolio portfolio,
+            Map<String, StockService.StockPriceInfo> priceMap) {
         List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolio.id());
         
         if (holdings.isEmpty()) {
@@ -452,37 +449,60 @@ public class PortfolioService {
                 return List.of();
             }
 
+            // 모든 티커를 수집하여 한 번에 Stock 정보 조회
+            List<String> tickers = holdings.stream()
+                    .map(Holding::symbol)
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            Map<String, Stock> stockMap = stockService.getStocksByTickers(tickers)
+                    .stream()
+                    .collect(Collectors.toMap(Stock::getTicker, stock -> stock));
+
             return holdings.stream()
                     .map(holding -> {
                         try {
-                            Stock stock = stockService.getStockByTicker(holding.symbol());
+                            Stock stock = stockMap.get(holding.symbol());
+                            if (stock == null) {
+                                log.warn("Stock not found for ticker: {}", holding.symbol());
+                                return new PortfolioListResponse.HoldingStock(
+                                        "Unknown",
+                                        "Unknown Stock",
+                                        holding.weight(),
+                                        holding.totalValue(),
+                                        0.0,
+                                        0.0
+                                );
+                            }
+
                             StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
                             
                             if (priceInfo == null) {
                                 log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
                                 return new PortfolioListResponse.HoldingStock(
-                                        stock.ticker(),
-                                        stock.name(),
+                                        stock.getTicker(),
+                                        stock.getName(),
                                         holding.weight(),
                                         holding.totalValue(),
+                                        0.0,
                                         0.0
                                 );
                             }
                             
-                            // 현재가와 전일종가를 사용하여 계산
+                            // 현재가와 일간 변동률을 사용하여 계산
                             double currentPrice = priceInfo.currentPrice();
-                            double previousClose = priceInfo.previousClose();
-                            double dailyRate = calculateDailyRate(currentPrice, previousClose);
+                            double dailyRate = priceInfo.dailyChangeRate();
                             
                             // 현재 가치 계산 (수량 * 현재가)
                             double value = holding.shares() * currentPrice;
                             
                             return new PortfolioListResponse.HoldingStock(
-                                    stock.ticker(),
-                                    stock.name(),
+                                    stock.getTicker(),
+                                    stock.getName(),
                                     holding.weight(),
                                     value,
-                                    dailyRate
+                                    dailyRate,
+                                    currentPrice
                             );
                         } catch (Exception e) {
                             log.warn("Failed to get stock information for holding: {}, error: {}", holding.symbol(), e.getMessage());
@@ -491,6 +511,7 @@ public class PortfolioService {
                                     "Unknown Stock",
                                     holding.weight(),
                                     holding.totalValue(),
+                                    0.0,
                                     0.0
                             );
                         }
@@ -514,6 +535,45 @@ public class PortfolioService {
         }
     }
 
+    private record PortfolioData(
+            Portfolio portfolio,
+            List<Holding> holdings,
+            Map<String, Stock> stockMap,
+            Map<String, StockService.StockPriceInfo> priceMap
+    ) {}
+
+    /**
+     * 포트폴리오의 공통 데이터를 조회합니다 (Portfolio, Holdings, Stock 정보, 가격 정보)
+     *
+     * @param portfolioId 포트폴리오 식별자
+     * @return 포트폴리오 공통 데이터 객체
+     */
+    private PortfolioData getPortfolioData(Long portfolioId) {
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
+
+        List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
+
+        if (holdings.isEmpty()) {
+            return new PortfolioData(portfolio, holdings, Map.of(), Map.of());
+        }
+
+        // 모든 종목의 티커를 수집
+        List<String> tickers = holdings.stream()
+                .map(Holding::symbol)
+                .distinct()
+                .collect(Collectors.toList());
+
+        // Stock 정보를 한 번에 조회 (N+1 문제 해결)
+        Map<String, Stock> stockMap = stockService.getStocksByTickers(tickers)
+                .stream()
+                .collect(Collectors.toMap(Stock::getTicker, stock -> stock));
+
+        // KIS API로 한 번에 가격 정보 조회
+        Map<String, StockService.StockPriceInfo> priceMap = stockService.getMultiCurrentPrices(tickers);
+
+        return new PortfolioData(portfolio, holdings, stockMap, priceMap);
+    }
 
     private PortfolioTotals computeTotalsFromHoldingsWithPriceMap(List<Holding> holdings, Map<String, StockService.StockPriceInfo> priceMap) {
         double totalAssets = 0.0;
@@ -524,9 +584,11 @@ public class PortfolioService {
             
             if (priceInfo != null) {
                 double currentPrice = priceInfo.currentPrice();
-                double previousClose = priceInfo.previousClose();
-                totalAssets += currentPrice * holding.shares();
-                dailyChange += (currentPrice - previousClose) * holding.shares();
+                double currentValue = currentPrice * holding.shares();
+                double holdingDailyChange = priceInfo.dailyChangePrice() * holding.shares();
+                
+                totalAssets += currentValue;
+                dailyChange += holdingDailyChange;
             } else {
                 log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
                 // 가격 정보가 없는 경우 holding의 totalValue 사용

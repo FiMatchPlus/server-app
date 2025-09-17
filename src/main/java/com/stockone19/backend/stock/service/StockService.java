@@ -3,7 +3,6 @@ package com.stockone19.backend.stock.service;
 import com.stockone19.backend.stock.dto.StockDetailResponse;
 import com.stockone19.backend.stock.dto.StockPriceResponse;
 import com.stockone19.backend.stock.dto.StockSearchResponse;
-import com.stockone19.backend.stock.dto.StockSearchResult;
 import com.stockone19.backend.stock.repository.StockPriceRepository;
 import com.stockone19.backend.stock.repository.StockRepository;
 import com.stockone19.backend.stock.domain.Stock;
@@ -58,14 +57,11 @@ public class StockService {
                 parsed.status, parsed.korName, parsed.currentPrice, parsed.dailyChange, parsed.sign, parsed.dailyRate, parsed.marketCap
         );
 
-        double previousClose = stockPriceRepository.findLatestClosePriceByTicker(ticker).doubleValue();
-
         List<StockPriceResponse.StockPriceData> data = List.of(
                 new StockPriceResponse.StockPriceData(
-                        stock.ticker(),
-                        stock.name(),
+                        stock.getTicker(),
+                        stock.getName(),
                         parsed.currentPrice,
-                        previousClose,
                         parsed.dailyRate,
                         parsed.dailyChange,
                         parsed.marketCap
@@ -146,23 +142,25 @@ public class StockService {
     }
 
     /**
-     * 종목 이름 또는 티커로 검색 (가격 정보 포함)
+     * 종목 이름 또는 티커로 검색 (기본 정보만)
      *
      * @param keyword 검색 키워드 (종목명 또는 티커)
      * @param limit 검색 결과 제한 수 (기본값: 20)
-     * @return 검색된 종목 리스트 (가격 정보 포함)
+     * @return 검색된 종목 리스트 (티커, 종목명, 업종)
      */
     public StockSearchResponse searchStocks(String keyword, int limit) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return StockSearchResponse.success(List.of());
         }
 
-        List<StockSearchResult> searchResults = stockRepository.searchByNameOrTickerWithPrice(keyword.trim(), limit);
-        List<StockSearchResponse.StockSearchData> searchData = searchResults.stream()
-                .map(result -> StockSearchResponse.StockSearchData.of(
-                        result.ticker(),
-                        result.name(),
-                        result.industryName()
+        List<Stock> stocks = stockRepository.searchByNameOrTicker(keyword.trim(), 
+                org.springframework.data.domain.PageRequest.of(0, limit));
+        
+        List<StockSearchResponse.StockSearchData> searchData = stocks.stream()
+                .map(stock -> StockSearchResponse.StockSearchData.of(
+                        stock.getTicker(),
+                        stock.getName(),
+                        stock.getIndustryName()
                 ))
                 .collect(Collectors.toList());
 
@@ -182,6 +180,19 @@ public class StockService {
     }
 
     /**
+     * 여러 티커로 주식 정보를 배치 조회합니다.
+     *
+     * @param tickers 종목 티커 리스트
+     * @return Stock 객체 리스트
+     */
+    public List<Stock> getStocksByTickers(List<String> tickers) {
+        if (tickers == null || tickers.isEmpty()) {
+            return List.of();
+        }
+        return stockRepository.findByTickerIn(tickers);
+    }
+
+    /**
      * 티커로 현재 가격을 조회합니다.
      *
      * @param ticker 종목 티커
@@ -189,27 +200,13 @@ public class StockService {
      * @throws RuntimeException 종목을 찾을 수 없거나 가격 데이터가 없는 경우
      */
     public double getCurrentPrice(String ticker) {
-        StockPrice latestPrice = stockPriceRepository.findLatestByStockIdAndInterval(ticker, "1d");
+        StockPrice latestPrice = stockPriceRepository.findFirstByStockIdAndIntervalUnitOrderByDatetimeDesc(ticker, "1d");
         if (latestPrice == null) {
             throw new RuntimeException("가격 데이터를 찾을 수 없습니다: " + ticker);
         }
-        return latestPrice.closePrice().doubleValue();
+        return latestPrice.getClosePrice().doubleValue();
     }
 
-    /**
-     * 티커로 이전 가격을 조회합니다.
-     *
-     * @param ticker 종목 티커
-     * @return 이전 가격 (double) - 가장 최근 날짜의 종가
-     * @throws RuntimeException 종목을 찾을 수 없거나 가격 데이터가 없는 경우
-     */
-    public double getPreviousClose(String ticker) {
-        StockPrice latestPrice = stockPriceRepository.findLatestByStockIdAndInterval(ticker, "1d");
-        if (latestPrice == null) {
-            throw new RuntimeException("가격 데이터를 찾을 수 없습니다: " + ticker);
-        }
-        return latestPrice.closePrice().doubleValue();
-    }
 
     /**
      * 여러 종목의 현재가와 전일종가를 KIS API로 조회합니다.
@@ -235,12 +232,15 @@ public class StockService {
                 try {
                     String ticker = output.interShrnIscd();
                     double currentPrice = Double.parseDouble(output.inter2Prpr());
-                    double previousClose = Double.parseDouble(output.inter2PrdyClpr());
+                    String signCode = output.prdyVrssSign();
+                    double multiplier = signToMultiplier(signCode);
+                    double dailyChangeRate = parseDouble(output.prdyCtrt()) * multiplier;
+                    double dailyChangePrice = parseDouble(output.inter2PrdyVrss()) * multiplier;
                     
-                    priceMap.put(ticker, new StockPriceInfo(currentPrice, previousClose));
+                    priceMap.put(ticker, new StockPriceInfo(currentPrice, dailyChangeRate, dailyChangePrice));
                 } catch (NumberFormatException e) {
-                    log.warn("가격 데이터 파싱 오류 - 종목: {}, 현재가: {}, 전일종가: {}", 
-                            output.interShrnIscd(), output.inter2Prpr(), output.inter2PrdyClpr());
+                    log.warn("가격 데이터 파싱 오류 - 종목: {}, 현재가: {}, 전일대비: {}", 
+                            output.interShrnIscd(), output.inter2Prpr(), output.inter2PrdyVrss());
                 }
             }
             
@@ -254,12 +254,12 @@ public class StockService {
     /**
      * 종목 가격 정보를 담는 레코드
      */
-    public record StockPriceInfo(double currentPrice, double previousClose) {}
+    public record StockPriceInfo(double currentPrice, double dailyChangeRate, double dailyChangePrice) {}
 
     // Private helper methods
 
     private List<Stock> findStocksByTickers(List<String> tickers) {
-        return stockRepository.findByTickers(tickers);
+        return stockRepository.findByTickerIn(tickers);
     }
 
     private List<StockPrice> findLatestPricesByTickers(List<String> tickers) {
@@ -273,7 +273,7 @@ public class StockService {
     }
 
     private StockPriceResponse.StockPriceData convertToStockPriceData(Stock stock, List<StockPrice> latestPrices) {
-        StockPrice latestPrice = findLatestPriceForStock(stock.ticker(), latestPrices);
+        StockPrice latestPrice = findLatestPriceForStock(stock.getTicker(), latestPrices);
 
         if (latestPrice == null) {
             return createEmptyStockPriceData(stock);
@@ -284,31 +284,29 @@ public class StockService {
 
     private StockPrice findLatestPriceForStock(String ticker, List<StockPrice> latestPrices) {
         return latestPrices.stream()
-                .filter(price -> price.stockId().equals(ticker))
+                .filter(price -> price.getStockId().equals(ticker))
                 .findFirst()
                 .orElse(null);
     }
 
     private StockPriceResponse.StockPriceData createEmptyStockPriceData(Stock stock) {
         return new StockPriceResponse.StockPriceData(
-                stock.ticker(),
-                stock.name(),
-                0.0, 0.0, 0.0, 0.0,
+                stock.getTicker(),
+                stock.getName(),
+                0.0, 0.0, 0.0,
                 0.0
         );
     }
 
     private StockPriceResponse.StockPriceData createStockPriceDataFromPrice(Stock stock, StockPrice latestPrice) {
-        double currentPrice = latestPrice.closePrice().doubleValue();
-        double previousClose = latestPrice.openPrice().doubleValue();
-        double dailyChange = latestPrice.changeAmount().doubleValue();
-        double dailyRate = latestPrice.changeRate().doubleValue();
+        double currentPrice = latestPrice.getClosePrice().doubleValue();
+        double dailyChange = latestPrice.getChangeAmount().doubleValue();
+        double dailyRate = latestPrice.getChangeRate().doubleValue();
 
         return new StockPriceResponse.StockPriceData(
-                stock.ticker(),
-                stock.name(),
+                stock.getTicker(),
+                stock.getName(),
                 currentPrice,
-                previousClose,
                 dailyRate,
                 dailyChange,
                 0.0
@@ -334,17 +332,17 @@ public class StockService {
 
     private StockDetailResponse.ChartData convertToChartData(StockPrice price) {
         return new StockDetailResponse.ChartData(
-                price.datetime().toInstant(ZoneOffset.UTC),
-                price.openPrice().doubleValue(),
-                price.closePrice().doubleValue(),
-                price.highPrice().doubleValue(),
-                price.lowPrice().doubleValue(),
-                price.volume()
+                price.getDatetime().toInstant(ZoneOffset.UTC),
+                price.getOpenPrice().doubleValue(),
+                price.getClosePrice().doubleValue(),
+                price.getHighPrice().doubleValue(),
+                price.getLowPrice().doubleValue(),
+                price.getVolume()
         );
     }
 
     private StockDetailResponse.SummaryData createSummaryData(Stock stock, String ticker, String interval) {
-        StockPrice latestPrice = stockPriceRepository.findLatestByStockIdAndInterval(ticker, interval);
+        StockPrice latestPrice = stockPriceRepository.findFirstByStockIdAndIntervalUnitOrderByDatetimeDesc(ticker, interval);
 
         if (latestPrice == null) {
             return createEmptySummaryData(stock);
@@ -355,21 +353,20 @@ public class StockService {
 
     private StockDetailResponse.SummaryData createEmptySummaryData(Stock stock) {
         return new StockDetailResponse.SummaryData(
-                stock.ticker(),
-                stock.name(),
-                0.0, 0.0, 0.0, 0.0, 0L, 0.0
+                stock.getTicker(),
+                stock.getName(),
+                0.0, 0.0, 0.0, 0L, 0.0
         );
     }
 
     private StockDetailResponse.SummaryData createSummaryDataFromPrice(Stock stock, StockPrice latestPrice) {
         return new StockDetailResponse.SummaryData(
-                stock.ticker(),
-                stock.name(),
-                latestPrice.closePrice().doubleValue(),
-                latestPrice.openPrice().doubleValue(),
-                latestPrice.changeRate().doubleValue(),
-                latestPrice.changeAmount().doubleValue(),
-                latestPrice.volume(),
+                stock.getTicker(),
+                stock.getName(),
+                latestPrice.getClosePrice().doubleValue(),
+                latestPrice.getChangeRate().doubleValue(),
+                latestPrice.getChangeAmount().doubleValue(),
+                latestPrice.getVolume(),
                 0.0 // marketCap은 별도 계산 필요
         );
     }
@@ -379,11 +376,11 @@ public class StockService {
             List<StockDetailResponse.ChartData> chartData,
             StockDetailResponse.SummaryData summaryData) {
         return new StockDetailResponse.StockDetailData(
-                stock.ticker(),
-                stock.name(),
-                stock.engName(),
-                stock.exchange(),
-                stock.industryName(),
+                stock.getTicker(),
+                stock.getName(),
+                stock.getEngName(),
+                stock.getExchange(),
+                stock.getIndustryName(),
                 chartData,
                 summaryData
         );

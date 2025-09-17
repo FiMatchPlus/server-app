@@ -3,6 +3,7 @@ package com.stockone19.backend.portfolio.repository;
 import com.stockone19.backend.portfolio.domain.Portfolio;
 import com.stockone19.backend.portfolio.domain.PortfolioSnapshot;
 import com.stockone19.backend.portfolio.domain.Holding;
+import com.stockone19.backend.portfolio.domain.HoldingSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -146,23 +147,34 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     @SuppressWarnings("unused")
     private PortfolioSnapshot insertSnapshot(PortfolioSnapshot snapshot) {
         String sql = """
-            INSERT INTO portfolio_snapshots (recorded_at, base_value, current_value, portfolio_id)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO portfolio_snapshots (portfolio_id, base_value, current_value, created_at, 
+                                           metric_id, start_at, end_at, execution_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setTimestamp(1, java.sql.Timestamp.valueOf(snapshot.recordedAt()));
+            ps.setLong(1, snapshot.portfolioId());
             ps.setDouble(2, snapshot.baseValue());
             ps.setDouble(3, snapshot.currentValue());
-            ps.setLong(4, snapshot.portfolioId());
+            ps.setTimestamp(4, java.sql.Timestamp.valueOf(snapshot.createdAt()));
+            ps.setString(5, snapshot.metricId());
+            ps.setTimestamp(6, snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null);
+            ps.setTimestamp(7, snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null);
+            if (snapshot.executionTime() != null) {
+                ps.setDouble(8, snapshot.executionTime());
+            } else {
+                ps.setNull(8, java.sql.Types.NUMERIC);
+            }
             return ps;
         }, keyHolder);
 
         Long id = extractGeneratedId(keyHolder);
         return PortfolioSnapshot.of(
-                id, snapshot.recordedAt(), snapshot.baseValue(), snapshot.currentValue(), snapshot.portfolioId()
+                id, snapshot.portfolioId(), snapshot.baseValue(), snapshot.currentValue(), 
+                snapshot.createdAt(), snapshot.metricId(), snapshot.startAt(), snapshot.endAt(), 
+                snapshot.executionTime()
         );
     }
 
@@ -170,13 +182,21 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     private PortfolioSnapshot updateSnapshot(PortfolioSnapshot snapshot) {
         String sql = """
             UPDATE portfolio_snapshots
-            SET recorded_at = ?, base_value = ?, current_value = ?
+            SET portfolio_id = ?, base_value = ?, current_value = ?, created_at = ?,
+                metric_id = ?, start_at = ?, end_at = ?, execution_time = ?
             WHERE id = ?
             """;
 
         jdbcTemplate.update(sql,
-                java.sql.Timestamp.valueOf(snapshot.recordedAt()),
-                snapshot.baseValue(), snapshot.currentValue(), snapshot.id()
+                snapshot.portfolioId(),
+                snapshot.baseValue(),
+                snapshot.currentValue(),
+                java.sql.Timestamp.valueOf(snapshot.createdAt()),
+                snapshot.metricId(),
+                snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null,
+                snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null,
+                snapshot.executionTime(),
+                snapshot.id()
         );
 
         return snapshot;
@@ -219,6 +239,44 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             ORDER BY weight DESC
             """;
         return jdbcTemplate.query(sql, HOLDING_ROW_MAPPER, portfolioId);
+    }
+
+    @Override
+    public boolean existsSnapshotByPortfolioId(Long portfolioId) {
+        String sql = """
+            SELECT COUNT(*) FROM portfolio_snapshots 
+            WHERE portfolio_id = ?
+            """;
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, portfolioId);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public List<PortfolioSnapshot> findSnapshotsByPortfolioId(Long portfolioId) {
+        String sql = """
+            SELECT id, portfolio_id, base_value, current_value, created_at, 
+                   metric_id, start_at, end_at, execution_time
+            FROM portfolio_snapshots
+            WHERE portfolio_id = ?
+            ORDER BY created_at ASC
+            """;
+        
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Double executionTime = rs.getObject("execution_time") != null ? 
+                rs.getDouble("execution_time") : null;
+            
+            return PortfolioSnapshot.of(
+                    rs.getLong("id"),
+                    rs.getLong("portfolio_id"),
+                    rs.getDouble("base_value"),
+                    rs.getDouble("current_value"),
+                    rs.getTimestamp("created_at").toLocalDateTime(),
+                    rs.getString("metric_id"),
+                    rs.getTimestamp("start_at") != null ? rs.getTimestamp("start_at").toLocalDateTime() : null,
+                    rs.getTimestamp("end_at") != null ? rs.getTimestamp("end_at").toLocalDateTime() : null,
+                    executionTime
+            );
+        }, portfolioId);
     }
 
     
@@ -274,7 +332,26 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         throw new IllegalStateException("Could not retrieve generated id from KeyHolder");
     }
 
-    
+    @Override
+    public List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId) {
+        String sql = """
+            SELECT id, recorded_at, price, quantity, value, weight, portfolio_snapshot_id, stock_code
+            FROM holding_snapshots
+            WHERE portfolio_snapshot_id = ?
+            ORDER BY weight DESC
+            """;
+        
+        return jdbcTemplate.query(sql, (rs, rowNum) -> HoldingSnapshot.of(
+                rs.getLong("id"),
+                rs.getTimestamp("recorded_at").toLocalDateTime(),
+                rs.getDouble("price"),
+                rs.getInt("quantity"),
+                rs.getDouble("value"),
+                rs.getDouble("weight"),
+                rs.getLong("portfolio_snapshot_id"),
+                rs.getString("stock_code")
+        ), portfolioSnapshotId);
+    }
 }
 
 

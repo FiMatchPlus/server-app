@@ -64,7 +64,6 @@ public record StockDetailResponse(
             String ticker,
             String name,
             double currentPrice,
-            double previousClose,
             double dailyRate,
             double dailyChange,
             long volume,

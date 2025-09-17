@@ -2,14 +2,16 @@ package com.stockone19.backend.stock.repository;
 
 import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.domain.StockType;
-import com.stockone19.backend.stock.dto.StockSearchResult;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface StockRepository {
+public interface StockRepository extends JpaRepository<Stock, Long> {
 
-    List<Stock> findByTickers(List<String> tickers);
+    List<Stock> findByTickerIn(List<String> tickers);
 
     Optional<Stock> findByTicker(String ticker);
 
@@ -17,21 +19,27 @@ public interface StockRepository {
 
     List<Stock> findByIndustryCode(Integer industryCode);
 
-    List<Stock> findActiveStocks();
+    List<Stock> findByIsActiveTrue();
 
     /**
-     * 종목 이름 또는 티커로 검색
+     * 종목 이름 또는 티커로 검색 (기본 정보만)
      * @param keyword 검색 키워드 (종목명 또는 티커)
-     * @param limit 검색 결과 제한 수
+     * @param pageable 페이징 정보 (limit 포함)
      * @return 검색된 종목 리스트
      */
-    List<Stock> searchByNameOrTicker(String keyword, int limit);
+    @Query(value = """
+        SELECT s FROM Stock s 
+        WHERE s.isActive = true 
+        AND (LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) 
+             OR LOWER(s.ticker) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        ORDER BY 
+            CASE WHEN LOWER(s.ticker) = LOWER(:keyword) THEN 1
+                 WHEN LOWER(s.name) = LOWER(:keyword) THEN 2
+                 WHEN LOWER(s.ticker) LIKE LOWER(CONCAT(:keyword, '%')) THEN 3
+                 WHEN LOWER(s.name) LIKE LOWER(CONCAT(:keyword, '%')) THEN 4
+                 ELSE 5 END,
+            s.name
+        """)
+    List<Stock> searchByNameOrTicker(@Param("keyword") String keyword, org.springframework.data.domain.Pageable pageable);
 
-    /**
-     * 종목 이름 또는 티커로 검색 (가격 정보 포함)
-     * @param keyword 검색 키워드 (종목명 또는 티커)
-     * @param limit 검색 결과 제한 수
-     * @return 검색된 종목 리스트 (가격 정보 포함)
-     */
-    List<StockSearchResult> searchByNameOrTickerWithPrice(String keyword, int limit);
 }
