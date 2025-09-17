@@ -21,7 +21,8 @@ public record PortfolioListResponse(
             String name,
             double weight,
             double value,
-            double dailyRate
+            double dailyRate,
+            double currentPrice
     ) {}
 }
 

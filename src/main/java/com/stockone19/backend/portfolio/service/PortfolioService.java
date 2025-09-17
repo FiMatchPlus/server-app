@@ -54,7 +54,7 @@ public class PortfolioService {
 
     private List<Holding> getAllUserHoldings(Long userId) {
         List<Portfolio> portfolios = portfolioRepository.findByUserId(userId);
-        
+
         return portfolios.stream()
                 .flatMap(portfolio -> portfolioRepository.findHoldingsByPortfolioId(portfolio.id()).stream())
                 .collect(Collectors.toList());
@@ -465,6 +465,7 @@ public class PortfolioService {
                                         stock.name(),
                                         holding.weight(),
                                         holding.totalValue(),
+                                        0.0,
                                         0.0
                                 );
                             }
@@ -482,7 +483,8 @@ public class PortfolioService {
                                     stock.name(),
                                     holding.weight(),
                                     value,
-                                    dailyRate
+                                    dailyRate,
+                                    currentPrice
                             );
                         } catch (Exception e) {
                             log.warn("Failed to get stock information for holding: {}, error: {}", holding.symbol(), e.getMessage());
@@ -491,6 +493,7 @@ public class PortfolioService {
                                     "Unknown Stock",
                                     holding.weight(),
                                     holding.totalValue(),
+                                    0.0,
                                     0.0
                             );
                         }
