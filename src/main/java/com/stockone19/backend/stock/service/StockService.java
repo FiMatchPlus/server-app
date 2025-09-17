@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -198,7 +200,7 @@ public class StockService {
      * 티커로 이전 가격을 조회합니다.
      *
      * @param ticker 종목 티커
-     * @return 이전 가격 (double)
+     * @return 이전 가격 (double) - 가장 최근 날짜의 종가
      * @throws RuntimeException 종목을 찾을 수 없거나 가격 데이터가 없는 경우
      */
     public double getPreviousClose(String ticker) {
@@ -206,8 +208,53 @@ public class StockService {
         if (latestPrice == null) {
             throw new RuntimeException("가격 데이터를 찾을 수 없습니다: " + ticker);
         }
-        return latestPrice.openPrice().doubleValue();
+        return latestPrice.closePrice().doubleValue();
     }
+
+    /**
+     * 여러 종목의 현재가와 전일종가를 KIS API로 조회합니다.
+     *
+     * @param tickers 종목 티커 목록
+     * @return 종목별 현재가와 전일종가 정보
+     */
+    public Map<String, StockPriceInfo> getMultiCurrentPrices(List<String> tickers) {
+        if (tickers.isEmpty()) {
+            return Map.of();
+        }
+
+        try {
+            KisMultiPriceResponse response = kisPriceClient.fetchMultiPrice(tickers);
+            
+            if (!"0".equals(response.rtCd())) {
+                throw new RuntimeException("KIS API 오류: " + response.msg1());
+            }
+
+            Map<String, StockPriceInfo> priceMap = new HashMap<>();
+            
+            for (KisMultiPriceResponse.ResponseBodyOutput output : response.output()) {
+                try {
+                    String ticker = output.interShrnIscd();
+                    double currentPrice = Double.parseDouble(output.inter2Prpr());
+                    double previousClose = Double.parseDouble(output.inter2PrdyClpr());
+                    
+                    priceMap.put(ticker, new StockPriceInfo(currentPrice, previousClose));
+                } catch (NumberFormatException e) {
+                    log.warn("가격 데이터 파싱 오류 - 종목: {}, 현재가: {}, 전일종가: {}", 
+                            output.interShrnIscd(), output.inter2Prpr(), output.inter2PrdyClpr());
+                }
+            }
+            
+            return priceMap;
+        } catch (Exception e) {
+            log.error("KIS 다중 가격 조회 오류: {}", e.getMessage());
+            throw new RuntimeException("가격 조회 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 종목 가격 정보를 담는 레코드
+     */
+    public record StockPriceInfo(double currentPrice, double previousClose) {}
 
     // Private helper methods
 
