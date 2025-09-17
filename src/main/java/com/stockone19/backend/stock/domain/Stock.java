@@ -1,5 +1,6 @@
 package com.stockone19.backend.stock.domain;
 
+import com.stockone19.backend.stock.converter.BooleanToYNConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -41,6 +42,7 @@ public class Stock {
 
     private String exchange;
 
+    @Convert(converter = BooleanToYNConverter.class)
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
 
