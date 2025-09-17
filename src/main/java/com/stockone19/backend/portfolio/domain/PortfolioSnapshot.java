@@ -4,31 +4,45 @@ import java.time.LocalDateTime;
 
 public record PortfolioSnapshot(
         Long id,
-        LocalDateTime recordedAt,
+        Long portfolioId,
         double baseValue,
         double currentValue,
-        Long portfolioId
+        LocalDateTime createdAt,
+        String metricId,
+        LocalDateTime startAt,
+        LocalDateTime endAt,
+        Double executionTime
 ) {
 
     public static PortfolioSnapshot of(
             Long id,
-            LocalDateTime recordedAt,
+            Long portfolioId,
             double baseValue,
             double currentValue,
-            Long portfolioId
+            LocalDateTime createdAt,
+            String metricId,
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            Double executionTime
     ) {
         return new PortfolioSnapshot(
-                id, recordedAt, baseValue, currentValue, portfolioId
+                id, portfolioId, baseValue, currentValue, createdAt, 
+                metricId, startAt, endAt, executionTime
         );
     }
 
     public static PortfolioSnapshot create(
+            Long portfolioId,
             double baseValue,
             double currentValue,
-            Long portfolioId
+            String metricId,
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            Double executionTime
     ) {
         return new PortfolioSnapshot(
-                null, LocalDateTime.now(), baseValue, currentValue, portfolioId
+                null, portfolioId, baseValue, currentValue, LocalDateTime.now(),
+                metricId, startAt, endAt, executionTime
         );
     }
 

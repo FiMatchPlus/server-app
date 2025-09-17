@@ -92,10 +92,8 @@ public class BacktestResponseMapper {
                 18.7,   // volatility
                 0.65,   // sharpeRatio
                 -8.2,   // maxDrawdown
-                65,     // winRate
-                2.1,    // avgWin
-                -1.3,   // avgLoss
-                45      // totalTrades
+                0.65,   // winRate
+                1.2     // profitLossRatio
         );
     }
 
@@ -111,7 +109,7 @@ public class BacktestResponseMapper {
                     data.put("change", snapshot.getDailyChange());
                     
                     return new BacktestResponse.DailyReturn(
-                            snapshot.recordedAt().toLocalDate().toString(),
+                            snapshot.createdAt().toLocalDate().toString(),
                             data
                     );
                 })

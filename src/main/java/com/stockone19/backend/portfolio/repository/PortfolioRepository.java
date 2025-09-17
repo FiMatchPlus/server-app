@@ -3,6 +3,7 @@ package com.stockone19.backend.portfolio.repository;
 import com.stockone19.backend.portfolio.domain.Portfolio;
 import com.stockone19.backend.portfolio.domain.Holding;
 import com.stockone19.backend.portfolio.domain.PortfolioSnapshot;
+import com.stockone19.backend.portfolio.domain.HoldingSnapshot;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,4 +23,5 @@ public interface PortfolioRepository {
     
     boolean existsSnapshotByPortfolioId(Long portfolioId);
     List<PortfolioSnapshot> findSnapshotsByPortfolioId(Long portfolioId);
+    List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
 }

@@ -5,6 +5,7 @@ import com.stockone19.backend.backtest.dto.CreateBacktestRequest;
 import com.stockone19.backend.backtest.dto.CreateBacktestResult;
 import com.stockone19.backend.backtest.dto.BacktestResponse;
 import com.stockone19.backend.backtest.dto.BacktestResponseMapper;
+import com.stockone19.backend.backtest.dto.BacktestSummary;
 import com.stockone19.backend.backtest.service.BacktestService;
 import com.stockone19.backend.common.dto.ApiResponse;
 import jakarta.validation.Valid;
@@ -64,5 +65,22 @@ public class BacktestController {
         List<BacktestResponse> responses = backtestResponseMapper.toResponseList(backtests, portfolioId);
         
         return ApiResponse.success("포트폴리오 백테스트 목록을 조회했습니다", responses);
+    }
+
+    /**
+     * 백테스트 상세 정보 조회
+     * <ul>
+     *     <li>백테스트 ID로 상세 정보 조회</li>
+     *     <li>성과 지표, 일별 수익률 등 포함</li>
+     * </ul>
+     */
+    @GetMapping("/{backtestId}")
+    public ApiResponse<BacktestSummary> getBacktestDetail(@PathVariable Long backtestId) {
+        
+        log.info("GET /api/backtests/{}", backtestId);
+        
+        BacktestSummary summary = backtestService.getBacktestDetail(backtestId);
+        
+        return ApiResponse.success("백테스트 상세 정보를 조회했습니다", summary);
     }
 }
