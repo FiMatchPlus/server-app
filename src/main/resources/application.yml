@@ -12,7 +12,6 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
   jpa:
-    show-sql: true
     properties:
       hibernate:
         format_sql: true
