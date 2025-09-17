@@ -25,7 +25,8 @@ public class PortfolioController {
      * </ul>
      * */
     @GetMapping("/summary")
-    public ApiResponse<PortfolioSummaryResponse> getPortfolioSummary(@RequestParam Long userId) {
+    public ApiResponse<PortfolioSummaryResponse> getPortfolioSummary() {
+        Long userId = 1L; // 고정된 userId 값 (나중에 인증/인가 로직 추가 예정)
         log.info("GET /api/portfolios/summary - userId: {}", userId);
 
         PortfolioSummaryResponse response = portfolioService.getPortfolioSummary(userId);
@@ -44,8 +45,8 @@ public class PortfolioController {
     public ApiResponse<CreatePortfolioResult> createPortfolio(
             @Valid @RequestBody CreatePortfolioRequest request) {
         log.info("POST /api/portfolios - name: {}", request.name());
-
-        CreatePortfolioResult data = portfolioService.createPortfolio(request);
+        Long userId = 1L; // 고정된 userId 값
+        CreatePortfolioResult data = portfolioService.createPortfolio(userId, request);
         return ApiResponse.success("새로운 포트폴리오를 생성합니다", data);
     }
 
@@ -96,7 +97,8 @@ public class PortfolioController {
      * </ul>
      * */
     @GetMapping
-    public ApiResponse<PortfolioListResponse> getPortfolioList(@RequestParam Long userId) {
+    public ApiResponse<PortfolioListResponse> getPortfolioList() {
+        Long userId = 1L; // 고정된 userId 값
         log.info("GET /api/portfolios - userId: {}", userId);
 
         PortfolioListResponse response = portfolioService.getPortfolioList(userId);
