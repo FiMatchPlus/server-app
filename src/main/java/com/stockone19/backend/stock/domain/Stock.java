@@ -27,7 +27,7 @@ public class Stock {
 
     private String region;
 
-    @Column(length = 3)
+    @Column(columnDefinition = "bpchar(3)")
     private String currency;
 
     @Column(name = "major_code")
