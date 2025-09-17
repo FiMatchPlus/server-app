@@ -31,8 +31,8 @@ public class BacktestResponseMapper {
         // 실행 시간 계산 (현재는 임시로 0 설정)
         Long executionTime = 0L;
         
-        // 백테스트 상태 결정
-        BacktestStatus status = determineBacktestStatus(portfolioId);
+        // 백테스트 상태는 엔티티에서 직접 가져옴
+        BacktestStatus status = backtest.getStatus();
         
         if (status == BacktestStatus.COMPLETED) {
             // 완료된 경우 지표와 일별 수익률 포함
@@ -71,18 +71,6 @@ public class BacktestResponseMapper {
                 .toList();
     }
 
-    private BacktestStatus determineBacktestStatus(Long portfolioId) {
-        // portfolio_snapshots에서 portfolio_id로 레코드를 찾을 수 있는 경우 completed
-        boolean hasSnapshots = portfolioRepository.existsSnapshotByPortfolioId(portfolioId);
-        
-        if (hasSnapshots) {
-            return BacktestStatus.COMPLETED;
-        } else {
-            // 현재는 간단히 CREATED 상태로 반환
-            // 실제로는 백테스트 실행 상태를 추적하는 로직이 필요
-            return BacktestStatus.CREATED;
-        }
-    }
 
     private BacktestMetrics generateMockMetrics() {
         // 임시 지표 데이터 - 실제 구현 시 백테스트 결과에서 계산
