@@ -101,6 +101,28 @@ public class BacktestService {
     }
 
     /**
+     * 포트폴리오별 백테스트 상태만 조회
+     *
+     * @param portfolioId 포트폴리오 ID
+     * @return 백테스트 ID와 상태 맵 (백테스트 ID -> 상태)
+     */
+    public Map<String, String> getBacktestStatusesByPortfolioId(Long portfolioId) {
+        log.info("Getting backtest statuses for portfolioId: {}", portfolioId);
+
+        // 포트폴리오 존재 확인
+        portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + portfolioId));
+
+        List<Backtest> backtests = backtestRepository.findByPortfolioIdOrderByCreatedAtDesc(portfolioId);
+        
+        return backtests.stream()
+                .collect(Collectors.toMap(
+                    backtest -> String.valueOf(backtest.getId()),
+                    backtest -> backtest.getStatus().name()
+                ));
+    }
+
+    /**
      * 백테스트 상세 정보 조회
      *
      * @param backtestId 백테스트 ID
