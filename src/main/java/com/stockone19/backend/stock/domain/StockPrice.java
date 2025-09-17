@@ -1,21 +1,70 @@
 package com.stockone19.backend.stock.domain;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record StockPrice(
-        Long id,
-        String stockId,
-        LocalDateTime datetime,
-        String intervalUnit,
-        BigDecimal openPrice,
-        BigDecimal highPrice,
-        BigDecimal lowPrice,
-        BigDecimal closePrice,
-        Long volume,
-        BigDecimal changeAmount,
-        BigDecimal changeRate
-) {
+@Getter
+@Entity
+@Table(name = "stock_prices")
+@NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
+public class StockPrice {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "stock_code", nullable = false)
+    private String stockId;
+
+    @Column(nullable = false)
+    private LocalDateTime datetime;
+
+    @Column(name = "interval_unit", nullable = false)
+    private String intervalUnit;
+
+    @Column(name = "open_price", precision = 15, scale = 2)
+    private BigDecimal openPrice;
+
+    @Column(name = "high_price", precision = 15, scale = 2)
+    private BigDecimal highPrice;
+
+    @Column(name = "low_price", precision = 15, scale = 2)
+    private BigDecimal lowPrice;
+
+    @Column(name = "close_price", precision = 15, scale = 2)
+    private BigDecimal closePrice;
+
+    @Column
+    private Long volume;
+
+    @Column(name = "change_amount", precision = 15, scale = 2)
+    private BigDecimal changeAmount;
+
+    @Column(name = "change_rate", precision = 15, scale = 2)
+    private BigDecimal changeRate;
+
+    // Stock과의 관계는 stockId(ticker) 기반이므로 @ManyToOne 대신 필드로 유지
+    // 필요시 서비스 레이어에서 조인
+
+    public StockPrice(String stockId, LocalDateTime datetime, String intervalUnit,
+                      BigDecimal openPrice, BigDecimal highPrice, BigDecimal lowPrice,
+                      BigDecimal closePrice, Long volume, BigDecimal changeAmount,
+                      BigDecimal changeRate) {
+        this.stockId = stockId;
+        this.datetime = datetime;
+        this.intervalUnit = intervalUnit;
+        this.openPrice = openPrice;
+        this.highPrice = highPrice;
+        this.lowPrice = lowPrice;
+        this.closePrice = closePrice;
+        this.volume = volume;
+        this.changeAmount = changeAmount;
+        this.changeRate = changeRate;
+    }
 
     public static StockPrice of(
             Long id,
@@ -30,10 +79,11 @@ public record StockPrice(
             BigDecimal changeAmount,
             BigDecimal changeRate
     ) {
-        return new StockPrice(
-                id, stockId, datetime, intervalUnit, openPrice, highPrice,
-                lowPrice, closePrice, volume, changeAmount, changeRate
-        );
+        StockPrice stockPrice = new StockPrice(stockId, datetime, intervalUnit,
+                openPrice, highPrice, lowPrice, closePrice, volume,
+                changeAmount, changeRate);
+        stockPrice.id = id;  // ID는 직접 설정 (데이터베이스에서 조회시)
+        return stockPrice;
     }
 }
 
