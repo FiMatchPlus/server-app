@@ -31,12 +31,12 @@ public class BacktestController {
      *     <li>규칙이 있는 경우 MongoDB에 저장 후 rule_id 연결</li>
      * </ul>
      */
-    @PostMapping("/{portfolioId}")
+    @PostMapping("/portfolio/{portfolioId}")
     public ApiResponse<CreateBacktestResult> createBacktest(
             @PathVariable Long portfolioId,
             @Valid @RequestBody CreateBacktestRequest request) {
         
-        log.info("POST /api/backtests/{} - title: {}", portfolioId, request.title());
+        log.info("POST /api/backtests/portfolio/{} - title: {}", portfolioId, request.title());
         
         // 시작일과 종료일 검증
         if (!request.endAt().isAfter(request.startAt())) {
