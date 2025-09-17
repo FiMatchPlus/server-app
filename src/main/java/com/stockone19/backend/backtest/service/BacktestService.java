@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -35,6 +37,7 @@ public class BacktestService {
     private final BacktestRuleRepository backtestRuleRepository;
     private final BacktestMetricsRepository backtestMetricsRepository;
     private final StockRepository stockRepository;
+    private final BacktestServerClient backtestServerClient;
 
     /**
      * 백테스트 생성
@@ -307,5 +310,190 @@ public class BacktestService {
                         item.description()
                 ))
                 .toList();
+    }
+
+    /**
+     * 백테스트 실행 (WebFlux)
+     * 기존 record 클래스들을 활용하여 간단하게 구현
+     */
+    @Transactional
+    public Mono<BacktestExecutionResponse> executeBacktestReactive(Long backtestId) {
+        log.info("Starting reactive backtest execution for backtestId: {}", backtestId);
+        
+        return Mono.fromCallable(() -> findBacktestById(backtestId))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doOnNext(backtest -> updateBacktestStatus(backtest.getId(), BacktestStatus.RUNNING))
+                .flatMap(this::prepareBacktestRequest)
+                .flatMap(backtestServerClient::executeBacktest)
+                .flatMap(response -> saveBacktestResultsSimple(backtestId, response))
+                .doOnSuccess(response -> {
+                    log.info("Backtest execution completed successfully for backtestId: {}", backtestId);
+                    updateBacktestStatusAsync(backtestId, BacktestStatus.COMPLETED);
+                })
+                .doOnError(error -> {
+                    log.error("Backtest execution failed for backtestId: {}, error: {}", backtestId, error.getMessage());
+                    updateBacktestStatusAsync(backtestId, BacktestStatus.FAILED);
+                });
+    }
+
+    /**
+     * 백테스트 요청 데이터 준비
+     */
+    private Mono<BacktestExecutionRequest> prepareBacktestRequest(Backtest backtest) {
+        return Mono.fromCallable(() -> {
+            // 포트폴리오 존재 확인
+            portfolioRepository.findById(backtest.getPortfolioId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + backtest.getPortfolioId()));
+            
+            // 실제 구현에서는 포트폴리오의 홀딩 정보를 가져와야 함
+            // 여기서는 예시로 기본값 설정 (보유수량 기준)
+            List<BacktestExecutionRequest.HoldingRequest> holdings = List.of(
+                BacktestExecutionRequest.HoldingRequest.builder()
+                    .code("005930")
+                    .quantity(100)
+                    .build(),
+                BacktestExecutionRequest.HoldingRequest.builder()
+                    .code("000660")
+                    .quantity(50)
+                    .build(),
+                BacktestExecutionRequest.HoldingRequest.builder()
+                    .code("035420")
+                    .quantity(25)
+                    .build()
+            );
+            
+            return BacktestExecutionRequest.builder()
+                    .start(backtest.getStartAt())
+                    .end(backtest.getEndAt())
+                    .holdings(holdings)
+                    .rebalanceFrequency("daily")
+                    .build();
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * 백테스트 결과 저장 (완전 구현 버전)
+     * JdbcTemplate 기반으로 실제 DB에 저장
+     */
+    private Mono<BacktestExecutionResponse> saveBacktestResultsSimple(Long backtestId, BacktestExecutionResponse response) {
+        return Mono.fromCallable(() -> {
+            log.info("Saving backtest results for backtestId: {}", backtestId);
+            
+            // 1단계: BacktestMetrics를 MongoDB에 저장
+            String metricId = saveBacktestMetrics(response.metrics());
+            log.info("Saved metrics to MongoDB with ID: {}", metricId);
+            
+            // 2단계: PortfolioSnapshot을 PostgreSQL에 저장
+            Long portfolioSnapshotId = savePortfolioSnapshot(backtestId, response.portfolioSnapshot(), metricId);
+            log.info("Saved portfolio snapshot with ID: {}", portfolioSnapshotId);
+            
+            // 3단계: HoldingSnapshot들을 PostgreSQL에 저장
+            saveHoldingSnapshots(portfolioSnapshotId, response.portfolioSnapshot().holdings());
+            log.info("Saved {} holding snapshots", response.portfolioSnapshot().holdings().size());
+            
+            // 4단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트
+            updateMetricsWithSnapshotId(metricId, portfolioSnapshotId);
+            
+            log.info("All backtest results saved successfully for backtestId: {}", backtestId);
+            return response;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * 1단계: BacktestMetrics를 MongoDB에 저장
+     */
+    private String saveBacktestMetrics(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse) {
+        BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
+                null, // portfolioSnapshotId는 나중에 업데이트
+                metricsResponse.totalReturn(),
+                metricsResponse.annualizedReturn(),
+                metricsResponse.volatility(),
+                metricsResponse.sharpeRatio(),
+                metricsResponse.maxDrawdown(),
+                metricsResponse.var95(),
+                metricsResponse.var99(),
+                metricsResponse.cvar95(),
+                metricsResponse.cvar99(),
+                metricsResponse.winRate(),
+                metricsResponse.profitLossRatio()
+        );
+        
+        BacktestMetricsDocument savedMetrics = backtestMetricsRepository.save(metricsDoc);
+        return savedMetrics.getId();
+    }
+
+    /**
+     * 2단계: PortfolioSnapshot을 PostgreSQL에 저장
+     */
+    private Long savePortfolioSnapshot(Long backtestId, 
+                                     BacktestExecutionResponse.PortfolioSnapshotResponse snapshotResponse,
+                                     String metricId) {
+        Backtest backtest = findBacktestById(backtestId);
+        
+        PortfolioSnapshot portfolioSnapshot = PortfolioSnapshot.create(
+                backtest.getPortfolioId(),
+                snapshotResponse.baseValue(),
+                snapshotResponse.currentValue(),
+                metricId,
+                snapshotResponse.startAt(),
+                snapshotResponse.endAt(),
+                snapshotResponse.executionTime()
+        );
+        
+        PortfolioSnapshot savedSnapshot = portfolioRepository.saveSnapshot(portfolioSnapshot);
+        return savedSnapshot.id();
+    }
+
+    /**
+     * 3단계: HoldingSnapshot들을 PostgreSQL에 저장
+     */
+    private void saveHoldingSnapshots(Long portfolioSnapshotId, 
+                                    List<BacktestExecutionResponse.HoldingResponse> holdingResponses) {
+        for (BacktestExecutionResponse.HoldingResponse holdingResponse : holdingResponses) {
+            HoldingSnapshot holdingSnapshot = HoldingSnapshot.create(
+                    holdingResponse.price(),
+                    holdingResponse.quantity(),
+                    holdingResponse.value(),
+                    holdingResponse.weight(),
+                    portfolioSnapshotId,
+                    holdingResponse.stockId()
+            );
+            
+            portfolioRepository.saveHoldingSnapshot(holdingSnapshot);
+        }
+    }
+
+    /**
+     * 4단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트
+     */
+    private void updateMetricsWithSnapshotId(String metricId, Long portfolioSnapshotId) {
+        BacktestMetricsDocument metrics = backtestMetricsRepository.findById(metricId).orElse(null);
+        if (metrics != null) {
+            metrics.setPortfolioSnapshotId(portfolioSnapshotId);
+            metrics.setUpdatedAt(java.time.LocalDateTime.now());
+            backtestMetricsRepository.save(metrics);
+        }
+    }
+
+    /**
+     * 백테스트 상태 업데이트 (동기)
+     */
+    private void updateBacktestStatus(Long backtestId, BacktestStatus status) {
+        log.info("Updating backtest status to {} for backtestId: {}", status, backtestId);
+        
+        Backtest backtest = findBacktestById(backtestId);
+        backtest.updateStatus(status);
+        backtestRepository.save(backtest);
+        
+        log.debug("Successfully updated backtest status to {} for backtestId: {}", status, backtestId);
+    }
+
+    /**
+     * 백테스트 상태 업데이트 (비동기)
+     */
+    private void updateBacktestStatusAsync(Long backtestId, BacktestStatus status) {
+        Mono.fromRunnable(() -> updateBacktestStatus(backtestId, status))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe();
     }
 }

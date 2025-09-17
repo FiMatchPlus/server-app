@@ -143,8 +143,15 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         return portfolio;
     }
 
-    // snapshots are not used in current implementation
-    @SuppressWarnings("unused")
+    @Override
+    public PortfolioSnapshot saveSnapshot(PortfolioSnapshot snapshot) {
+        if (snapshot.id() == null) {
+            return insertSnapshot(snapshot);
+        } else {
+            return updateSnapshot(snapshot);
+        }
+    }
+    
     private PortfolioSnapshot insertSnapshot(PortfolioSnapshot snapshot) {
         String sql = """
             INSERT INTO portfolio_snapshots (portfolio_id, base_value, current_value, created_at, 
@@ -178,7 +185,6 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         );
     }
 
-    @SuppressWarnings("unused")
     private PortfolioSnapshot updateSnapshot(PortfolioSnapshot snapshot) {
         String sql = """
             UPDATE portfolio_snapshots
@@ -351,6 +357,39 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
                 rs.getLong("portfolio_snapshot_id"),
                 rs.getString("stock_code")
         ), portfolioSnapshotId);
+    }
+
+    @Override
+    public HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot) {
+        String sql = """
+            INSERT INTO holding_snapshots (portfolio_snapshot_id, stock_code, weight, price, quantity, value, recorded_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """;
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setLong(1, holdingSnapshot.portfolioSnapshotId());
+            ps.setString(2, holdingSnapshot.stockCode());
+            ps.setDouble(3, holdingSnapshot.weight());
+            ps.setDouble(4, holdingSnapshot.price());
+            ps.setInt(5, holdingSnapshot.quantity());
+            ps.setDouble(6, holdingSnapshot.value());
+            ps.setTimestamp(7, java.sql.Timestamp.valueOf(holdingSnapshot.recordedAt()));
+            return ps;
+        }, keyHolder);
+
+        Long id = extractGeneratedId(keyHolder);
+        return HoldingSnapshot.of(
+                id,
+                holdingSnapshot.recordedAt(),
+                holdingSnapshot.price(),
+                holdingSnapshot.quantity(),
+                holdingSnapshot.value(),
+                holdingSnapshot.weight(),
+                holdingSnapshot.portfolioSnapshotId(),
+                holdingSnapshot.stockCode()
+        );
     }
 }
 

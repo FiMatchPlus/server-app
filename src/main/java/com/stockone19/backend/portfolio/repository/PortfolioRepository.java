@@ -24,4 +24,8 @@ public interface PortfolioRepository {
     boolean existsSnapshotByPortfolioId(Long portfolioId);
     List<PortfolioSnapshot> findSnapshotsByPortfolioId(Long portfolioId);
     List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
+    
+    // 백테스트 결과 저장용 메서드들
+    PortfolioSnapshot saveSnapshot(PortfolioSnapshot snapshot);
+    HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot);
 }
