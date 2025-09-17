@@ -67,8 +67,7 @@ public class PortfolioService {
      * @return 생성된 포트폴리오 결과
      */
     @Transactional
-    public CreatePortfolioResult createPortfolio(CreatePortfolioRequest request) {
-        Long userId = 1L; // 고정된 userId 값
+    public CreatePortfolioResult createPortfolio(Long userId, CreatePortfolioRequest request) {
         log.info("Creating portfolio for userId: {}, name: {}", userId, request.name());
 
         // 1. Rules를 MongoDB에 저장 (선택 사항)
