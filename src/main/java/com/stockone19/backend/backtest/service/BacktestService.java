@@ -390,7 +390,7 @@ public class BacktestService {
      * 백테스트 성공 이벤트 처리
      */
     @EventListener
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void handleBacktestSuccessEvent(BacktestSuccessEvent event) {
         log.info("Handling backtest success event for backtestId: {}", event.backtestId());
         
@@ -419,7 +419,7 @@ public class BacktestService {
      * 백테스트 실패 이벤트 처리
      */
     @EventListener
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void handleBacktestFailure(BacktestFailureEvent event) {
         log.info("Handling backtest failure event for backtestId: {}", event.backtestId());
         updateBacktestStatus(event.backtestId(), BacktestStatus.FAILED);
