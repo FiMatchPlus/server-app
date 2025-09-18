@@ -8,8 +8,9 @@ import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.BacktestRuleRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.portfolio.domain.Holding;
-import com.stockone19.backend.portfolio.domain.HoldingSnapshot;
-import com.stockone19.backend.portfolio.domain.PortfolioSnapshot;
+import com.stockone19.backend.backtest.domain.HoldingSnapshot;
+import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
+import com.stockone19.backend.backtest.repository.SnapshotRepository;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
 import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.repository.StockRepository;
@@ -35,6 +36,7 @@ public class BacktestService {
 
     private final BacktestRepository backtestRepository;
     private final PortfolioRepository portfolioRepository;
+    private final SnapshotRepository snapshotRepository;
     private final BacktestRuleRepository backtestRuleRepository;
     private final BacktestMetricsRepository backtestMetricsRepository;
     private final StockRepository stockRepository;
@@ -164,7 +166,7 @@ public class BacktestService {
      * 포트폴리오 스냅샷 조회
      */
     private List<PortfolioSnapshot> findPortfolioSnapshots(Long portfolioId, Long backtestId) {
-        List<PortfolioSnapshot> snapshots = portfolioRepository.findSnapshotsByPortfolioId(portfolioId);
+        List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByPortfolioId(portfolioId);
         if (snapshots.isEmpty()) {
             throw new ResourceNotFoundException("No portfolio snapshots found for backtest id: " + backtestId);
         }
@@ -252,7 +254,7 @@ public class BacktestService {
      * 홀딩 스냅샷 조회
      */
     private List<HoldingSnapshot> getHoldingSnapshots(Long portfolioSnapshotId) {
-        return portfolioRepository.findHoldingSnapshotsByPortfolioSnapshotId(portfolioSnapshotId);
+        return snapshotRepository.findHoldingSnapshotsByPortfolioSnapshotId(portfolioSnapshotId);
     }
 
     /**
@@ -440,7 +442,6 @@ public class BacktestService {
     /**
      * PostgreSQL 트랜잭션으로 PortfolioSnapshot과 HoldingSnapshot 저장
      */
-    @Transactional
     private Long saveBacktestResultsInTransaction(Long backtestId, BacktestExecutionResponse response, String metricId) {
         try {
             // PortfolioSnapshot 저장
@@ -497,7 +498,7 @@ public class BacktestService {
                 snapshotResponse.executionTime()
         );
         
-        PortfolioSnapshot savedSnapshot = portfolioRepository.saveSnapshot(portfolioSnapshot);
+        PortfolioSnapshot savedSnapshot = snapshotRepository.savePortfolioSnapshot(portfolioSnapshot);
         return savedSnapshot.id();
     }
 
@@ -522,7 +523,7 @@ public class BacktestService {
                         stockData.dailyReturn()
                 );
                 
-                portfolioRepository.saveHoldingSnapshot(holdingSnapshot);
+                snapshotRepository.saveHoldingSnapshot(holdingSnapshot);
             }
         }
     }

@@ -1,4 +1,4 @@
-package com.stockone19.backend.portfolio.domain;
+package com.stockone19.backend.backtest.domain;
 
 import java.time.LocalDateTime;
 
@@ -41,7 +41,7 @@ public record PortfolioSnapshot(
             Double executionTime
     ) {
         return new PortfolioSnapshot(
-                null, portfolioId, baseValue, currentValue, LocalDateTime.now(),
+                null, portfolioId, baseValue, currentValue, LocalDateTime.now(), 
                 metricId, startAt, endAt, executionTime
         );
     }
@@ -55,4 +55,3 @@ public record PortfolioSnapshot(
         return currentValue - baseValue;
     }
 }
-
