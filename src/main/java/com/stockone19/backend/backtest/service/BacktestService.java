@@ -414,7 +414,7 @@ public class BacktestService {
         } catch (Exception e) {
             log.error("Failed to submit backtest to engine: backtestId={}", backtestId, e);
             try {
-                updateBacktestStatus(backtestId, BacktestStatus.FAILED);
+            updateBacktestStatus(backtestId, BacktestStatus.FAILED);
                 log.info("Successfully updated backtest status to FAILED for backtestId: {}", backtestId);
             } catch (Exception updateException) {
                 log.error("Failed to update backtest status to FAILED for backtestId: {}", backtestId, updateException);
@@ -445,7 +445,12 @@ public class BacktestService {
             backtestRepository.save(backtest);
             
             // 2. 상세 데이터 저장 (분석용)
-            saveDetailedBacktestResults(backtestId, callback.result());
+            BacktestExecutionResponse executionResponse = callback.toBacktestExecutionResponse();
+            if (executionResponse != null) {
+                saveDetailedBacktestResults(backtestId, executionResponse);
+            } else {
+                log.warn("Cannot convert callback to BacktestExecutionResponse for backtestId: {}", backtestId);
+            }
             
             log.info("Backtest completed successfully: backtestId={}, jobId={}", 
                     backtestId, callback.jobId());
@@ -514,16 +519,17 @@ public class BacktestService {
      * 순서: MongoDB metrics → PostgreSQL portfolio_snapshot → PostgreSQL holding_snapshots → MongoDB 업데이트
      */
     @Transactional
-    public void saveDetailedBacktestResults(Long backtestId, Object callbackResult) {
+    public void saveDetailedBacktestResults(Long backtestId, BacktestExecutionResponse response) {
         String metricId = null;
         Long portfolioSnapshotId = null;
         
         try {
             log.info("Saving detailed backtest results for backtestId: {}", backtestId);
             
-            // 콜백 결과를 BacktestExecutionResponse로 변환
-            String resultJson = objectMapper.writeValueAsString(callbackResult);
-            BacktestExecutionResponse response = objectMapper.readValue(resultJson, BacktestExecutionResponse.class);
+            // 이미 변환된 BacktestExecutionResponse 사용
+            if (response == null) {
+                throw new IllegalStateException("BacktestExecutionResponse is null");
+            }
             
             // 1단계: MongoDB에 성과 지표 저장 (metricId 필요)
             metricId = saveBacktestMetrics(response.metrics());

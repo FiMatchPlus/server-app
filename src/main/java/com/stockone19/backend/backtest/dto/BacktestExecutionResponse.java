@@ -1,7 +1,6 @@
 package com.stockone19.backend.backtest.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Builder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -9,7 +8,6 @@ import java.util.List;
 /**
  * 외부 백테스트 서버로부터 받는 응답 DTO
  */
-@Builder
 public record BacktestExecutionResponse(
         @JsonProperty("portfolio_snapshot")
         PortfolioSnapshotResponse portfolioSnapshot,
@@ -20,7 +18,6 @@ public record BacktestExecutionResponse(
         double executionTime
 ) {
     
-    @Builder
     public record PortfolioSnapshotResponse(
             Long id,
             @JsonProperty("portfolio_id")
@@ -40,7 +37,6 @@ public record BacktestExecutionResponse(
             List<HoldingResponse> holdings
     ) {}
     
-    @Builder
     public record HoldingResponse(
             Long id,
             @JsonProperty("stock_id")
@@ -48,7 +44,6 @@ public record BacktestExecutionResponse(
             int quantity
     ) {}
     
-    @Builder
     public record BacktestMetricsResponse(
             @JsonProperty("total_return")
             double totalReturn,
@@ -73,15 +68,13 @@ public record BacktestExecutionResponse(
             double profitLossRatio
     ) {}
     
-    @Builder
     public record DailyResultResponse(
             LocalDateTime date,
             @JsonProperty("stocks")
             List<DailyStockResponse> stocks
     ) {}
     
-    @Builder
-    public record DailyStockResponse(
+        public record DailyStockResponse(
             @JsonProperty("stock_code")
             String stockCode,
             LocalDateTime date,
