@@ -7,6 +7,7 @@ import com.stockone19.backend.backtest.repository.BacktestMetricsRepository;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.BacktestRuleRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
+import com.stockone19.backend.portfolio.domain.Holding;
 import com.stockone19.backend.portfolio.domain.HoldingSnapshot;
 import com.stockone19.backend.portfolio.domain.PortfolioSnapshot;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
@@ -224,6 +225,7 @@ public class BacktestService {
         return startDate.format(formatter) + " ~ " + endDate.format(formatter);
     }
 
+
     /**
      * 일별 수익률 데이터 생성
      */
@@ -336,7 +338,6 @@ public class BacktestService {
 
     /**
      * 백테스트 실행 (WebFlux)
-     * 기존 record 클래스들을 활용하여 간단하게 구현
      */
     @Transactional
     public Mono<BacktestExecutionResponse> executeBacktestReactive(Long backtestId) {
@@ -367,22 +368,23 @@ public class BacktestService {
             portfolioRepository.findById(backtest.getPortfolioId())
                     .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + backtest.getPortfolioId()));
             
-            // 실제 구현에서는 포트폴리오의 홀딩 정보를 가져와야 함
-            // 여기서는 예시로 기본값 설정 (보유수량 기준)
-            List<BacktestExecutionRequest.HoldingRequest> holdings = List.of(
-                BacktestExecutionRequest.HoldingRequest.builder()
-                    .code("005930")
-                    .quantity(100)
-                    .build(),
-                BacktestExecutionRequest.HoldingRequest.builder()
-                    .code("000660")
-                    .quantity(50)
-                    .build(),
-                BacktestExecutionRequest.HoldingRequest.builder()
-                    .code("035420")
-                    .quantity(25)
-                    .build()
-            );
+            // 포트폴리오의 실제 홀딩 정보 조회
+            List<Holding> portfolioHoldings = portfolioRepository.findHoldingsByPortfolioId(backtest.getPortfolioId());
+            
+            if (portfolioHoldings.isEmpty()) {
+                throw new ResourceNotFoundException("No holdings found for portfolio id: " + backtest.getPortfolioId());
+            }
+            
+            // Holding을 BacktestExecutionRequest.HoldingRequest로 변환
+            List<BacktestExecutionRequest.HoldingRequest> holdings = portfolioHoldings.stream()
+                    .map(holding -> BacktestExecutionRequest.HoldingRequest.builder()
+                            .code(holding.symbol())
+                            .quantity(holding.shares())
+                            .build())
+                    .collect(Collectors.toList());
+            
+            log.info("Prepared backtest request with {} holdings for portfolioId: {}", 
+                    holdings.size(), backtest.getPortfolioId());
             
             return BacktestExecutionRequest.builder()
                     .start(backtest.getStartAt())
@@ -394,31 +396,64 @@ public class BacktestService {
     }
 
     /**
-     * 백테스트 결과 저장 (완전 구현 버전)
-     * JdbcTemplate 기반으로 실제 DB에 저장
+     * 백테스트 결과 저장
      */
     private Mono<BacktestExecutionResponse> saveBacktestResultsSimple(Long backtestId, BacktestExecutionResponse response) {
         return Mono.fromCallable(() -> {
             log.info("Saving backtest results for backtestId: {}", backtestId);
             
-            // 1단계: BacktestMetrics를 MongoDB에 저장
-            String metricId = saveBacktestMetrics(response.metrics());
-            log.info("Saved metrics to MongoDB with ID: {}", metricId);
-            
-            // 2단계: PortfolioSnapshot을 PostgreSQL에 저장
-            Long portfolioSnapshotId = savePortfolioSnapshot(backtestId, response.portfolioSnapshot(), metricId);
-            log.info("Saved portfolio snapshot with ID: {}", portfolioSnapshotId);
-            
-            // 3단계: HoldingSnapshot들을 PostgreSQL에 저장
-            saveHoldingSnapshots(portfolioSnapshotId, response.portfolioSnapshot().holdings());
-            log.info("Saved {} holding snapshots", response.portfolioSnapshot().holdings().size());
-            
-            // 4단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트
-            updateMetricsWithSnapshotId(metricId, portfolioSnapshotId);
-            
-            log.info("All backtest results saved successfully for backtestId: {}", backtestId);
-            return response;
+            String metricId = null;
+            try {
+                // 1단계: BacktestMetrics를 MongoDB에 저장
+                metricId = saveBacktestMetrics(response.metrics());
+                log.info("Saved metrics to MongoDB with ID: {}", metricId);
+                
+                // 2단계: PostgreSQL 트랜잭션으로 PortfolioSnapshot과 HoldingSnapshot 저장
+                Long portfolioSnapshotId = saveBacktestResultsInTransaction(backtestId, response, metricId);
+                log.info("Saved portfolio snapshot with ID: {}", portfolioSnapshotId);
+                
+                // 3단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트
+                updateMetricsWithSnapshotId(metricId, portfolioSnapshotId);
+                
+                log.info("All backtest results saved successfully for backtestId: {}", backtestId);
+                return response;
+                
+            } catch (Exception e) {
+                log.error("Failed to save backtest results for backtestId: {}, error: {}", backtestId, e.getMessage());
+                
+                // MongoDB 롤백 (메트릭 삭제)
+                if (metricId != null) {
+                    try {
+                        backtestMetricsRepository.deleteById(metricId);
+                        log.info("Rolled back MongoDB metrics with ID: {}", metricId);
+                    } catch (Exception rollbackError) {
+                        log.error("Failed to rollback MongoDB metrics: {}", rollbackError.getMessage());
+                    }
+                }
+                
+                throw new RuntimeException("Failed to save backtest results: " + e.getMessage(), e);
+            }
         }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+
+    /**
+     * PostgreSQL 트랜잭션으로 PortfolioSnapshot과 HoldingSnapshot 저장
+     */
+    @Transactional
+    private Long saveBacktestResultsInTransaction(Long backtestId, BacktestExecutionResponse response, String metricId) {
+        try {
+            // PortfolioSnapshot 저장
+            Long portfolioSnapshotId = savePortfolioSnapshot(backtestId, response.portfolioSnapshot(), metricId);
+            
+            // 일별 HoldingSnapshot 저장
+            saveDailyHoldingSnapshots(response.resultSummary());
+            
+            return portfolioSnapshotId;
+        } catch (Exception e) {
+            log.error("Transaction failed during PostgreSQL operations: {}", e.getMessage());
+            throw e; // 트랜잭션 롤백을 위해 예외 재발생
+        }
     }
 
     /**
@@ -467,21 +502,28 @@ public class BacktestService {
     }
 
     /**
-     * 3단계: HoldingSnapshot들을 PostgreSQL에 저장
+     * 3단계: result_summary의 일별 데이터를 HoldingSnapshot으로 저장
      */
-    private void saveHoldingSnapshots(Long portfolioSnapshotId, 
-                                    List<BacktestExecutionResponse.HoldingResponse> holdingResponses) {
-        for (BacktestExecutionResponse.HoldingResponse holdingResponse : holdingResponses) {
-            HoldingSnapshot holdingSnapshot = HoldingSnapshot.create(
-                    holdingResponse.price(),
-                    holdingResponse.quantity(),
-                    holdingResponse.value(),
-                    holdingResponse.weight(),
-                    portfolioSnapshotId,
-                    holdingResponse.stockId()
-            );
-            
-            portfolioRepository.saveHoldingSnapshot(holdingSnapshot);
+    private void saveDailyHoldingSnapshots(List<BacktestExecutionResponse.DailyResultResponse> dailyResults) {
+        for (BacktestExecutionResponse.DailyResultResponse dailyResult : dailyResults) {
+            for (BacktestExecutionResponse.DailyStockResponse stockData : dailyResult.stocks()) {
+                // quantity는 value / close_price로 계산
+                int quantity = (int) (stockData.value() / stockData.closePrice());
+                
+                HoldingSnapshot holdingSnapshot = HoldingSnapshot.createWithDate(
+                        stockData.closePrice(),
+                        quantity,
+                        stockData.value(),
+                        stockData.portfolioWeight(),
+                        null, // portfolioSnapshotId는 null (일별 데이터)
+                        stockData.stockCode(),
+                        stockData.date(),
+                        stockData.portfolioContribution(),
+                        stockData.dailyReturn()
+                );
+                
+                portfolioRepository.saveHoldingSnapshot(holdingSnapshot);
+            }
         }
     }
 
