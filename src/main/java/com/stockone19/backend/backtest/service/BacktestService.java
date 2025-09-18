@@ -373,6 +373,7 @@ public class BacktestService {
     /**
      * 백테스트 상태 업데이트 (동기)
      */
+    @Transactional
     public void updateBacktestStatus(Long backtestId, BacktestStatus status) {
         log.info("Updating backtest status to {} for backtestId: {}", status, backtestId);
         
@@ -412,7 +413,12 @@ public class BacktestService {
                     
         } catch (Exception e) {
             log.error("Failed to submit backtest to engine: backtestId={}", backtestId, e);
-            updateBacktestStatus(backtestId, BacktestStatus.FAILED);
+            try {
+                updateBacktestStatus(backtestId, BacktestStatus.FAILED);
+                log.info("Successfully updated backtest status to FAILED for backtestId: {}", backtestId);
+            } catch (Exception updateException) {
+                log.error("Failed to update backtest status to FAILED for backtestId: {}", backtestId, updateException);
+            }
         }
         
         return CompletableFuture.completedFuture(null);
