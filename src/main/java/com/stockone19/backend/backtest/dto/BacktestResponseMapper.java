@@ -1,6 +1,9 @@
 package com.stockone19.backend.backtest.dto;
 
 import com.stockone19.backend.backtest.domain.Backtest;
+import com.stockone19.backend.backtest.domain.BacktestMetricsDocument;
+import com.stockone19.backend.backtest.exception.BacktestExecutionException;
+import com.stockone19.backend.backtest.repository.BacktestMetricsRepository;
 import com.stockone19.backend.portfolio.domain.PortfolioSnapshot;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 백테스트 도메인 객체를 응답 DTO로 변환하는 매퍼
@@ -19,6 +23,7 @@ import java.util.Map;
 public class BacktestResponseMapper {
 
     private final PortfolioRepository portfolioRepository;
+    private final BacktestMetricsRepository backtestMetricsRepository;
 
     /**
      * Backtest 도메인 객체를 BacktestResponse로 변환
@@ -36,7 +41,14 @@ public class BacktestResponseMapper {
         
         if (status == BacktestStatus.COMPLETED) {
             // 완료된 경우 지표와 일별 수익률 포함
-            BacktestMetrics metrics = generateMockMetrics(); // 임시 지표
+            List<PortfolioSnapshot> snapshots = portfolioRepository.findSnapshotsByPortfolioId(portfolioId);
+            BacktestMetrics metrics = null;
+            if (!snapshots.isEmpty()) {
+                PortfolioSnapshot latestSnapshot = snapshots.get(snapshots.size() - 1);
+                metrics = getBacktestMetrics(latestSnapshot);
+                executionTime = latestSnapshot.executionTime() != null ? 
+                    latestSnapshot.executionTime().longValue() : 0L;
+            }
             List<BacktestResponse.DailyReturn> dailyReturns = generateDailyReturns(portfolioId);
             
             return BacktestResponse.ofCompleted(
@@ -72,16 +84,30 @@ public class BacktestResponseMapper {
     }
 
 
-    private BacktestMetrics generateMockMetrics() {
-        // 임시 지표 데이터 - 실제 구현 시 백테스트 결과에서 계산
+    /**
+     * 백테스트 성과 지표 조회 (BacktestService의 로직과 동일)
+     */
+    private BacktestMetrics getBacktestMetrics(PortfolioSnapshot latestSnapshot) {
+        if (latestSnapshot.metricId() == null) {
+            return null;
+        }
+
+        BacktestMetricsDocument metricsDoc = backtestMetricsRepository
+                .findById(latestSnapshot.metricId())
+                .orElse(null);
+
+        if (metricsDoc == null) {
+            return null;
+        }
+
         return BacktestMetrics.of(
-                15.5,   // totalReturn
-                12.3,   // annualizedReturn
-                18.7,   // volatility
-                0.65,   // sharpeRatio
-                -8.2,   // maxDrawdown
-                0.65,   // winRate
-                1.2     // profitLossRatio
+                metricsDoc.getTotalReturn(),
+                metricsDoc.getAnnualizedReturn(),
+                metricsDoc.getVolatility(),
+                metricsDoc.getSharpeRatio(),
+                metricsDoc.getMaxDrawdown(),
+                metricsDoc.getWinRate(),
+                metricsDoc.getProfitLossRatio()
         );
     }
 
@@ -102,5 +128,94 @@ public class BacktestResponseMapper {
                     );
                 })
                 .toList();
+    }
+    
+    /**
+     * 백테스트 실행 예외를 클라이언트 친화적인 에러 응답으로 변환
+     */
+    public BacktestErrorResponse toErrorResponse(BacktestExecutionException exception) {
+        if (!exception.hasStructuredError()) {
+            return BacktestErrorResponse.createGeneralError(
+                    "EXECUTION_ERROR",
+                    exception.getMessage(),
+                    null,
+                    null
+            );
+        }
+        
+        BacktestServerErrorResponse serverError = exception.getErrorResponse();
+        
+        // 주가 데이터 누락 에러인 경우
+        if ("MISSING_STOCK_PRICE_DATA".equals(serverError.error().errorType())) {
+            return createMissingStockDataErrorResponse(serverError);
+        }
+        
+        // 기타 에러인 경우
+        return BacktestErrorResponse.createGeneralError(
+                serverError.error().errorType(),
+                createFriendlyErrorMessage(serverError.error()),
+                serverError.executionTime(),
+                serverError.requestId()
+        );
+    }
+    
+    /**
+     * 주가 데이터 누락 에러 응답 생성
+     */
+    private BacktestErrorResponse createMissingStockDataErrorResponse(BacktestServerErrorResponse serverError) {
+        List<MissingStockData> missingData = serverError.error().missingData().stream()
+                .map(data -> MissingStockData.builder()
+                        .stockCode(data.stockCode())
+                        .startDate(data.startDate())
+                        .endDate(data.endDate())
+                        .availableDateRange(data.availableDateRange())
+                        .build())
+                .collect(Collectors.toList());
+        
+        String friendlyMessage = createMissingDataFriendlyMessage(
+                serverError.error().missingStocksCount(),
+                serverError.error().requestedPeriod()
+        );
+        
+        return BacktestErrorResponse.createMissingStockDataError(
+                friendlyMessage,
+                missingData,
+                serverError.error().requestedPeriod(),
+                serverError.error().totalStocks(),
+                serverError.error().missingStocksCount(),
+                serverError.executionTime(),
+                serverError.requestId()
+        );
+    }
+    
+    /**
+     * 주가 데이터 누락 시 친절한 메시지 생성
+     */
+    private String createMissingDataFriendlyMessage(int missingStocksCount, String requestedPeriod) {
+        return String.format(
+                "백테스트 실행에 필요한 주가 데이터가 부족합니다. " +
+                "%d개 종목의 %s 기간 데이터를 찾을 수 없어 백테스트를 진행할 수 없습니다. " +
+                "다른 기간을 선택하시거나 해당 종목을 제외하고 다시 시도해주세요.",
+                missingStocksCount,
+                requestedPeriod
+        );
+    }
+    
+    /**
+     * 서버 에러를 친절한 메시지로 변환
+     */
+    private String createFriendlyErrorMessage(BacktestServerErrorResponse.ErrorInfo error) {
+        return switch (error.errorType()) {
+            case "INVALID_DATE_RANGE" -> 
+                "백테스트 기간이 올바르지 않습니다. 시작일과 종료일을 다시 확인해주세요.";
+            case "INSUFFICIENT_DATA" -> 
+                "백테스트 실행에 필요한 데이터가 부족합니다. 다른 기간이나 종목을 선택해주세요.";
+            case "PORTFOLIO_EMPTY" -> 
+                "포트폴리오가 비어있습니다. 종목을 추가한 후 다시 시도해주세요.";
+            case "SERVER_ERROR" -> 
+                "서버에서 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+            default -> 
+                error.message() != null ? error.message() : "백테스트 실행 중 오류가 발생했습니다.";
+        };
     }
 }
