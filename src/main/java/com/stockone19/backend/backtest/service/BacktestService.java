@@ -19,11 +19,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stockone19.backend.backtest.event.BacktestFailureEvent;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -48,6 +51,7 @@ public class BacktestService {
     private final StockRepository stockRepository;
     private final WebClient backtestEngineWebClient;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
     
     @Value("${backtest.callback.base-url}")
     private String callbackBaseUrl;
@@ -61,7 +65,8 @@ public class BacktestService {
             BacktestMetricsRepository backtestMetricsRepository,
             StockRepository stockRepository,
             @Qualifier("backtestEngineWebClient") WebClient backtestEngineWebClient,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ApplicationEventPublisher eventPublisher) {
         
         this.backtestRepository = backtestRepository;
         this.jobMappingService = jobMappingService;
@@ -72,6 +77,7 @@ public class BacktestService {
         this.stockRepository = stockRepository;
         this.backtestEngineWebClient = backtestEngineWebClient;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -390,6 +396,16 @@ public class BacktestService {
     }
 
     /**
+     * 백테스트 실패 이벤트 처리
+     */
+    @EventListener
+    @Transactional
+    public void handleBacktestFailure(BacktestFailureEvent event) {
+        log.info("Handling backtest failure event for backtestId: {}", event.backtestId());
+        updateBacktestStatus(event.backtestId(), BacktestStatus.FAILED);
+    }
+
+    /**
      * 백테스트 엔진에 비동기 요청 제출
      */
     @Async("backgroundTaskExecutor")
@@ -418,12 +434,8 @@ public class BacktestService {
                     
         } catch (Exception e) {
             log.error("Failed to submit backtest to engine: backtestId={}", backtestId, e);
-            try {
-                updateBacktestStatus(backtestId, BacktestStatus.FAILED);
-                log.info("Successfully updated backtest status to FAILED for backtestId: {}", backtestId);
-            } catch (Exception updateException) {
-                log.error("Failed to update backtest status to FAILED for backtestId: {}", backtestId, updateException);
-            }
+            // 이벤트 발행으로 상태 업데이트 처리
+            eventPublisher.publishEvent(new BacktestFailureEvent(backtestId, e.getMessage()));
         }
         
         return CompletableFuture.completedFuture(null);
