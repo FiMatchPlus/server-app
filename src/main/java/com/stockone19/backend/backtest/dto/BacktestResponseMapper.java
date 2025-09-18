@@ -4,8 +4,8 @@ import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.domain.BacktestMetricsDocument;
 import com.stockone19.backend.backtest.exception.BacktestExecutionException;
 import com.stockone19.backend.backtest.repository.BacktestMetricsRepository;
-import com.stockone19.backend.portfolio.domain.PortfolioSnapshot;
-import com.stockone19.backend.portfolio.repository.PortfolioRepository;
+import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
+import com.stockone19.backend.backtest.repository.SnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BacktestResponseMapper {
 
-    private final PortfolioRepository portfolioRepository;
+    private final SnapshotRepository snapshotRepository;
     private final BacktestMetricsRepository backtestMetricsRepository;
 
     /**
@@ -41,7 +41,7 @@ public class BacktestResponseMapper {
         
         if (status == BacktestStatus.COMPLETED) {
             // 완료된 경우 지표와 일별 수익률 포함
-            List<PortfolioSnapshot> snapshots = portfolioRepository.findSnapshotsByPortfolioId(portfolioId);
+            List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByPortfolioId(portfolioId);
             BacktestMetrics metrics = null;
             if (!snapshots.isEmpty()) {
                 PortfolioSnapshot latestSnapshot = snapshots.get(snapshots.size() - 1);
@@ -113,7 +113,7 @@ public class BacktestResponseMapper {
 
     private List<BacktestResponse.DailyReturn> generateDailyReturns(Long portfolioId) {
         // portfolio_snapshots에서 일별 수익률 데이터 조회
-        List<PortfolioSnapshot> snapshots = portfolioRepository.findSnapshotsByPortfolioId(portfolioId);
+            List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByPortfolioId(portfolioId);
         
         return snapshots.stream()
                 .map(snapshot -> {
