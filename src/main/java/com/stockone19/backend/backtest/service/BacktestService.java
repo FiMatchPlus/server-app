@@ -492,7 +492,7 @@ public class BacktestService {
         List<Holding> holdings = getHoldingsFromPortfolio(backtest.getPortfolioId());
         
         // 콜백 URL 생성 (백테스트 엔진이 완료 시 호출할 URL)
-        String callbackUrl = callbackBaseUrl + "/api/backtests/callback";
+        String callbackUrl = callbackBaseUrl + "/backtests/callback";
         
         return BacktestAsyncRequest.of(
             backtest.getStartAt(),
