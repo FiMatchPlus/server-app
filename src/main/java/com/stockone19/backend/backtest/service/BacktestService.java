@@ -370,7 +370,7 @@ public class BacktestService {
             portfolioRepository.findById(backtest.getPortfolioId())
                     .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + backtest.getPortfolioId()));
             
-            // 포트폴리오의 실제 홀딩 정보 조회
+            // 포트폴리오의 홀딩 정보 조회
             List<Holding> portfolioHoldings = portfolioRepository.findHoldingsByPortfolioId(backtest.getPortfolioId());
             
             if (portfolioHoldings.isEmpty()) {
@@ -448,7 +448,7 @@ public class BacktestService {
             Long portfolioSnapshotId = savePortfolioSnapshot(backtestId, response.portfolioSnapshot(), metricId);
             
             // 일별 HoldingSnapshot 저장
-            saveDailyHoldingSnapshots(response.resultSummary());
+            saveDailyHoldingSnapshots(response.resultSummary(), portfolioSnapshotId);
             
             return portfolioSnapshotId;
         } catch (Exception e) {
@@ -505,7 +505,7 @@ public class BacktestService {
     /**
      * 3단계: result_summary의 일별 데이터를 HoldingSnapshot으로 저장
      */
-    private void saveDailyHoldingSnapshots(List<BacktestExecutionResponse.DailyResultResponse> dailyResults) {
+    private void saveDailyHoldingSnapshots(List<BacktestExecutionResponse.DailyResultResponse> dailyResults, Long portfolioSnapshotId) {
         for (BacktestExecutionResponse.DailyResultResponse dailyResult : dailyResults) {
             for (BacktestExecutionResponse.DailyStockResponse stockData : dailyResult.stocks()) {
                 // quantity는 value / close_price로 계산
@@ -516,7 +516,7 @@ public class BacktestService {
                         quantity,
                         stockData.value(),
                         stockData.portfolioWeight(),
-                        null, // portfolioSnapshotId는 null (일별 데이터)
+                        portfolioSnapshotId,
                         stockData.stockCode(),
                         stockData.date(),
                         stockData.portfolioContribution(),
