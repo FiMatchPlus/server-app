@@ -16,7 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-import org.springframework.http.server.reactive.ServerHttpRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import com.stockone19.backend.backtest.dto.BacktestCallbackResponse;
 
 import java.util.List;
@@ -139,46 +139,44 @@ public class BacktestController {
      * 백테스트 엔진에서 콜백 수신
      */
     @PostMapping("/callback")
-    public Mono<ResponseEntity<Object>> handleBacktestCallback(
+    public ResponseEntity<Object> handleBacktestCallback(
             @RequestBody BacktestCallbackResponse callback,
-            ServerHttpRequest request) {
+            HttpServletRequest request) {
         
         String clientIP = getClientIP(request);
         log.info("Backtest callback received from IP: {}, jobId: {}, success: {}", 
                 clientIP, callback.jobId(), callback.success());
         
-        return Mono.fromRunnable(() -> {
-                if (Boolean.TRUE.equals(callback.success())) {
-                    // 성공 처리
-                    backtestService.handleBacktestSuccess(callback);
-                } else {
-                    // 실패 처리
-                    backtestService.handleBacktestFailure(callback);
-                }
-            })
-            .then(Mono.just(ResponseEntity.ok().build()))
-            .doOnError(error -> {
-                log.error("Error processing backtest callback for jobId: {}", callback.jobId(), error);
-            })
-            .onErrorReturn(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+        try {
+            if (Boolean.TRUE.equals(callback.success())) {
+                // 성공 처리
+                backtestService.handleBacktestSuccess(callback);
+            } else {
+                // 실패 처리
+                backtestService.handleBacktestFailure(callback);
+            }
+            return ResponseEntity.ok().build();
+        } catch (Exception error) {
+            log.error("Error processing backtest callback for jobId: {}", callback.jobId(), error);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
     
     /**
      * 클라이언트 IP 추출
      */
-    private String getClientIP(ServerHttpRequest request) {
-        String xForwardedFor = request.getHeaders().getFirst("X-Forwarded-For");
+    private String getClientIP(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
             return xForwardedFor.split(",")[0].trim();
         }
         
-        String xRealIP = request.getHeaders().getFirst("X-Real-IP");
+        String xRealIP = request.getHeader("X-Real-IP");
         if (xRealIP != null && !xRealIP.isEmpty()) {
             return xRealIP;
         }
         
-        return request.getRemoteAddress() != null ? 
-               request.getRemoteAddress().getAddress().getHostAddress() : "unknown";
+        return request.getRemoteAddr();
     }
     
 }
