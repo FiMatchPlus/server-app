@@ -29,12 +29,6 @@ spring:
     redis:
       time-to-live: 3600000
       cache-null-values: false
-  jackson:
-    deserialization:
-      adjust-dates-to-context-time-zone: false
-    serialization:
-      write-dates-as-timestamps: false
-    time-zone: Asia/Seoul
 
 server:
   port: 8081
@@ -51,15 +45,6 @@ management:
 
 logging:
   level:
-    com.stockone19: DEBUG
-    org.springframework.jdbc: DEBUG
-    org.springframework.cache: DEBUG
+    com.stockone19: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-
-app:
-  stock:
-    cache:
-      ttl: 3600
-      key-pattern: "{ticker}^{yyyy-MM-dd'T'HH:mm:ss}"
-
