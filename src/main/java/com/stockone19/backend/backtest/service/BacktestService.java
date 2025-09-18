@@ -7,6 +7,7 @@ import com.stockone19.backend.backtest.repository.BacktestMetricsRepository;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.BacktestRuleRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
+import com.stockone19.backend.common.service.BacktestJobMappingService;
 import com.stockone19.backend.portfolio.domain.Holding;
 import com.stockone19.backend.backtest.domain.HoldingSnapshot;
 import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
@@ -16,31 +17,62 @@ import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
+import org.springframework.web.reactive.function.client.WebClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BacktestService {
 
     private final BacktestRepository backtestRepository;
+    private final BacktestJobMappingService jobMappingService;
     private final PortfolioRepository portfolioRepository;
     private final SnapshotRepository snapshotRepository;
     private final BacktestRuleRepository backtestRuleRepository;
     private final BacktestMetricsRepository backtestMetricsRepository;
     private final StockRepository stockRepository;
-    private final BacktestServerClient backtestServerClient;
+    private final WebClient backtestEngineWebClient;
+    private final ObjectMapper objectMapper;
+    
+    @Value("${backtest.callback.base-url}")
+    private String callbackBaseUrl;
+
+    public BacktestService(
+            BacktestRepository backtestRepository,
+            BacktestJobMappingService jobMappingService,
+            PortfolioRepository portfolioRepository,
+            SnapshotRepository snapshotRepository,
+            BacktestRuleRepository backtestRuleRepository,
+            BacktestMetricsRepository backtestMetricsRepository,
+            StockRepository stockRepository,
+            @Qualifier("backtestEngineWebClient") WebClient backtestEngineWebClient,
+            ObjectMapper objectMapper) {
+        
+        this.backtestRepository = backtestRepository;
+        this.jobMappingService = jobMappingService;
+        this.portfolioRepository = portfolioRepository;
+        this.snapshotRepository = snapshotRepository;
+        this.backtestRuleRepository = backtestRuleRepository;
+        this.backtestMetricsRepository = backtestMetricsRepository;
+        this.stockRepository = stockRepository;
+        this.backtestEngineWebClient = backtestEngineWebClient;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * 백테스트 생성
@@ -57,7 +89,7 @@ public class BacktestService {
         portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + portfolioId));
 
-        // 백테스트 생성 및 저장 (먼저 PostgreSQL에 저장)
+        // 백테스트 생성 및 저장
         Backtest backtest = Backtest.create(
                 portfolioId,
                 request.title(),
@@ -339,126 +371,208 @@ public class BacktestService {
     }
 
     /**
-     * 백테스트 실행 (WebFlux)
+     * 백테스트 상태 업데이트 (동기)
      */
-    @Transactional
-    public Mono<BacktestExecutionResponse> executeBacktestReactive(Long backtestId) {
-        log.info("Starting reactive backtest execution for backtestId: {}", backtestId);
+    public void updateBacktestStatus(Long backtestId, BacktestStatus status) {
+        log.info("Updating backtest status to {} for backtestId: {}", status, backtestId);
         
-        return Mono.fromCallable(() -> findBacktestById(backtestId))
-                .subscribeOn(Schedulers.boundedElastic())
-                .doOnNext(backtest -> updateBacktestStatus(backtest.getId(), BacktestStatus.RUNNING))
-                .flatMap(this::prepareBacktestRequest)
-                .flatMap(backtestServerClient::executeBacktest)
-                .flatMap(response -> saveBacktestResultsSimple(backtestId, response))
-                .doOnSuccess(response -> {
-                    log.info("Backtest execution completed successfully for backtestId: {}", backtestId);
-                    updateBacktestStatusAsync(backtestId, BacktestStatus.COMPLETED);
-                })
-                .doOnError(error -> {
-                    log.error("Backtest execution failed for backtestId: {}, error: {}", backtestId, error.getMessage());
-                    updateBacktestStatusAsync(backtestId, BacktestStatus.FAILED);
-                });
+        Backtest backtest = findBacktestById(backtestId);
+        backtest.updateStatus(status);
+        backtestRepository.save(backtest);
+        
+        log.debug("Successfully updated backtest status to {} for backtestId: {}", status, backtestId);
     }
 
     /**
-     * 백테스트 요청 데이터 준비
+     * 백테스트 엔진에 비동기 요청 제출
      */
-    private Mono<BacktestExecutionRequest> prepareBacktestRequest(Backtest backtest) {
-        return Mono.fromCallable(() -> {
-            // 포트폴리오 존재 확인
-            portfolioRepository.findById(backtest.getPortfolioId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + backtest.getPortfolioId()));
-            
-            // 포트폴리오의 홀딩 정보 조회
-            List<Holding> portfolioHoldings = portfolioRepository.findHoldingsByPortfolioId(backtest.getPortfolioId());
-            
-            if (portfolioHoldings.isEmpty()) {
-                throw new ResourceNotFoundException("No holdings found for portfolio id: " + backtest.getPortfolioId());
-            }
-            
-            // Holding을 BacktestExecutionRequest.HoldingRequest로 변환
-            List<BacktestExecutionRequest.HoldingRequest> holdings = portfolioHoldings.stream()
-                    .map(holding -> BacktestExecutionRequest.HoldingRequest.builder()
-                            .code(holding.symbol())
-                            .quantity(holding.shares())
-                            .build())
-                    .collect(Collectors.toList());
-            
-            log.info("Prepared backtest request with {} holdings for portfolioId: {}", 
-                    holdings.size(), backtest.getPortfolioId());
-            
-            return BacktestExecutionRequest.builder()
-                    .start(backtest.getStartAt())
-                    .end(backtest.getEndAt())
-                    .holdings(holdings)
-                    .rebalanceFrequency("daily")
-                    .build();
-        }).subscribeOn(Schedulers.boundedElastic());
-    }
-
-    /**
-     * 백테스트 결과 저장
-     */
-    private Mono<BacktestExecutionResponse> saveBacktestResultsSimple(Long backtestId, BacktestExecutionResponse response) {
-        return Mono.fromCallable(() -> {
-            log.info("Saving backtest results for backtestId: {}", backtestId);
-            
-            String metricId = null;
-            try {
-                // 1단계: BacktestMetrics를 MongoDB에 저장
-                metricId = saveBacktestMetrics(response.metrics());
-                log.info("Saved metrics to MongoDB with ID: {}", metricId);
-                
-                // 2단계: PostgreSQL 트랜잭션으로 PortfolioSnapshot과 HoldingSnapshot 저장
-                Long portfolioSnapshotId = saveBacktestResultsInTransaction(backtestId, response, metricId);
-                log.info("Saved portfolio snapshot with ID: {}", portfolioSnapshotId);
-                
-                // 3단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트
-                updateMetricsWithSnapshotId(metricId, portfolioSnapshotId);
-                
-                log.info("All backtest results saved successfully for backtestId: {}", backtestId);
-                return response;
-                
-            } catch (Exception e) {
-                log.error("Failed to save backtest results for backtestId: {}, error: {}", backtestId, e.getMessage());
-                
-                // MongoDB 롤백 (메트릭 삭제)
-                if (metricId != null) {
-                    try {
-                        backtestMetricsRepository.deleteById(metricId);
-                        log.info("Rolled back MongoDB metrics with ID: {}", metricId);
-                    } catch (Exception rollbackError) {
-                        log.error("Failed to rollback MongoDB metrics: {}", rollbackError.getMessage());
-                    }
-                }
-                
-                throw new RuntimeException("Failed to save backtest results: " + e.getMessage(), e);
-            }
-        }).subscribeOn(Schedulers.boundedElastic());
-    }
-
-
-    /**
-     * PostgreSQL 트랜잭션으로 PortfolioSnapshot과 HoldingSnapshot 저장
-     */
-    private Long saveBacktestResultsInTransaction(Long backtestId, BacktestExecutionResponse response, String metricId) {
+    @Async("backgroundTaskExecutor")
+    public CompletableFuture<Void> submitToBacktestEngineAsync(Long backtestId) {
         try {
-            // PortfolioSnapshot 저장
-            Long portfolioSnapshotId = savePortfolioSnapshot(backtestId, response.portfolioSnapshot(), metricId);
+            Backtest backtest = backtestRepository.findById(backtestId)
+                .orElseThrow(() -> new ResourceNotFoundException("백테스트를 찾을 수 없습니다: " + backtestId));
             
-            // 일별 HoldingSnapshot 저장
-            saveDailyHoldingSnapshots(response.resultSummary(), portfolioSnapshotId);
+            // 백테스트 요청 생성
+            BacktestAsyncRequest request = createBacktestEngineRequest(backtest);
             
-            return portfolioSnapshotId;
+            // 백테스트 엔진에 요청
+            BacktestStartResponse response = backtestEngineWebClient
+                .post()
+                .uri("/backtest/start")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(BacktestStartResponse.class)
+                .block();
+            
+            // Redis에 매핑 저장
+            jobMappingService.saveMapping(response.jobId(), backtestId);
+            
+            log.info("Backtest submitted to engine: backtestId={}, jobId={}", 
+                    backtestId, response.jobId());
+                    
         } catch (Exception e) {
-            log.error("Transaction failed during PostgreSQL operations: {}", e.getMessage());
-            throw e; // 트랜잭션 롤백을 위해 예외 재발생
+            log.error("Failed to submit backtest to engine: backtestId={}", backtestId, e);
+            updateBacktestStatus(backtestId, BacktestStatus.FAILED);
+        }
+        
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * 백테스트 성공 콜백 처리
+     */
+    @Async("backgroundTaskExecutor")
+    public void handleBacktestSuccess(BacktestCallbackResponse callback) {
+        Long backtestId = jobMappingService.getAndRemoveMapping(callback.jobId());
+        
+        if (backtestId == null) {
+            log.warn("Received callback for unknown jobId: {}", callback.jobId());
+            return;
+        }
+        
+        try {
+            Backtest backtest = backtestRepository.findById(backtestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Backtest not found: " + backtestId));
+            
+            // 1. 전체 결과를 JSON으로 저장 (빠른 조회용)
+            String resultJson = objectMapper.writeValueAsString(callback.result());
+            backtest.updateResult(resultJson);
+            backtest.updateStatus(BacktestStatus.COMPLETED);
+            backtestRepository.save(backtest);
+            
+            // 2. 상세 데이터 저장 (분석용)
+            saveDetailedBacktestResults(backtestId, callback.result());
+            
+            log.info("Backtest completed successfully: backtestId={}, jobId={}", 
+                    backtestId, callback.jobId());
+                    
+        } catch (Exception e) {
+            log.error("Failed to process backtest success: backtestId={}, jobId={}", 
+                    backtestId, callback.jobId(), e);
         }
     }
 
     /**
-     * 1단계: BacktestMetrics를 MongoDB에 저장
+     * 백테스트 실패 콜백 처리
+     */
+    @Async("backgroundTaskExecutor")
+    public void handleBacktestFailure(BacktestCallbackResponse callback) {
+        Long backtestId = jobMappingService.getAndRemoveMapping(callback.jobId());
+        
+        if (backtestId == null) {
+            log.warn("Received callback for unknown jobId: {}", callback.jobId());
+            return;
+        }
+        
+        try {
+            Backtest backtest = backtestRepository.findById(backtestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Backtest not found: " + backtestId));
+            
+            backtest.updateErrorMessage(callback.errorMessage());
+            backtest.updateStatus(BacktestStatus.FAILED);
+            backtestRepository.save(backtest);
+            
+            log.info("Backtest failed: backtestId={}, jobId={}, error={}", 
+                    backtestId, callback.jobId(), callback.errorMessage());
+                    
+        } catch (Exception e) {
+            log.error("Failed to process backtest failure: backtestId={}, jobId={}", 
+                    backtestId, callback.jobId(), e);
+        }
+    }
+
+    /**
+     * 백테스트 엔진 요청 생성
+     */
+    private BacktestAsyncRequest createBacktestEngineRequest(Backtest backtest) {
+        // 포트폴리오에서 보유 종목 조회
+        List<Holding> holdings = getHoldingsFromPortfolio(backtest.getPortfolioId());
+        
+        // 콜백 URL 생성 (백테스트 엔진이 완료 시 호출할 URL)
+        String callbackUrl = callbackBaseUrl + "/api/backtests/callback";
+        
+        return BacktestAsyncRequest.of(
+            backtest.getStartAt(),
+            backtest.getEndAt(),
+            holdings,
+            callbackUrl
+        );
+    }
+
+    /**
+     * 포트폴리오에서 보유 종목 조회
+     */
+    private List<Holding> getHoldingsFromPortfolio(Long portfolioId) {
+        return portfolioRepository.findHoldingsByPortfolioId(portfolioId);
+    }
+
+    /**
+     * 상세 백테스트 결과 저장 (MongoDB + PostgreSQL)
+     * 순서: MongoDB metrics → PostgreSQL portfolio_snapshot → PostgreSQL holding_snapshots → MongoDB 업데이트
+     */
+    @Transactional
+    public void saveDetailedBacktestResults(Long backtestId, Object callbackResult) {
+        String metricId = null;
+        Long portfolioSnapshotId = null;
+        
+        try {
+            log.info("Saving detailed backtest results for backtestId: {}", backtestId);
+            
+            // 콜백 결과를 BacktestExecutionResponse로 변환
+            String resultJson = objectMapper.writeValueAsString(callbackResult);
+            BacktestExecutionResponse response = objectMapper.readValue(resultJson, BacktestExecutionResponse.class);
+            
+            // 1단계: MongoDB에 성과 지표 저장 (metricId 필요)
+            metricId = saveBacktestMetrics(response.metrics());
+            log.info("✅ Step 1: Saved metrics to MongoDB with ID: {}", metricId);
+            
+            // 한 번만 조회한 backtest 객체 사용
+            Backtest backtest = backtestRepository.findById(backtestId)
+                .orElseThrow(() -> new ResourceNotFoundException("백테스트를 찾을 수 없습니다: " + backtestId));
+            
+            // 2단계: PostgreSQL에 포트폴리오 스냅샷 저장 (portfolioSnapshotId 필요)
+            portfolioSnapshotId = savePortfolioSnapshot(backtest, response.portfolioSnapshot(), metricId);
+            log.info("✅ Step 2: Saved portfolio snapshot with ID: {}", portfolioSnapshotId);
+            
+            // 3단계: PostgreSQL에 일별 홀딩 스냅샷 저장 (portfolioSnapshotId 참조)
+            saveDailyHoldingSnapshots(response.resultSummary(), portfolioSnapshotId);
+            log.info("✅ Step 3: Saved {} daily holding snapshots", getTotalHoldingSnapshotCount(response.resultSummary()));
+            
+            // 4단계: MongoDB 메트릭에 portfolio_snapshot_id 연결
+            updateMetricsWithSnapshotId(metricId, portfolioSnapshotId);
+            log.info("✅ Step 4: Updated MongoDB metrics with portfolio snapshot ID: {}", portfolioSnapshotId);
+            
+            log.info("🎉 All detailed backtest results saved successfully for backtestId: {}", backtestId);
+            
+        } catch (Exception e) {
+            log.error("💥 Failed to save detailed backtest results for backtestId: {}", backtestId, e);
+            
+            // 롤백 처리 (MongoDB 데이터 정리)
+            if (metricId != null) {
+                try {
+                    backtestMetricsRepository.deleteById(metricId);
+                    log.info("🔄 Rolled back MongoDB metrics with ID: {}", metricId);
+                } catch (Exception rollbackError) {
+                    log.error("❌ Failed to rollback MongoDB metrics: {}", rollbackError.getMessage());
+                }
+            }
+            
+            // PostgreSQL은 @Transactional로 자동 롤백됨
+            log.info("🔄 PostgreSQL data will be rolled back automatically");
+        }
+    }
+
+    /**
+     * 저장될 홀딩 스냅샷 개수 계산 (로깅용)
+     */
+    private int getTotalHoldingSnapshotCount(List<BacktestExecutionResponse.DailyResultResponse> dailyResults) {
+        return dailyResults.stream()
+                .mapToInt(daily -> daily.stocks().size())
+                .sum();
+    }
+
+    /**
+     * MongoDB에 백테스트 성과 지표 저장
      */
     private String saveBacktestMetrics(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse) {
         BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
@@ -481,15 +595,15 @@ public class BacktestService {
     }
 
     /**
-     * 2단계: PortfolioSnapshot을 PostgreSQL에 저장
+     * PostgreSQL에 포트폴리오 스냅샷 저장
+     * backtest 객체를 직접 전달받아 DB 조회 최적화
      */
-    private Long savePortfolioSnapshot(Long backtestId, 
+    private Long savePortfolioSnapshot(Backtest backtest,
                                      BacktestExecutionResponse.PortfolioSnapshotResponse snapshotResponse,
                                      String metricId) {
-        Backtest backtest = findBacktestById(backtestId);
         
         PortfolioSnapshot portfolioSnapshot = PortfolioSnapshot.create(
-                backtest.getPortfolioId(),
+                backtest.getPortfolioId(),        // 이미 조회된 객체에서 가져옴
                 snapshotResponse.baseValue(),
                 snapshotResponse.currentValue(),
                 metricId,
@@ -499,37 +613,72 @@ public class BacktestService {
         );
         
         PortfolioSnapshot savedSnapshot = snapshotRepository.savePortfolioSnapshot(portfolioSnapshot);
+        
+        log.debug("Created portfolio snapshot: portfolioId={}, baseValue={:.2f}, currentValue={:.2f}", 
+                 backtest.getPortfolioId(), snapshotResponse.baseValue(), snapshotResponse.currentValue());
+        
         return savedSnapshot.id();
     }
 
     /**
-     * 3단계: result_summary의 일별 데이터를 HoldingSnapshot으로 저장
+     * PostgreSQL에 일별 홀딩 스냅샷 저장
      */
-    private void saveDailyHoldingSnapshots(List<BacktestExecutionResponse.DailyResultResponse> dailyResults, Long portfolioSnapshotId) {
+    private void saveDailyHoldingSnapshots(List<BacktestExecutionResponse.DailyResultResponse> dailyResults, 
+                                         Long portfolioSnapshotId) {
+        
+        if (portfolioSnapshotId == null) {
+            throw new IllegalArgumentException("portfolioSnapshotId cannot be null for holding snapshots");
+        }
+        
+        int savedCount = 0;
+        
         for (BacktestExecutionResponse.DailyResultResponse dailyResult : dailyResults) {
+            LocalDateTime date = dailyResult.date();
+            
             for (BacktestExecutionResponse.DailyStockResponse stockData : dailyResult.stocks()) {
-                // quantity는 value / close_price로 계산
-                int quantity = (int) (stockData.value() / stockData.closePrice());
-                
-                HoldingSnapshot holdingSnapshot = HoldingSnapshot.createWithDate(
-                        stockData.closePrice(),
-                        quantity,
-                        stockData.value(),
-                        stockData.portfolioWeight(),
-                        portfolioSnapshotId,
-                        stockData.stockCode(),
-                        stockData.date(),
-                        stockData.portfolioContribution(),
-                        stockData.dailyReturn()
-                );
-                
-                snapshotRepository.saveHoldingSnapshot(holdingSnapshot);
+                try {
+                    // quantity는 이제 직접 제공됨 (정확한 수량!)
+                    int quantity = stockData.quantity();
+                    
+                    // value는 quantity × closePrice로 정확히 계산
+                    double value = stockData.getValue(); // quantity * closePrice (더 정확함)
+                    
+                    // HoldingSnapshot 생성 (기존 레코드 그대로 사용)
+                    HoldingSnapshot holdingSnapshot = HoldingSnapshot.createWithDate(
+                            stockData.closePrice(),        // price
+                            quantity,                       // quantity (직접 제공됨!)
+                            value,                         // value (계산됨)
+                            stockData.portfolioWeight(),   // weight
+                            portfolioSnapshotId,           // portfolio_snapshot_id (NOT NULL)
+                            stockData.stockCode(),         // stock_code
+                            date,                          // recorded_at
+                            stockData.portfolioContribution(), // contribution
+                            stockData.dailyReturn()        // daily_ratio
+                    );
+                    
+                    // 저장
+                    snapshotRepository.saveHoldingSnapshot(holdingSnapshot);
+                    savedCount++;
+                    
+                    // 상세 로그 (처음 몇 개만)
+                    if (savedCount <= 5) {
+                        log.debug("Saved holding snapshot: stockCode={}, date={}, quantity={}, value={:.2f}", 
+                                 stockData.stockCode(), date, quantity, value);
+                    }
+                    
+                } catch (Exception e) {
+                    log.error("Failed to save holding snapshot: stockCode={}, date={}, portfolioSnapshotId={}, error={}", 
+                             stockData.stockCode(), date, portfolioSnapshotId, e.getMessage());
+                    // 개별 실패는 로그만 남기고 계속 진행
+                }
             }
         }
+        
+        log.info("Saved {} holding snapshots for portfolioSnapshotId: {}", savedCount, portfolioSnapshotId);
     }
 
     /**
-     * 4단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트
+     * MongoDB 메트릭에 portfolio_snapshot_id 업데이트
      */
     private void updateMetricsWithSnapshotId(String metricId, Long portfolioSnapshotId) {
         BacktestMetricsDocument metrics = backtestMetricsRepository.findById(metricId).orElse(null);
@@ -537,29 +686,8 @@ public class BacktestService {
             metrics.setPortfolioSnapshotId(portfolioSnapshotId);
             metrics.setUpdatedAt(java.time.LocalDateTime.now());
             backtestMetricsRepository.save(metrics);
+            log.info("Updated MongoDB metrics with portfolio snapshot ID: {}", portfolioSnapshotId);
         }
-    }
-
-    /**
-     * 백테스트 상태 업데이트 (동기)
-     */
-    private void updateBacktestStatus(Long backtestId, BacktestStatus status) {
-        log.info("Updating backtest status to {} for backtestId: {}", status, backtestId);
-        
-        Backtest backtest = findBacktestById(backtestId);
-        backtest.updateStatus(status);
-        backtestRepository.save(backtest);
-        
-        log.debug("Successfully updated backtest status to {} for backtestId: {}", status, backtestId);
-    }
-
-    /**
-     * 백테스트 상태 업데이트 (비동기)
-     */
-    private void updateBacktestStatusAsync(Long backtestId, BacktestStatus status) {
-        Mono.fromRunnable(() -> updateBacktestStatus(backtestId, status))
-                .subscribeOn(Schedulers.boundedElastic())
-                .subscribe();
     }
     
 }

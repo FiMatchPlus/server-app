@@ -32,9 +32,8 @@ public class BacktestResponseMapper {
         // 백테스트 기간 문자열 생성
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String period = backtest.getStartAt().format(formatter) + " ~ " + backtest.getEndAt().format(formatter);
-        
-        // 실행 시간 계산 (현재는 임시로 0 설정)
-        Long executionTime = 0L;
+
+        long executionTime = 0L;
         
         // 백테스트 상태는 엔티티에서 직접 가져옴
         BacktestStatus status = backtest.getStatus();
