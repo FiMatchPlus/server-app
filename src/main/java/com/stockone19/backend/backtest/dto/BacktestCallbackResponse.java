@@ -2,6 +2,7 @@ package com.stockone19.backend.backtest.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -21,7 +22,7 @@ public record BacktestCallbackResponse(
     Double executionTime,
     @JsonProperty("request_id")
     String requestId,
-    LocalDateTime timestamp
+    String timestamp  // ISO 문자열로 받아서 필요시 변환
 ) {
     
     public record PortfolioSnapshotResponse(
@@ -33,11 +34,11 @@ public record BacktestCallbackResponse(
         @JsonProperty("current_value")
         Double currentValue,
         @JsonProperty("start_at")
-        LocalDateTime startAt,
+        String startAt,
         @JsonProperty("end_at")
-        LocalDateTime endAt,
+        String endAt,
         @JsonProperty("created_at")
-        LocalDateTime createdAt,
+        String createdAt,
         @JsonProperty("execution_time")
         Double executionTime,
         List<HoldingResponse> holdings
@@ -62,7 +63,7 @@ public record BacktestCallbackResponse(
         Integer totalStocks,
         @JsonProperty("missing_stocks_count")
         Integer missingStocksCount,
-        LocalDateTime timestamp
+        String timestamp
     ) {}
     
     public record MissingDataResponse(
@@ -102,9 +103,9 @@ public record BacktestCallbackResponse(
                 portfolioSnapshot.portfolioId(),
                 portfolioSnapshot.baseValue(),
                 portfolioSnapshot.currentValue(),
-                portfolioSnapshot.startAt(),
-                portfolioSnapshot.endAt(),
-                portfolioSnapshot.createdAt(),
+                parseToLocalDateTime(portfolioSnapshot.startAt()),
+                parseToLocalDateTime(portfolioSnapshot.endAt()),
+                parseToLocalDateTime(portfolioSnapshot.createdAt()),
                 portfolioSnapshot.executionTime(),
                 convertedHoldings
             );
@@ -115,5 +116,18 @@ public record BacktestCallbackResponse(
             resultSummary,
             executionTime != null ? executionTime : 0.0
         );
+    }
+    
+    // 타임존 포함 ISO 문자열을 LocalDateTime으로 변환하는 유틸리티 메서드
+    private static LocalDateTime parseToLocalDateTime(String isoString) {
+        if (isoString == null) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(isoString).toLocalDateTime();
+        } catch (Exception e) {
+            // 파싱 실패시 null 반환 (로깅은 상위에서 처리)
+            return null;
+        }
     }
 }

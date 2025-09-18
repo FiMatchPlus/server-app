@@ -373,15 +373,20 @@ public class BacktestService {
     /**
      * 백테스트 상태 업데이트 (동기)
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void updateBacktestStatus(Long backtestId, BacktestStatus status) {
         log.info("Updating backtest status to {} for backtestId: {}", status, backtestId);
         
         Backtest backtest = findBacktestById(backtestId);
-        backtest.updateStatus(status);
-        backtestRepository.save(backtest);
+        log.info("Found backtest: id={}, currentStatus={}", backtest.getId(), backtest.getStatus());
         
-        log.debug("Successfully updated backtest status to {} for backtestId: {}", status, backtestId);
+        backtest.updateStatus(status);
+        log.info("Updated backtest status in memory to: {}", status);
+        
+        Backtest savedBacktest = backtestRepository.save(backtest);
+        log.info("Saved backtest to DB: id={}, status={}", savedBacktest.getId(), savedBacktest.getStatus());
+        
+        log.info("Successfully updated backtest status to {} for backtestId: {}", status, backtestId);
     }
 
     /**
@@ -414,7 +419,7 @@ public class BacktestService {
         } catch (Exception e) {
             log.error("Failed to submit backtest to engine: backtestId={}", backtestId, e);
             try {
-            updateBacktestStatus(backtestId, BacktestStatus.FAILED);
+                updateBacktestStatus(backtestId, BacktestStatus.FAILED);
                 log.info("Successfully updated backtest status to FAILED for backtestId: {}", backtestId);
             } catch (Exception updateException) {
                 log.error("Failed to update backtest status to FAILED for backtestId: {}", backtestId, updateException);
