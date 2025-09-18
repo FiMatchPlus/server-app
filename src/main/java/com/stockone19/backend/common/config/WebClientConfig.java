@@ -17,6 +17,17 @@ public class WebClientConfig {
                 .baseUrl(baseUrl)
                 .build();
     }
+    
+    @Bean
+    public WebClient backtestEngineWebClient(
+            WebClient.Builder builder,
+            @Value("${backtest.engine.url}") String baseUrl
+    ) {
+        return builder
+                .baseUrl(baseUrl)
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024)) // 10MB
+                .build();
+    }
 }
 
 
