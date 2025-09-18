@@ -434,9 +434,7 @@ public class BacktestService {
             Backtest backtest = backtestRepository.findById(backtestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Backtest not found: " + backtestId));
             
-            // 1. 전체 결과를 JSON으로 저장 (빠른 조회용)
-            String resultJson = objectMapper.writeValueAsString(callback.result());
-            backtest.updateResult(resultJson);
+            // 백테스트 상태를 완료로 업데이트
             backtest.updateStatus(BacktestStatus.COMPLETED);
             backtestRepository.save(backtest);
             
@@ -468,7 +466,6 @@ public class BacktestService {
             Backtest backtest = backtestRepository.findById(backtestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Backtest not found: " + backtestId));
             
-            backtest.updateErrorMessage(callback.errorMessage());
             backtest.updateStatus(BacktestStatus.FAILED);
             backtestRepository.save(backtest);
             
