@@ -10,7 +10,9 @@ public record HoldingSnapshot(
         double value,
         double weight,
         Long portfolioSnapshotId,
-        String stockCode
+        String stockCode,
+        double contribution,
+        double dailyRatio
 ) {
 
     public static HoldingSnapshot of(
@@ -21,10 +23,12 @@ public record HoldingSnapshot(
             double value,
             double weight,
             Long portfolioSnapshotId,
-            String stockCode
+            String stockCode,
+            double contribution,
+            double dailyRatio
     ) {
         return new HoldingSnapshot(
-                id, recordedAt, price, quantity, value, weight, portfolioSnapshotId, stockCode
+                id, recordedAt, price, quantity, value, weight, portfolioSnapshotId, stockCode, contribution, dailyRatio
         );
     }
 
@@ -34,10 +38,28 @@ public record HoldingSnapshot(
             double value,
             double weight,
             Long portfolioSnapshotId,
-            String stockCode
+            String stockCode,
+            double contribution,
+            double dailyRatio
     ) {
         return new HoldingSnapshot(
-                null, LocalDateTime.now(), price, quantity, value, weight, portfolioSnapshotId, stockCode
+                null, LocalDateTime.now(), price, quantity, value, weight, portfolioSnapshotId, stockCode, contribution, dailyRatio
+        );
+    }
+
+    public static HoldingSnapshot createWithDate(
+            double price,
+            int quantity,
+            double value,
+            double weight,
+            Long portfolioSnapshotId,
+            String stockCode,
+            LocalDateTime recordedAt,
+            double contribution,
+            double dailyRatio
+    ) {
+        return new HoldingSnapshot(
+                null, recordedAt, price, quantity, value, weight, portfolioSnapshotId, stockCode, contribution, dailyRatio
         );
     }
 }

@@ -341,7 +341,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     @Override
     public List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId) {
         String sql = """
-            SELECT id, recorded_at, price, quantity, value, weight, portfolio_snapshot_id, stock_code
+            SELECT id, recorded_at, price, quantity, value, weight, portfolio_snapshot_id, stock_code, contribution, daily_ratio
             FROM holding_snapshots
             WHERE portfolio_snapshot_id = ?
             ORDER BY weight DESC
@@ -355,27 +355,35 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
                 rs.getDouble("value"),
                 rs.getDouble("weight"),
                 rs.getLong("portfolio_snapshot_id"),
-                rs.getString("stock_code")
+                rs.getString("stock_code"),
+                rs.getDouble("contribution"),
+                rs.getDouble("daily_ratio")
         ), portfolioSnapshotId);
     }
 
     @Override
     public HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot) {
         String sql = """
-            INSERT INTO holding_snapshots (portfolio_snapshot_id, stock_code, weight, price, quantity, value, recorded_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO holding_snapshots (portfolio_snapshot_id, stock_code, weight, price, quantity, value, recorded_at, contribution, daily_ratio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setLong(1, holdingSnapshot.portfolioSnapshotId());
+            if (holdingSnapshot.portfolioSnapshotId() != null) {
+                ps.setLong(1, holdingSnapshot.portfolioSnapshotId());
+            } else {
+                ps.setNull(1, java.sql.Types.BIGINT);
+            }
             ps.setString(2, holdingSnapshot.stockCode());
             ps.setDouble(3, holdingSnapshot.weight());
             ps.setDouble(4, holdingSnapshot.price());
             ps.setInt(5, holdingSnapshot.quantity());
             ps.setDouble(6, holdingSnapshot.value());
             ps.setTimestamp(7, java.sql.Timestamp.valueOf(holdingSnapshot.recordedAt()));
+            ps.setDouble(8, holdingSnapshot.contribution());
+            ps.setDouble(9, holdingSnapshot.dailyRatio());
             return ps;
         }, keyHolder);
 
@@ -388,7 +396,9 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
                 holdingSnapshot.value(),
                 holdingSnapshot.weight(),
                 holdingSnapshot.portfolioSnapshotId(),
-                holdingSnapshot.stockCode()
+                holdingSnapshot.stockCode(),
+                holdingSnapshot.contribution(),
+                holdingSnapshot.dailyRatio()
         );
     }
 }

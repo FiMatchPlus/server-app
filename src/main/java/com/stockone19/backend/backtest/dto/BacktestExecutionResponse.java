@@ -35,8 +35,6 @@ public record BacktestExecutionResponse(
             LocalDateTime endAt,
             @JsonProperty("created_at")
             LocalDateTime createdAt,
-            @JsonProperty("metric_id")
-            String metricId,
             @JsonProperty("execution_time")
             double executionTime,
             List<HoldingResponse> holdings
@@ -47,12 +45,7 @@ public record BacktestExecutionResponse(
             Long id,
             @JsonProperty("stock_id")
             String stockId,
-            double weight,
-            double price,
-            int quantity,
-            double value,
-            @JsonProperty("recorded_at")
-            LocalDateTime recordedAt
+            int quantity
     ) {}
     
     @Builder
@@ -83,11 +76,23 @@ public record BacktestExecutionResponse(
     @Builder
     public record DailyResultResponse(
             LocalDateTime date,
-            @JsonProperty("portfolio_return")
-            double portfolioReturn,
-            @JsonProperty("portfolio_value")
-            double portfolioValue,
-            @JsonProperty("sharpe_ratio")
-            Double sharpeRatio
+            @JsonProperty("stocks")
+            List<DailyStockResponse> stocks
+    ) {}
+    
+    @Builder
+    public record DailyStockResponse(
+            @JsonProperty("stock_code")
+            String stockCode,
+            LocalDateTime date,
+            @JsonProperty("close_price")
+            double closePrice,
+            @JsonProperty("daily_return")
+            double dailyReturn,
+            @JsonProperty("portfolio_weight")
+            double portfolioWeight,
+            @JsonProperty("portfolio_contribution")
+            double portfolioContribution,
+            double value
     ) {}
 }
