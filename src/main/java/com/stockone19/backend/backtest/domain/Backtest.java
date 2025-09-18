@@ -46,14 +46,6 @@ public class Backtest {
     @Column(name = "status", nullable = false, length = 20)
     private BacktestStatus status = BacktestStatus.CREATED;
 
-    @Column(columnDefinition = "TEXT")
-    private String result;
-
-    @Column(name = "error_message", columnDefinition = "TEXT")
-    private String errorMessage;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 
     public Backtest(Long portfolioId, String title, String description, 
                     LocalDateTime startAt, LocalDateTime endAt, String ruleId) {
@@ -92,18 +84,5 @@ public class Backtest {
 
     public void updateStatus(BacktestStatus status) {
         this.status = status;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void updateResult(String result) {
-        this.result = result;
-        this.status = BacktestStatus.COMPLETED;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void updateErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
-        this.status = BacktestStatus.FAILED;
-        this.updatedAt = LocalDateTime.now();
     }
 }
