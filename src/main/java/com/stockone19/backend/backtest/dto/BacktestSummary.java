@@ -1,5 +1,6 @@
 package com.stockone19.backend.backtest.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -10,7 +11,8 @@ public record BacktestSummary(
         Long id,
         String name,
         String period,
-        Integer executionTime,
+        Double executionTime,
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         LocalDateTime createdAt,
         BacktestMetrics metrics,
         List<DailyReturn> dailyReturns
@@ -20,7 +22,7 @@ public record BacktestSummary(
             Long id,
             String name,
             String period,
-            Integer executionTime,
+            Double executionTime,
             LocalDateTime createdAt,
             BacktestMetrics metrics,
             List<DailyReturn> dailyReturns
