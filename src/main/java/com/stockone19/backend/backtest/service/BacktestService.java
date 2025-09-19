@@ -173,7 +173,7 @@ public class BacktestService {
         PortfolioSnapshot latestSnapshot = getLatestSnapshot(snapshots);
 
         String period = formatBacktestPeriod(backtest);
-        Integer executionTime = extractExecutionTime(latestSnapshot);
+        Double executionTime = extractExecutionTime(latestSnapshot);
         BacktestMetrics metrics = getBacktestMetrics(latestSnapshot);
         List<DailyReturn> dailyReturns = createDailyReturns(snapshots);
 
@@ -200,7 +200,7 @@ public class BacktestService {
      * 포트폴리오 스냅샷 조회
      */
     private List<PortfolioSnapshot> findPortfolioSnapshots(Long portfolioId, Long backtestId) {
-        List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByPortfolioId(portfolioId);
+        List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByBacktestId(backtestId);
         if (snapshots.isEmpty()) {
             throw new ResourceNotFoundException("No portfolio snapshots found for backtest id: " + backtestId);
         }
@@ -224,9 +224,8 @@ public class BacktestService {
     /**
      * 실행 시간 추출
      */
-    private Integer extractExecutionTime(PortfolioSnapshot latestSnapshot) {
-        return latestSnapshot.executionTime() != null ?
-                latestSnapshot.executionTime().intValue() : null;
+    private Double extractExecutionTime(PortfolioSnapshot latestSnapshot) {
+        return latestSnapshot.executionTime();
     }
 
     /**
@@ -629,7 +628,7 @@ public class BacktestService {
                                      String metricId) {
         
         PortfolioSnapshot portfolioSnapshot = PortfolioSnapshot.create(
-                backtest.getPortfolioId(),        // 이미 조회된 객체에서 가져옴
+                backtest.getId(),        // portfolio_id 대신 backtest_id 사용
                 snapshotResponse.baseValue(),
                 snapshotResponse.currentValue(),
                 metricId,

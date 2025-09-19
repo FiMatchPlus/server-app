@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public record PortfolioSnapshot(
         Long id,
-        Long portfolioId,
+        Long backtestId,
         double baseValue,
         double currentValue,
         LocalDateTime createdAt,
@@ -16,7 +16,7 @@ public record PortfolioSnapshot(
 
     public static PortfolioSnapshot of(
             Long id,
-            Long portfolioId,
+            Long backtestId,
             double baseValue,
             double currentValue,
             LocalDateTime createdAt,
@@ -26,13 +26,13 @@ public record PortfolioSnapshot(
             Double executionTime
     ) {
         return new PortfolioSnapshot(
-                id, portfolioId, baseValue, currentValue, createdAt, 
+                id, backtestId, baseValue, currentValue, createdAt, 
                 metricId, startAt, endAt, executionTime
         );
     }
 
     public static PortfolioSnapshot create(
-            Long portfolioId,
+            Long backtestId,
             double baseValue,
             double currentValue,
             String metricId,
@@ -41,7 +41,7 @@ public record PortfolioSnapshot(
             Double executionTime
     ) {
         return new PortfolioSnapshot(
-                null, portfolioId, baseValue, currentValue, LocalDateTime.now(), 
+                null, backtestId, baseValue, currentValue, LocalDateTime.now(), 
                 metricId, startAt, endAt, executionTime
         );
     }

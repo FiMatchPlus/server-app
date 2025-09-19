@@ -69,7 +69,7 @@ public class BacktestController {
         log.info("GET /api/backtests/portfolio/{}", portfolioId);
         
         List<Backtest> backtests = backtestService.getBacktestsByPortfolioId(portfolioId);
-        List<BacktestResponse> responses = backtestResponseMapper.toResponseList(backtests, portfolioId);
+        List<BacktestResponse> responses = backtestResponseMapper.toResponseList(backtests);
         
         return ApiResponse.success("포트폴리오 백테스트 목록을 조회했습니다", responses);
     }

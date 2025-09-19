@@ -28,7 +28,7 @@ public class BacktestResponseMapper {
     /**
      * Backtest 도메인 객체를 BacktestResponse로 변환
      */
-    public BacktestResponse toResponse(Backtest backtest, Long portfolioId) {
+    public BacktestResponse toResponse(Backtest backtest) {
         // 백테스트 기간 문자열 생성
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String period = backtest.getStartAt().format(formatter) + " ~ " + backtest.getEndAt().format(formatter);
@@ -40,7 +40,7 @@ public class BacktestResponseMapper {
         
         if (status == BacktestStatus.COMPLETED) {
             // 완료된 경우 지표와 일별 수익률 포함
-            List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByPortfolioId(portfolioId);
+            List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByBacktestId(backtest.getId());
             BacktestMetrics metrics = null;
             if (!snapshots.isEmpty()) {
                 PortfolioSnapshot latestSnapshot = snapshots.get(snapshots.size() - 1);
@@ -48,7 +48,7 @@ public class BacktestResponseMapper {
                 executionTime = latestSnapshot.executionTime() != null ? 
                     latestSnapshot.executionTime().longValue() : 0L;
             }
-            List<BacktestResponse.DailyReturn> dailyReturns = generateDailyReturns(portfolioId);
+            List<BacktestResponse.DailyReturn> dailyReturns = generateDailyReturns(backtest.getId());
             
             return BacktestResponse.ofCompleted(
                     backtest.getId(),
@@ -76,9 +76,9 @@ public class BacktestResponseMapper {
     /**
      * 백테스트 목록을 응답 목록으로 변환
      */
-    public List<BacktestResponse> toResponseList(List<Backtest> backtests, Long portfolioId) {
+    public List<BacktestResponse> toResponseList(List<Backtest> backtests) {
         return backtests.stream()
-                .map(backtest -> toResponse(backtest, portfolioId))
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -110,9 +110,9 @@ public class BacktestResponseMapper {
         );
     }
 
-    private List<BacktestResponse.DailyReturn> generateDailyReturns(Long portfolioId) {
+    private List<BacktestResponse.DailyReturn> generateDailyReturns(Long backtestId) {
         // portfolio_snapshots에서 일별 수익률 데이터 조회
-            List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByPortfolioId(portfolioId);
+            List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByBacktestId(backtestId);
         
         return snapshots.stream()
                 .map(snapshot -> {
