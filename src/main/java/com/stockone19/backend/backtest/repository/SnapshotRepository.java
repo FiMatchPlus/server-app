@@ -12,10 +12,12 @@ public interface SnapshotRepository {
     
     // PortfolioSnapshot 관련 메서드들
     PortfolioSnapshot savePortfolioSnapshot(PortfolioSnapshot snapshot);
-    boolean existsPortfolioSnapshotByPortfolioId(Long portfolioId);
-    List<PortfolioSnapshot> findPortfolioSnapshotsByPortfolioId(Long portfolioId);
+    boolean existsPortfolioSnapshotByBacktestId(Long backtestId);
+    List<PortfolioSnapshot> findPortfolioSnapshotsByBacktestId(Long backtestId);
+    PortfolioSnapshot findLatestPortfolioSnapshotByBacktestId(Long backtestId);
     
     // HoldingSnapshot 관련 메서드들
     HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot);
     List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
+    List<HoldingSnapshot> findHoldingSnapshotsByBacktestId(Long backtestId);
 }
