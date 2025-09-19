@@ -633,8 +633,8 @@ public class BacktestService {
                 snapshotResponse.baseValue(),
                 snapshotResponse.currentValue(),
                 metricId,
-                snapshotResponse.startAt(),
-                snapshotResponse.endAt(),
+                snapshotResponse.startAt() != null ? snapshotResponse.startAt() : backtest.getStartAt(),
+                snapshotResponse.endAt() != null ? snapshotResponse.endAt() : backtest.getEndAt(),
                 snapshotResponse.executionTime()
         );
         
