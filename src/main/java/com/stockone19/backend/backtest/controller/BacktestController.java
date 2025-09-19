@@ -5,7 +5,7 @@ import com.stockone19.backend.backtest.dto.CreateBacktestRequest;
 import com.stockone19.backend.backtest.dto.CreateBacktestResult;
 import com.stockone19.backend.backtest.dto.BacktestResponse;
 import com.stockone19.backend.backtest.dto.BacktestResponseMapper;
-import com.stockone19.backend.backtest.dto.BacktestSummary;
+import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
 import com.stockone19.backend.backtest.service.BacktestService;
 import com.stockone19.backend.common.dto.ApiResponse;
 import com.stockone19.backend.backtest.dto.BacktestStatus;
@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 import jakarta.servlet.http.HttpServletRequest;
 import com.stockone19.backend.backtest.dto.BacktestCallbackResponse;
 
@@ -78,17 +77,17 @@ public class BacktestController {
      * 백테스트 상세 정보 조회
      * <ul>
      *     <li>백테스트 ID로 상세 정보 조회</li>
-     *     <li>성과 지표, 일별 수익률 등 포함</li>
+     *     <li>성과 지표, 일별 평가액, 포트폴리오 보유 정보 포함</li>
      * </ul>
      */
     @GetMapping("/{backtestId}")
-    public ApiResponse<BacktestSummary> getBacktestDetail(@PathVariable Long backtestId) {
+    public ApiResponse<BacktestDetailResponse> getBacktestDetail(@PathVariable Long backtestId) {
         
         log.info("GET /api/backtests/{}", backtestId);
         
-        BacktestSummary summary = backtestService.getBacktestDetail(backtestId);
+        BacktestDetailResponse response = backtestService.getBacktestDetail(backtestId);
         
-        return ApiResponse.success("백테스트 상세 정보를 조회했습니다", summary);
+        return ApiResponse.success("백테스트 상세 조회 성공", response);
     }
 
     /**

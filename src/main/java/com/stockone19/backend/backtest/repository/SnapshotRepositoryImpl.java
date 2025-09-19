@@ -124,6 +124,41 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     }
 
     @Override
+    public PortfolioSnapshot findLatestPortfolioSnapshotByBacktestId(Long backtestId) {
+        String sql = """
+            SELECT id, backtest_id, base_value, current_value, created_at, 
+                   metric_id, start_at, end_at, execution_time
+            FROM portfolio_snapshots
+            WHERE backtest_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """;
+        
+        List<PortfolioSnapshot> results = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Double executionTime = rs.getObject("execution_time") != null ? 
+                rs.getDouble("execution_time") : null;
+            
+            return PortfolioSnapshot.of(
+                    rs.getLong("id"),
+                    rs.getLong("backtest_id"),
+                    rs.getDouble("base_value"),
+                    rs.getDouble("current_value"),
+                    rs.getTimestamp("created_at").toLocalDateTime(),
+                    rs.getString("metric_id"),
+                    rs.getTimestamp("start_at") != null ? rs.getTimestamp("start_at").toLocalDateTime() : null,
+                    rs.getTimestamp("end_at") != null ? rs.getTimestamp("end_at").toLocalDateTime() : null,
+                    executionTime
+            );
+        }, backtestId);
+        
+        if (results.isEmpty()) {
+            throw new RuntimeException("해당 백테스트에 대한 포트폴리오 스냅샷을 찾을 수 없습니다. backtestId: " + backtestId);
+        }
+        
+        return results.get(0);
+    }
+
+    @Override
     public HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot) {
         String sql = """
             INSERT INTO holding_snapshots (portfolio_snapshot_id, stock_code, weight, price, quantity, value, recorded_at, contribution, daily_ratio)
@@ -185,6 +220,31 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 rs.getDouble("contribution"),
                 rs.getDouble("daily_ratio")
         ), portfolioSnapshotId);
+    }
+
+    @Override
+    public List<HoldingSnapshot> findHoldingSnapshotsByBacktestId(Long backtestId) {
+        String sql = """
+            SELECT hs.id, hs.recorded_at, hs.price, hs.quantity, hs.value, hs.weight, 
+                   hs.portfolio_snapshot_id, hs.stock_code, hs.contribution, hs.daily_ratio
+            FROM holding_snapshots hs
+            INNER JOIN portfolio_snapshots ps ON hs.portfolio_snapshot_id = ps.id
+            WHERE ps.backtest_id = ?
+            ORDER BY ps.created_at ASC, hs.weight DESC
+            """;
+        
+        return jdbcTemplate.query(sql, (rs, rowNum) -> HoldingSnapshot.of(
+                rs.getLong("id"),
+                rs.getTimestamp("recorded_at").toLocalDateTime(),
+                rs.getDouble("price"),
+                rs.getInt("quantity"),
+                rs.getDouble("value"),
+                rs.getDouble("weight"),
+                rs.getLong("portfolio_snapshot_id"),
+                rs.getString("stock_code"),
+                rs.getDouble("contribution"),
+                rs.getDouble("daily_ratio")
+        ), backtestId);
     }
 
     private static Long extractGeneratedId(KeyHolder keyHolder) {

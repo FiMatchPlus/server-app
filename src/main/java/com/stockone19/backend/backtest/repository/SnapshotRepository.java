@@ -14,8 +14,10 @@ public interface SnapshotRepository {
     PortfolioSnapshot savePortfolioSnapshot(PortfolioSnapshot snapshot);
     boolean existsPortfolioSnapshotByBacktestId(Long backtestId);
     List<PortfolioSnapshot> findPortfolioSnapshotsByBacktestId(Long backtestId);
+    PortfolioSnapshot findLatestPortfolioSnapshotByBacktestId(Long backtestId);
     
     // HoldingSnapshot 관련 메서드들
     HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot);
     List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
+    List<HoldingSnapshot> findHoldingSnapshotsByBacktestId(Long backtestId);
 }
