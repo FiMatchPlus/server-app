@@ -14,7 +14,7 @@ public record BacktestDetailResponse(
         String historyId,       // portfolio_snapshot_id
         String name,            // 백테스트 이름
         String period,          // 백테스트 기간
-        Long executionTime,     // 실행 시간 (밀리초)
+        Double executionTime,   // 실행 시간 (초)
         BacktestMetrics metrics,    // 백테스트 성과 지표
         List<DailyEquityData> dailyEquity,  // 일별 평가액 데이터
         List<HoldingData> holdings          // 포트폴리오 보유 정보
@@ -44,7 +44,7 @@ public record BacktestDetailResponse(
             String historyId,
             String name,
             String period,
-            Long executionTime,
+            Double executionTime,
             BacktestMetrics metrics,
             List<DailyEquityData> dailyEquity,
             List<HoldingData> holdings

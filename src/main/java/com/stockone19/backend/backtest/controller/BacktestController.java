@@ -7,8 +7,9 @@ import com.stockone19.backend.backtest.dto.BacktestResponse;
 import com.stockone19.backend.backtest.dto.BacktestResponseMapper;
 import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
 import com.stockone19.backend.backtest.service.BacktestService;
+import com.stockone19.backend.backtest.service.BacktestQueryService;
+import com.stockone19.backend.backtest.service.BacktestExecutionService;
 import com.stockone19.backend.common.dto.ApiResponse;
-import com.stockone19.backend.backtest.dto.BacktestStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,8 @@ import java.util.Map;
 public class BacktestController {
 
     private final BacktestService backtestService;
+    private final BacktestQueryService backtestQueryService;
+    private final BacktestExecutionService backtestExecutionService;
     private final BacktestResponseMapper backtestResponseMapper;
 
     /**
@@ -85,7 +88,7 @@ public class BacktestController {
         
         log.info("GET /api/backtests/{}", backtestId);
         
-        BacktestDetailResponse response = backtestService.getBacktestDetail(backtestId);
+        BacktestDetailResponse response = backtestQueryService.getBacktestDetail(backtestId);
         
         return ApiResponse.success("백테스트 상세 조회 성공", response);
     }
@@ -122,11 +125,8 @@ public class BacktestController {
         // todo: 회원 처리
         // Long userId = 1L;
         
-        // 백테스트 상태를 RUNNING으로 변경
-        backtestService.updateBacktestStatus(backtestId, BacktestStatus.RUNNING);
-        
-        // 백테스트 엔진에 비동기 요청
-        backtestService.submitToBacktestEngineAsync(backtestId);
+        // 백테스트 실행 시작 (상태 업데이트 포함)
+        backtestExecutionService.startBacktest(backtestId);
         
         return ResponseEntity.ok(ApiResponse.success(
             "백테스트 실행이 시작되었습니다", 
@@ -149,10 +149,10 @@ public class BacktestController {
         try {
             if (Boolean.TRUE.equals(callback.success())) {
                 // 성공 처리
-                backtestService.handleBacktestSuccess(callback);
+                backtestExecutionService.handleBacktestSuccess(callback);
             } else {
                 // 실패 처리
-                backtestService.handleBacktestFailure(callback);
+                backtestExecutionService.handleBacktestFailure(callback);
             }
             return ResponseEntity.ok().build();
         } catch (Exception error) {
