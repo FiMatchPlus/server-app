@@ -29,6 +29,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -149,7 +151,7 @@ public class BacktestExecutionService {
      * 백테스트 성공 이벤트 처리
      */
     @EventListener
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional(propagation = REQUIRES_NEW)
     public void handleBacktestSuccessEvent(BacktestSuccessEvent event) {
         log.info("Handling backtest success event for backtestId: {}", event.backtestId());
         
@@ -178,7 +180,7 @@ public class BacktestExecutionService {
      * 백테스트 실패 이벤트 처리
      */
     @EventListener
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional(propagation = REQUIRES_NEW)
     public void handleBacktestFailure(BacktestFailureEvent event) {
         log.info("Handling backtest failure event for backtestId: {}", event.backtestId());
         updateBacktestStatus(event.backtestId(), BacktestStatus.FAILED);
@@ -187,7 +189,7 @@ public class BacktestExecutionService {
     /**
      * 백테스트 상태 업데이트 (동기)
      */
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional(propagation = REQUIRES_NEW)
     public void updateBacktestStatus(Long backtestId, BacktestStatus status) {
         log.info("Updating backtest status to {} for backtestId: {}", status, backtestId);
         

@@ -19,6 +19,15 @@ spring:
   data:
     mongodb:
       uri: ${mongodb.uri}
+      # MongoDB 연결 타임아웃 설정
+      options:
+        connect-timeout: 10000
+        socket-timeout: 30000
+        server-selection-timeout: 5000
+        max-connection-idle-time: 60000
+        max-connection-life-time: 600000
+        max-connections-per-host: 10
+        min-connections-per-host: 2
     redis:
       host: ${redis.host}
       port: ${redis.port}
