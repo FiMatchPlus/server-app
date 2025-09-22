@@ -6,16 +6,24 @@ spring:
     include: secrets
   datasource:
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 2
-      connection-timeout: 20000
-      idle-timeout: 300000
-      max-lifetime: 1200000
+      maximum-pool-size: 20        # 연결 풀 크기 증가
+      minimum-idle: 5              # 최소 유휴 연결 수 증가
+      connection-timeout: 30000    # 30초로 증가
+      idle-timeout: 600000         # 10분
+      max-lifetime: 1800000        # 30분
+      leak-detection-threshold: 60000  # 연결 누수 감지 (1분)
   jpa:
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 25                    # 배치 처리 크기
+        order_inserts: true                 # INSERT 순서 최적화
+        order_updates: true                 # UPDATE 순서 최적화
+        batch_versioned_data: true          # 버전 데이터 배치 처리
+        connection:
+          provider_disables_autocommit: true  # 자동 커밋 비활성화로 성능 향상
   data:
     mongodb:
       uri: ${mongodb.uri}

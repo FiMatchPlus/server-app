@@ -1,6 +1,7 @@
 package com.stockone19.backend.stock.repository;
 
 import com.stockone19.backend.stock.domain.StockPrice;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,7 +26,7 @@ public interface StockPriceRepository extends JpaRepository<StockPrice, Long> {
             @Param("intervalUnit") String intervalUnit,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
-            @Param("limit") int limit
+            Pageable pageable
     );
 
     /**
