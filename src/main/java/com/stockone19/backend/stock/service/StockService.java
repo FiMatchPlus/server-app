@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @Slf4j
 @Service
@@ -119,8 +121,9 @@ public class StockService {
     }
 
     public List<StockDetailResponse.ChartData> getChartData(String stockId, String intervalUnit, LocalDateTime startDate, LocalDateTime endDate, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
         List<StockPrice> prices = stockPriceRepository.findByStockCodeAndInterval(
-                stockId, intervalUnit, startDate, endDate, limit
+                stockId, intervalUnit, startDate, endDate, pageable
         );
 
         return convertToChartDataList(prices);
@@ -312,8 +315,9 @@ public class StockService {
     private List<StockDetailResponse.ChartData> getChartDataForDetail(String ticker, String interval) {
         LocalDateTime endDate = LocalDateTime.now();
         LocalDateTime startDate = endDate.minusDays(30);
+        Pageable pageable = PageRequest.of(0, 100);
         List<StockPrice> chartPrices = stockPriceRepository.findByStockCodeAndInterval(
-                ticker, interval, startDate, endDate, 100
+                ticker, interval, startDate, endDate, pageable
         );
 
         return convertToChartDataList(chartPrices);
