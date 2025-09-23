@@ -43,7 +43,7 @@ public interface StockPriceRepository extends JpaRepository<StockPrice, Long> {
             open_price, high_price, low_price, close_price, 
             volume, change_amount, change_rate
         FROM stock_prices 
-        WHERE stock_code = ANY(:stockCodes) 
+        WHERE stock_code IN (:stockCodes) 
         AND interval_unit = :intervalUnit 
         ORDER BY stock_code, datetime DESC
         """, nativeQuery = true)
