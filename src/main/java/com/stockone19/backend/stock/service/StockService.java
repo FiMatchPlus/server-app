@@ -11,6 +11,7 @@ import com.stockone19.backend.stock.domain.PriceChangeSign;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -45,8 +46,10 @@ public class StockService {
         return StockPriceResponse.success(priceDataList);
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)  // 트랜잭션 없이 실행
     public StockPriceResponse getCurrentPriceForSingle(String ticker) {
-        Stock stock = getStockByTicker(ticker);
+        // DB 조회는 별도 트랜잭션으로 빠르게 처리
+        Stock stock = getStockByTickerWithTransaction(ticker);
 
         KisQuoteResponse quote = kisPriceClient.fetchQuote(ticker);
         java.util.Map<String, Object> out = quote != null ? quote.output() : null;
@@ -173,6 +176,12 @@ public class StockService {
                 .orElseThrow(() -> new RuntimeException("종목을 찾을 수 없습니다: " + ticker));
     }
 
+    @Transactional(readOnly = true, timeout = 3)  // DB 조회만 빠르게 처리
+    public Stock getStockByTickerWithTransaction(String ticker) {
+        return stockRepository.findByTicker(ticker)
+                .orElseThrow(() -> new RuntimeException("종목을 찾을 수 없습니다: " + ticker));
+    }
+
     /**
      * 여러 티커로 주식 정보를 배치 조회합니다.
      *
@@ -208,6 +217,7 @@ public class StockService {
      * @param tickers 종목 티커 목록
      * @return 종목별 현재가와 전일종가 정보
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)  // 트랜잭션 없이 실행
     public Map<String, StockPriceInfo> getMultiCurrentPrices(List<String> tickers) {
         if (tickers.isEmpty()) {
             return Map.of();
