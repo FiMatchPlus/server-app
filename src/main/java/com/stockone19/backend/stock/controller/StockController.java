@@ -11,6 +11,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -66,25 +67,33 @@ public class StockController {
             @RequestParam("stockId") String stockId,
             @RequestParam(value = "interval", defaultValue = "1d") String interval,
             @RequestParam(value = "startDate", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(value = "limit", defaultValue = "100") int limit) {
 
-        // 기본값 설정
+        // 기본값 설정 및 LocalDateTime 변환
+        LocalDateTime endDateTime;
+        LocalDateTime startDateTime;
+        
         if (endDate == null) {
-            endDate = LocalDateTime.now();
+            endDateTime = LocalDateTime.now();
+        } else {
+            endDateTime = endDate.atTime(23, 59, 59);
         }
+        
         if (startDate == null) {
-            startDate = endDate.minusDays(31)
+            startDateTime = endDateTime.minusDays(31)
                     .toLocalDate()
                     .withDayOfMonth(1)
                     .atStartOfDay();
+        } else {
+            startDateTime = startDate.atStartOfDay();
         }
 
-        log.info("GET /api/stocks/chart - stockId: {}, interval: {}, startDate: {}, endDate: {}, limit: {}", stockId, interval, startDate, endDate, limit);
+        log.info("GET /api/stocks/chart - stockId: {}, interval: {}, startDateTime: {}, endDateTime: {}, limit: {}", stockId, interval, startDateTime, endDateTime, limit);
 
-        List<StockDetailResponse.ChartData> chartData = stockService.getChartData(stockId, interval, startDate, endDate, limit);
+        List<StockDetailResponse.ChartData> chartData = stockService.getChartData(stockId, interval, startDateTime, endDateTime, limit);
         return ApiResponse.success("차트데이터를 조회합니다", chartData);
     }
 
