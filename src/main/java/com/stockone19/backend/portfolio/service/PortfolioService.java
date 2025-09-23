@@ -12,6 +12,7 @@ import com.stockone19.backend.stock.service.StockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -34,15 +35,17 @@ public class PortfolioService {
      * @param userId 사용자 식별자
      * @return 사용자 보유 포트폴리오 총 합계 정보 (총 자산, 일간 수익 금액, 일간 수익률)
      */
-    @Transactional(readOnly = true, timeout = 10)  // 개별 메서드 타임아웃
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)  // 트랜잭션 없이 실행
     public PortfolioSummaryResponse getPortfolioSummary(Long userId) {
         log.info("Getting portfolio summary for userId: {}", userId);
 
-        List<Holding> allHoldings = getAllUserHoldings(userId);
+        // 1. DB 조회만 트랜잭션으로 처리 (빠르게 완료)
+        List<Holding> allHoldings = getAllUserHoldingsWithTransaction(userId);
         if (allHoldings.isEmpty()) {
             return new PortfolioSummaryResponse(0.0, 0.0, 0.0);
         }
 
+        // 2. 외부 API 호출은 트랜잭션 밖에서 처리
         try {
             Map<String, StockService.StockPriceInfo> priceMap = getPriceMapForHoldings(allHoldings);
             PortfolioSummaryTotals totals = calculatePortfolioSummaryTotals(allHoldings, priceMap);
@@ -59,6 +62,11 @@ public class PortfolioService {
         }
     }
 
+    @Transactional(readOnly = true, timeout = 5)  // DB 조회만 빠르게 처리
+    public List<Holding> getAllUserHoldingsWithTransaction(Long userId) {
+        return portfolioRepository.findHoldingsByUserId(userId);
+    }
+
     private PortfolioSummaryResponse getPortfolioSummaryFromStoredData(List<Holding> allHoldings) {
         double totalAssets = allHoldings.stream()
                 .mapToDouble(Holding::totalValue)
@@ -67,10 +75,6 @@ public class PortfolioService {
         return new PortfolioSummaryResponse(totalAssets, 0.0, 0.0);
     }
 
-    private List<Holding> getAllUserHoldings(Long userId) {
-        // N+1 쿼리 문제 해결: 한 번의 JOIN 쿼리로 모든 holdings 조회
-        return portfolioRepository.findHoldingsByUserId(userId);
-    }
 
     private Map<String, StockService.StockPriceInfo> getPriceMapForHoldings(List<Holding> holdings) {
         List<String> tickers = holdings.stream()
