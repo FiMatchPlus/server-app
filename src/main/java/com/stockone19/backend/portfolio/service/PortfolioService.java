@@ -34,6 +34,7 @@ public class PortfolioService {
      * @param userId 사용자 식별자
      * @return 사용자 보유 포트폴리오 총 합계 정보 (총 자산, 일간 수익 금액, 일간 수익률)
      */
+    @Transactional(readOnly = true, timeout = 10)  // 개별 메서드 타임아웃
     public PortfolioSummaryResponse getPortfolioSummary(Long userId) {
         log.info("Getting portfolio summary for userId: {}", userId);
 
@@ -42,22 +43,33 @@ public class PortfolioService {
             return new PortfolioSummaryResponse(0.0, 0.0, 0.0);
         }
 
-        Map<String, StockService.StockPriceInfo> priceMap = getPriceMapForHoldings(allHoldings);
-        PortfolioSummaryTotals totals = calculatePortfolioSummaryTotals(allHoldings, priceMap);
+        try {
+            Map<String, StockService.StockPriceInfo> priceMap = getPriceMapForHoldings(allHoldings);
+            PortfolioSummaryTotals totals = calculatePortfolioSummaryTotals(allHoldings, priceMap);
 
-        return new PortfolioSummaryResponse(
-                totals.totalAssets,
-                totals.totalDailyReturn,
-                totals.totalDailyChange
-        );
+            return new PortfolioSummaryResponse(
+                    totals.totalAssets,
+                    totals.totalDailyReturn,
+                    totals.totalDailyChange
+            );
+        } catch (Exception e) {
+            log.error("KIS API 호출 실패, 기존 가격 데이터 사용: {}", e.getMessage());
+            // 외부 API 실패 시 기존 데이터로 폴백
+            return getPortfolioSummaryFromStoredData(allHoldings);
+        }
+    }
+
+    private PortfolioSummaryResponse getPortfolioSummaryFromStoredData(List<Holding> allHoldings) {
+        double totalAssets = allHoldings.stream()
+                .mapToDouble(Holding::totalValue)
+                .sum();
+        
+        return new PortfolioSummaryResponse(totalAssets, 0.0, 0.0);
     }
 
     private List<Holding> getAllUserHoldings(Long userId) {
-        List<Portfolio> portfolios = portfolioRepository.findByUserId(userId);
-
-        return portfolios.stream()
-                .flatMap(portfolio -> portfolioRepository.findHoldingsByPortfolioId(portfolio.id()).stream())
-                .collect(Collectors.toList());
+        // N+1 쿼리 문제 해결: 한 번의 JOIN 쿼리로 모든 holdings 조회
+        return portfolioRepository.findHoldingsByUserId(userId);
     }
 
     private Map<String, StockService.StockPriceInfo> getPriceMapForHoldings(List<Holding> holdings) {
