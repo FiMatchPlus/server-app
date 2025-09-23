@@ -179,6 +179,19 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         return jdbcTemplate.query(sql, HOLDING_ROW_MAPPER, portfolioId);
     }
 
+    @Override
+    public List<Holding> findHoldingsByUserId(Long userId) {
+        String sql = """
+            SELECT h.id, h.portfolio_id, h.symbol, h.shares, h.current_price, h.total_value, 
+                   h.change_amount, h.change_percent, h.weight, h.created_at, h.updated_at
+            FROM holdings h
+            INNER JOIN portfolios p ON h.portfolio_id = p.id
+            WHERE p.user_id = ?
+            ORDER BY h.weight DESC
+            """;
+        return jdbcTemplate.query(sql, HOLDING_ROW_MAPPER, userId);
+    }
+
     private static Long extractGeneratedId(KeyHolder keyHolder) {
         Map<String, Object> keys = keyHolder.getKeys();
         if (keys != null && !keys.isEmpty()) {

@@ -18,4 +18,5 @@ public interface PortfolioRepository {
 
     Holding saveHolding(Holding holding);
     List<Holding> findHoldingsByPortfolioId(Long portfolioId);
+    List<Holding> findHoldingsByUserId(Long userId);  // 배치 쿼리 추가
 }
