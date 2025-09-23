@@ -25,7 +25,7 @@ import org.springframework.data.domain.Pageable;
 
 @Slf4j
 @Service
-@Transactional(readOnly = true)
+@Transactional(readOnly = true, timeout = 30)
 public class StockService {
 
     private final StockRepository stockRepository;
@@ -38,6 +38,7 @@ public class StockService {
         this.kisPriceClient = kisPriceClient;
     }
 
+    @Transactional(readOnly = true, timeout = 15) 
     public StockPriceResponse getStockPrices(List<String> tickers) {
         List<Stock> stocks = findStocksByTickers(tickers);
         List<StockPrice> latestPrices = findLatestPricesByTickers(tickers);
@@ -176,7 +177,7 @@ public class StockService {
                 .orElseThrow(() -> new RuntimeException("종목을 찾을 수 없습니다: " + ticker));
     }
 
-    @Transactional(readOnly = true, timeout = 3)  // DB 조회만 빠르게 처리
+    @Transactional(readOnly = true, timeout = 5)
     public Stock getStockByTickerWithTransaction(String ticker) {
         return stockRepository.findByTicker(ticker)
                 .orElseThrow(() -> new RuntimeException("종목을 찾을 수 없습니다: " + ticker));

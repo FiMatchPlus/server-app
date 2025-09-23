@@ -35,19 +35,18 @@ public interface StockPriceRepository extends JpaRepository<StockPrice, Long> {
     StockPrice findFirstByStockCodeAndIntervalUnitOrderByDatetimeDesc(String stockCode, String intervalUnit);
 
     /**
-     * 여러 종목의 최신 가격 데이터를 조회합니다.
+     * 여러 종목의 최신 가격 데이터를 조회합니다. (성능 최적화된 네이티브 쿼리)
      */
     @Query(value = """
-        SELECT sp FROM StockPrice sp 
-        WHERE sp.stockCode IN :stockCodes 
-        AND sp.intervalUnit = :intervalUnit 
-        AND sp.datetime = (
-            SELECT MAX(sp2.datetime) 
-            FROM StockPrice sp2 
-            WHERE sp2.stockCode = sp.stockCode 
-            AND sp2.intervalUnit = :intervalUnit
-        )
-        """)
+        SELECT DISTINCT ON (stock_code) 
+            id, stock_code, datetime, interval_unit, 
+            open_price, high_price, low_price, close_price, 
+            volume, change_amount, change_rate
+        FROM stock_prices 
+        WHERE stock_code = ANY(:stockCodes) 
+        AND interval_unit = :intervalUnit 
+        ORDER BY stock_code, datetime DESC
+        """, nativeQuery = true)
     List<StockPrice> findLatestByStockCodesAndInterval(
             @Param("stockCodes") List<String> stockCodes, 
             @Param("intervalUnit") String intervalUnit
