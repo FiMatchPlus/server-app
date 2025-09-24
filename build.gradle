@@ -38,6 +38,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework:spring-webflux'
 
+	implementation 'org.springframework.ai:spring-ai-starter-model-openai' 
+
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
@@ -49,6 +51,12 @@ dependencies {
 
 	testRuntimeOnly 'com.h2database:h2'
 	testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo:4.9.2'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:1.0.1"
+    }
 }
 
 tasks.named('test') {
