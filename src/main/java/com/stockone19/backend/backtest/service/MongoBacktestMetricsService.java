@@ -12,6 +12,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * MongoDB 백테스트 메트릭 전용 서비스 (트랜잭션 완전 분리)
  */
@@ -26,12 +28,12 @@ public class MongoBacktestMetricsService {
     private final JdbcTemplate jdbcTemplate;
 
     /**
-     * MongoDB에 성과 지표를 동기적으로 저장 (MongoTemplate 직접 사용으로 트랜잭션 완전 우회)
+     * MongoDB에 성과 지표를 별도 스레드에서 저장 (트랜잭션 컨텍스트 완전 분리)
      */
     public void saveMetricsSync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse, 
                                Long portfolioSnapshotId) {
         try {
-            log.info("Starting MongoDB metrics save using MongoTemplate for portfolioSnapshotId: {}", portfolioSnapshotId);
+            log.info("Starting MongoDB metrics save in separate thread for portfolioSnapshotId: {}", portfolioSnapshotId);
             
             BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
                     portfolioSnapshotId,
@@ -48,13 +50,25 @@ public class MongoBacktestMetricsService {
                     metricsResponse.profitLossRatio()
             );
             
-            // MongoTemplate 직접 사용 - Spring Data MongoDB 자동 트랜잭션 관리 우회
-            BacktestMetricsDocument savedMetrics = mongoTemplate.insert(metricsDoc, "metrics");
-            log.info("Successfully saved MongoDB metrics using MongoTemplate: metricId={}, portfolioSnapshotId={}", 
-                    savedMetrics.getId(), portfolioSnapshotId);
+            // CompletableFuture로 별도 스레드에서 실행하여 트랜잭션 컨텍스트 완전 분리
+            CompletableFuture<BacktestMetricsDocument> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    BacktestMetricsDocument savedMetrics = mongoTemplate.insert(metricsDoc, "metrics");
+                    log.info("Successfully saved MongoDB metrics in separate thread: metricId={}, portfolioSnapshotId={}", 
+                            savedMetrics.getId(), portfolioSnapshotId);
+                    return savedMetrics;
+                } catch (Exception e) {
+                    log.error("Failed to save MongoDB metrics in separate thread: portfolioSnapshotId={}, error={}", 
+                             portfolioSnapshotId, e.getMessage(), e);
+                    throw new RuntimeException(e);
+                }
+            });
+            
+            // 동기적으로 완료 대기
+            future.get();
                     
         } catch (Exception e) {
-            log.error("Failed to save MongoDB metrics using MongoTemplate: portfolioSnapshotId={}, error={}", 
+            log.error("Failed to save MongoDB metrics: portfolioSnapshotId={}, error={}", 
                      portfolioSnapshotId, e.getMessage(), e);
             throw e; // 예외를 다시 던져서 호출자에게 알림
         }
