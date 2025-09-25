@@ -14,8 +14,6 @@ import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.common.service.BacktestJobMappingService;
 import com.stockone19.backend.portfolio.domain.Holding;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -403,23 +401,23 @@ public class BacktestExecutionService {
     }
 
     /**
-     * MongoDB 메트릭에 portfolio_snapshot_id를 비동기로 업데이트
+     * MongoDB 메트릭에 portfolio_snapshot_id를 원자적으로 업데이트
      */
     @Async("backgroundTaskExecutor")
     public void updateMongoMetricsWithSnapshotIdAsync(String metricId, Long portfolioSnapshotId) {
         try {
-            BacktestMetricsDocument metrics = backtestMetricsRepository.findById(metricId).orElse(null);
-            if (metrics != null) {
-                metrics.setPortfolioSnapshotId(portfolioSnapshotId);
-                metrics.setUpdatedAt(java.time.LocalDateTime.now());
-                backtestMetricsRepository.save(metrics);
-                log.info("Successfully updated MongoDB metrics: metricId={}, portfolioSnapshotId={}", 
-                        metricId, portfolioSnapshotId);
-            } else {
-                log.warn("MongoDB metrics not found for update: metricId={}", metricId);
-            }
+            BacktestMetricsDocument updatedMetrics = new BacktestMetricsDocument();
+            updatedMetrics.setId(metricId);
+            updatedMetrics.setPortfolioSnapshotId(portfolioSnapshotId);
+            updatedMetrics.setUpdatedAt(java.time.LocalDateTime.now());
+            
+            // MongoDB의 upsert 또는 직접 업데이트 사용
+            backtestMetricsRepository.save(updatedMetrics);
+            log.info("Successfully updated MongoDB metrics atomically: metricId={}, portfolioSnapshotId={}", 
+                    metricId, portfolioSnapshotId);
+                    
         } catch (Exception e) {
-            log.error("Failed to update MongoDB metrics: metricId={}, portfolioSnapshotId={}, error={}", 
+            log.error("Failed to update MongoDB metrics atomically: metricId={}, portfolioSnapshotId={}, error={}", 
                      metricId, portfolioSnapshotId, e.getMessage(), e);
         }
     }
