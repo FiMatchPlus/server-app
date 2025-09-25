@@ -94,21 +94,33 @@ public class MongoBacktestMetricsService {
     }
 
     /**
-     * MongoDB 실패 시 백테스트 상태만 FAILED로 변경 (비동기)
-     * PostgreSQL 데이터는 그대로 유지 (데이터 손실 방지)
+     * MongoDB 실패 시 PostgreSQL 데이터 롤백(비동기)
+     * 순서: holding_snapshots 삭제 → portfolio_snapshots 삭제 → backtests 상태 FAILED로 변경
      */
     @Async("backgroundTaskExecutor")
-    public void markBacktestAsFailedAsync(Long backtestId) {
+    public void cleanupPostgresDataAsync(Long portfolioSnapshotId, Long backtestId) {
         try {
-            log.info("Marking backtest as FAILED for backtestId: {}", backtestId);
+            log.info("Starting PostgreSQL cleanup for portfolioSnapshotId: {}, backtestId: {}", portfolioSnapshotId, backtestId);
             
-            // 백테스트 상태만 FAILED로 변경 (트랜잭션 최소화)
-            updateBacktestStatusToFailed(backtestId);
-            log.info("Updated backtest status to FAILED for backtestId: {}", backtestId);
+            // 1단계: holding_snapshots 삭제 (JDBC - 트랜잭션 없음)
+            int deletedHoldingSnapshots = snapshotRepository.deleteHoldingSnapshotsByPortfolioSnapshotId(portfolioSnapshotId);
+            log.info("Deleted {} holding snapshots for portfolioSnapshotId: {}", deletedHoldingSnapshots, portfolioSnapshotId);
+            
+            // 2단계: portfolio_snapshots 삭제 (JDBC - 트랜잭션 없음)
+            int deletedPortfolioSnapshots = snapshotRepository.deletePortfolioSnapshotById(portfolioSnapshotId);
+            log.info("Deleted {} portfolio snapshots for portfolioSnapshotId: {}", deletedPortfolioSnapshots, portfolioSnapshotId);
+            
+            // 3단계: backtests 상태를 FAILED로 변경 (JDBC - 트랜잭션 없음)
+            if (backtestId != null) {
+                updateBacktestStatusToFailed(backtestId);
+                log.info("Updated backtest status to FAILED for backtestId: {}", backtestId);
+            }
+            
+            log.info("Successfully cleaned up PostgreSQL data for portfolioSnapshotId: {}, backtestId: {}", portfolioSnapshotId, backtestId);
             
         } catch (Exception e) {
-            log.error("Failed to mark backtest as FAILED for backtestId: {}, error={}", 
-                     backtestId, e.getMessage(), e);
+            log.error("Failed to cleanup PostgreSQL data for portfolioSnapshotId: {}, backtestId: {}, error={}", 
+                     portfolioSnapshotId, backtestId, e.getMessage(), e);
         }
     }
 
