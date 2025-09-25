@@ -20,4 +20,8 @@ public interface SnapshotRepository {
     HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot);
     List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
     List<HoldingSnapshot> findHoldingSnapshotsByBacktestId(Long backtestId);
+    
+    // 삭제 메서드들
+    int deleteHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
+    int deletePortfolioSnapshotById(Long portfolioSnapshotId);
 }
