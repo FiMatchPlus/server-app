@@ -250,9 +250,9 @@ public class BacktestExecutionService {
                 log.info("Step 2: Saved MongoDB metrics synchronously for portfolioSnapshotId: {}", portfolioSnapshotId);
             } catch (Exception e) {
                 log.error("Failed to save MongoDB metrics synchronously for portfolioSnapshotId: {}", portfolioSnapshotId, e);
-                // MongoDB 실패 시 백테스트 상태만 FAILED로 변경 (데이터 손실 방지)
-                mongoBacktestMetricsService.markBacktestAsFailedAsync(backtestId);
-                log.info("Step 2-1: Marked backtest as FAILED for backtestId: {}", backtestId);
+                // MongoDB 실패 시 PostgreSQL 데이터 완전 정리 (비동기)
+                mongoBacktestMetricsService.cleanupPostgresDataAsync(portfolioSnapshotId, backtestId);
+                log.info("Step 2-1: Started PostgreSQL cleanup for portfolioSnapshotId: {}, backtestId: {}", portfolioSnapshotId, backtestId);
             }
             
             log.info("All detailed backtest results saved successfully for backtestId: {}", backtestId);
