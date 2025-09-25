@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.postgresql.util.PGobject;
 
 @Repository
 @RequiredArgsConstructor
@@ -46,7 +47,14 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             ps.setDouble(2, snapshot.baseValue());
             ps.setDouble(3, snapshot.currentValue());
             ps.setTimestamp(4, java.sql.Timestamp.valueOf(snapshot.createdAt()));
-            ps.setString(5, snapshot.metrics());
+            if (snapshot.metrics() != null) {
+                PGobject jsonbObject = new PGobject();
+                jsonbObject.setType("jsonb");
+                jsonbObject.setValue(snapshot.metrics());
+                ps.setObject(5, jsonbObject);
+            } else {
+                ps.setNull(5, Types.OTHER);
+            }
             ps.setTimestamp(6, snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null);
             ps.setTimestamp(7, snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null);
             if (snapshot.executionTime() != null) {
@@ -73,17 +81,30 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             WHERE id = ?
             """;
 
-        jdbcTemplate.update(sql,
-                snapshot.backtestId(),
-                snapshot.baseValue(),
-                snapshot.currentValue(),
-                java.sql.Timestamp.valueOf(snapshot.createdAt()),
-                snapshot.metrics(),
-                snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null,
-                snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null,
-                snapshot.executionTime(),
-                snapshot.id()
-        );
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setLong(1, snapshot.backtestId());
+            ps.setDouble(2, snapshot.baseValue());
+            ps.setDouble(3, snapshot.currentValue());
+            ps.setTimestamp(4, java.sql.Timestamp.valueOf(snapshot.createdAt()));
+            if (snapshot.metrics() != null) {
+                PGobject jsonbObject = new PGobject();
+                jsonbObject.setType("jsonb");
+                jsonbObject.setValue(snapshot.metrics());
+                ps.setObject(5, jsonbObject);
+            } else {
+                ps.setNull(5, Types.OTHER);
+            }
+            ps.setTimestamp(6, snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null);
+            ps.setTimestamp(7, snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null);
+            if (snapshot.executionTime() != null) {
+                ps.setDouble(8, snapshot.executionTime());
+            } else {
+                ps.setNull(8, Types.NUMERIC);
+            }
+            ps.setLong(9, snapshot.id());
+            return ps;
+        });
 
         return snapshot;
     }
