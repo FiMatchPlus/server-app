@@ -12,28 +12,27 @@ spring:
       idle-timeout: 600000         # 10분
       max-lifetime: 1800000        # 30분
       leak-detection-threshold: 120000  # 연결 누수 감지
-      max-active: 20               # 최대 활성 연결 수
       validation-timeout: 5000     # 연결 검증 타임아웃
   data:
     mongodb:
       uri: ${mongodb.uri}
-  jpa:
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        jdbc:
-          batch_size: 25                    # 배치 처리 크기
-        order_inserts: true                 # INSERT 순서 최적화
-        order_updates: true                 # UPDATE 순서 최적화
-        batch_versioned_data: true          # 버전 데이터 배치 처리
-        connection:
-          provider_disables_autocommit: false  # JdbcTemplate 호환성
     redis:
       host: ${redis.host}
       port: ${redis.port}
       password: ${redis.password:}
       timeout: 2000ms
+  jpa:
+    properties:
+      hibernate:
+        format-sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch-size: 25                    # 배치 처리 크기
+        order-inserts: true                 # INSERT 순서 최적화
+        order-updates: true                 # UPDATE 순서 최적화
+        batch-versioned-data: true          # 버전 데이터 배치 처리
+        connection:
+          provider-disables-autocommit: false  # JdbcTemplate 호환성
   cache:
     type: redis
     redis:
@@ -55,7 +54,8 @@ management:
 
 logging:
   level:
-    com.stockone19: INFO
+    com:
+      stockone19: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     
