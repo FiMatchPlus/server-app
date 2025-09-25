@@ -62,40 +62,6 @@ public class MongoBacktestMetricsService {
     }
 
     /**
-     * MongoDB에 성과 지표를 완전히 비동기로 저장 (트랜잭션 밖에서)
-     */
-    @Async("backgroundTaskExecutor")
-    public void saveMetricsAsync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse, 
-                               Long portfolioSnapshotId) {
-        try {
-            log.info("Starting MongoDB metrics save for portfolioSnapshotId: {}", portfolioSnapshotId);
-            
-            BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
-                    portfolioSnapshotId,
-                    metricsResponse.totalReturn(),
-                    metricsResponse.annualizedReturn(),
-                    metricsResponse.volatility(),
-                    metricsResponse.sharpeRatio(),
-                    metricsResponse.maxDrawdown(),
-                    metricsResponse.var95(),
-                    metricsResponse.var99(),
-                    metricsResponse.cvar95(),
-                    metricsResponse.cvar99(),
-                    metricsResponse.winRate(),
-                    metricsResponse.profitLossRatio()
-            );
-            
-            BacktestMetricsDocument savedMetrics = backtestMetricsRepository.save(metricsDoc);
-            log.info("Successfully saved MongoDB metrics: metricId={}, portfolioSnapshotId={}", 
-                    savedMetrics.getId(), portfolioSnapshotId);
-                    
-        } catch (Exception e) {
-            log.error("Failed to save MongoDB metrics asynchronously: portfolioSnapshotId={}, error={}", 
-                     portfolioSnapshotId, e.getMessage(), e);
-        }
-    }
-
-    /**
      * MongoDB 실패 시 PostgreSQL 데이터 롤백(비동기)
      * 순서: holding_snapshots 삭제 → portfolio_snapshots 삭제 → backtests 상태 FAILED로 변경
      */

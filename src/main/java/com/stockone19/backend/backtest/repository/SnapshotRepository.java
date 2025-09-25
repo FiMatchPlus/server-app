@@ -18,6 +18,7 @@ public interface SnapshotRepository {
     
     // HoldingSnapshot 관련 메서드들
     HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot);
+    int saveHoldingSnapshotsBatch(List<HoldingSnapshot> holdingSnapshots);
     List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
     List<HoldingSnapshot> findHoldingSnapshotsByBacktestId(Long backtestId);
     

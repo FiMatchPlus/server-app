@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -326,7 +327,7 @@ public class BacktestExecutionService {
     }
 
     /**
-     * PostgreSQL에 일별 홀딩 스냅샷 저장
+     * PostgreSQL에 일별 홀딩 스냅샷 저장 (배치 INSERT로 성능 최적화)
      */
     private void saveDailyHoldingSnapshots(List<BacktestExecutionResponse.DailyResultResponse> dailyResults, 
                                          Long portfolioSnapshotId) {
@@ -335,7 +336,8 @@ public class BacktestExecutionService {
             throw new IllegalArgumentException("portfolioSnapshotId cannot be null for holding snapshots");
         }
         
-        int savedCount = 0;
+        // 모든 holdingSnapshot을 리스트로 수집
+        List<HoldingSnapshot> holdingSnapshots = new ArrayList<>();
         
         for (BacktestExecutionResponse.DailyResultResponse dailyResult : dailyResults) {
             LocalDateTime date = dailyResult.date();
@@ -361,25 +363,24 @@ public class BacktestExecutionService {
                             stockData.dailyReturn()        // daily_ratio
                     );
                     
-                    // 저장
-                    snapshotRepository.saveHoldingSnapshot(holdingSnapshot);
-                    savedCount++;
-                    
-                    // 상세 로그 (처음 몇 개만)
-                    if (savedCount <= 5) {
-                        log.debug("Saved holding snapshot: stockCode={}, date={}, quantity={}, value={:.2f}", 
-                                 stockData.stockCode(), date, quantity, value);
-                    }
+                    holdingSnapshots.add(holdingSnapshot);
                     
                 } catch (Exception e) {
-                    log.error("Failed to save holding snapshot: stockCode={}, date={}, portfolioSnapshotId={}", 
+                    log.error("Failed to create holding snapshot: stockCode={}, date={}, portfolioSnapshotId={}", 
                              stockData.stockCode(), date, portfolioSnapshotId, e);
                     // 개별 실패는 로그만 남기고 계속 진행
                 }
             }
         }
         
-        log.info("Saved {} holding snapshots for portfolioSnapshotId: {}", savedCount, portfolioSnapshotId);
+        // 배치 INSERT - 한 번에 처리!
+        try {
+            int savedCount = snapshotRepository.saveHoldingSnapshotsBatch(holdingSnapshots);
+            log.info("Saved {} holding snapshots in batch for portfolioSnapshotId: {}", savedCount, portfolioSnapshotId);
+        } catch (Exception e) {
+            log.error("Failed to save holding snapshots in batch for portfolioSnapshotId: {}", portfolioSnapshotId, e);
+            throw e;
+        }
     }
 
     /**
