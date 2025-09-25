@@ -293,4 +293,16 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
 
         throw new IllegalStateException("Could not retrieve generated id from KeyHolder");
     }
+
+    @Override
+    public int deleteHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId) {
+        String sql = "DELETE FROM holding_snapshots WHERE portfolio_snapshot_id = ?";
+        return jdbcTemplate.update(sql, portfolioSnapshotId);
+    }
+
+    @Override
+    public int deletePortfolioSnapshotById(Long portfolioSnapshotId) {
+        String sql = "DELETE FROM portfolio_snapshots WHERE id = ?";
+        return jdbcTemplate.update(sql, portfolioSnapshotId);
+    }
 }

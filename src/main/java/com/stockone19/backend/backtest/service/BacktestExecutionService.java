@@ -41,6 +41,7 @@ public class BacktestExecutionService {
     private final PortfolioRepository portfolioRepository;
     private final SnapshotRepository snapshotRepository;
     private final BacktestMetricsRepository backtestMetricsRepository;
+    private final MongoBacktestMetricsService mongoBacktestMetricsService;
     private final ApplicationEventPublisher eventPublisher;
     
     @Qualifier("backtestEngineWebClient")
@@ -243,9 +244,16 @@ public class BacktestExecutionService {
             Long portfolioSnapshotId = savePostgresDataInTransaction(backtestId, response, null);
             log.info("Step 1: Saved PostgreSQL data with portfolioSnapshotId: {}", portfolioSnapshotId);
             
-            // 2단계: MongoDB 작업을 완전히 비동기로 처리 (트랜잭션 밖에서)
-            saveMongoMetricsWithSnapshotIdAsync(response.metrics(), portfolioSnapshotId);
-            log.info("Step 2: Started async MongoDB metrics save for portfolioSnapshotId: {}", portfolioSnapshotId);
+            // 2단계: MongoDB 작업을 트랜잭션 밖에서 동기적으로 처리
+            try {
+                mongoBacktestMetricsService.saveMetricsSync(response.metrics(), portfolioSnapshotId);
+                log.info("Step 2: Saved MongoDB metrics synchronously for portfolioSnapshotId: {}", portfolioSnapshotId);
+            } catch (Exception e) {
+                log.error("Failed to save MongoDB metrics synchronously for portfolioSnapshotId: {}", portfolioSnapshotId, e);
+                // MongoDB 실패 시 백테스트 상태만 FAILED로 변경 (데이터 손실 방지)
+                mongoBacktestMetricsService.markBacktestAsFailedAsync(backtestId);
+                log.info("Step 2-1: Marked backtest as FAILED for backtestId: {}", backtestId);
+            }
             
             log.info("All detailed backtest results saved successfully for backtestId: {}", backtestId);
             
@@ -269,8 +277,14 @@ public class BacktestExecutionService {
         log.info("Step 1: Saved portfolio snapshot with ID: {}", portfolioSnapshotId);
         
         // 2단계: PostgreSQL에 일별 홀딩 스냅샷 저장
-        saveDailyHoldingSnapshots(response.resultSummary(), portfolioSnapshotId);
-        log.info("Step 2: Saved {} daily holding snapshots", getTotalHoldingSnapshotCount(response.resultSummary()));
+        try {
+            log.info("Starting to save daily holding snapshots for portfolioSnapshotId: {}", portfolioSnapshotId);
+            saveDailyHoldingSnapshots(response.resultSummary(), portfolioSnapshotId);
+            log.info("Step 2: Saved {} daily holding snapshots", getTotalHoldingSnapshotCount(response.resultSummary()));
+        } catch (Exception e) {
+            log.error("Failed to save daily holding snapshots for portfolioSnapshotId: {}", portfolioSnapshotId, e);
+            throw e;
+        }
         
         return portfolioSnapshotId;
     }
