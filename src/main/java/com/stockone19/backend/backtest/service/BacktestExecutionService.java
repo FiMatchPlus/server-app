@@ -230,7 +230,6 @@ public class BacktestExecutionService {
      * 상세 백테스트 결과 저장 (MongoDB 먼저 확인 후 PostgreSQL)
      * 순서: MongoDB metrics 저장 → 성공 시 PostgreSQL 작업 진행
      */
-    @Transactional(timeout = 300)
     public void saveDetailedBacktestResults(Long backtestId, BacktestExecutionResponse response) {
         String metricId = null;
         Long portfolioSnapshotId = null;
@@ -247,21 +246,13 @@ public class BacktestExecutionService {
             metricId = saveMongoMetricsSync(response.metrics());
             log.info("Step 1: Saved MongoDB metrics with ID: {}", metricId);
             
-            // 한 번만 조회한 backtest 객체 사용
-            Backtest backtest = backtestRepository.findById(backtestId)
-                .orElseThrow(() -> new ResourceNotFoundException("백테스트를 찾을 수 없습니다: " + backtestId));
+            // 2단계: PostgreSQL 작업을 별도 트랜잭션에서 처리
+            portfolioSnapshotId = savePostgresDataInTransaction(backtestId, response, metricId);
+            log.info("Step 2: Saved PostgreSQL data with portfolioSnapshotId: {}", portfolioSnapshotId);
             
-            // 2단계: PostgreSQL에 포트폴리오 스냅샷 저장
-            portfolioSnapshotId = savePortfolioSnapshot(backtest, response.portfolioSnapshot(), metricId);
-            log.info("Step 2: Saved portfolio snapshot with ID: {}", portfolioSnapshotId);
-            
-            // 3단계: PostgreSQL에 일별 홀딩 스냅샷 저장
-            saveDailyHoldingSnapshots(response.resultSummary(), portfolioSnapshotId);
-            log.info("Step 3: Saved {} daily holding snapshots", getTotalHoldingSnapshotCount(response.resultSummary()));
-            
-            // 4단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트 (비동기)
+            // 3단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트 (비동기)
             updateMongoMetricsWithSnapshotIdAsync(metricId, portfolioSnapshotId);
-            log.info("Step 4: Started async MongoDB metrics update for metricId: {}", metricId);
+            log.info("Step 3: Started async MongoDB metrics update for metricId: {}", metricId);
             
             log.info("All detailed backtest results saved successfully for backtestId: {}", backtestId);
             
@@ -277,9 +268,28 @@ public class BacktestExecutionService {
                 }
             }
             
-            // PostgreSQL은 @Transactional로 자동 롤백됨
             throw new RuntimeException("Failed to save backtest results for backtestId: " + backtestId, e);
         }
+    }
+
+    /**
+     * PostgreSQL 데이터를 별도 트랜잭션에서 저장
+     */
+    @Transactional(timeout = 300)
+    public Long savePostgresDataInTransaction(Long backtestId, BacktestExecutionResponse response, String metricId) {
+        // 한 번만 조회한 backtest 객체 사용
+        Backtest backtest = backtestRepository.findById(backtestId)
+            .orElseThrow(() -> new ResourceNotFoundException("백테스트를 찾을 수 없습니다: " + backtestId));
+        
+        // 1단계: PostgreSQL에 포트폴리오 스냅샷 저장
+        Long portfolioSnapshotId = savePortfolioSnapshot(backtest, response.portfolioSnapshot(), metricId);
+        log.info("Step 1: Saved portfolio snapshot with ID: {}", portfolioSnapshotId);
+        
+        // 2단계: PostgreSQL에 일별 홀딩 스냅샷 저장
+        saveDailyHoldingSnapshots(response.resultSummary(), portfolioSnapshotId);
+        log.info("Step 2: Saved {} daily holding snapshots", getTotalHoldingSnapshotCount(response.resultSummary()));
+        
+        return portfolioSnapshotId;
     }
 
     /**
