@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -28,6 +29,7 @@ public class MongoBacktestMetricsService {
     /**
      * MongoDB에 성과 지표를 동기적으로 저장 (트랜잭션 밖에서)
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void saveMetricsSync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse, 
                                Long portfolioSnapshotId) {
         try {
