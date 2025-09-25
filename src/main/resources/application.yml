@@ -14,6 +14,9 @@ spring:
       leak-detection-threshold: 120000  # 연결 누수 감지
       max-active: 20               # 최대 활성 연결 수
       validation-timeout: 5000     # 연결 검증 타임아웃
+  data:
+    mongodb:
+      uri: ${mongodb.uri}
   jpa:
     properties:
       hibernate:
