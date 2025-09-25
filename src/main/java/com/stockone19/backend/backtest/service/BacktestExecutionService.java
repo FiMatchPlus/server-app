@@ -227,13 +227,10 @@ public class BacktestExecutionService {
     }
 
     /**
-     * 상세 백테스트 결과 저장 (MongoDB 먼저 확인 후 PostgreSQL)
-     * 순서: MongoDB metrics 저장 → 성공 시 PostgreSQL 작업 진행
+     * 상세 백테스트 결과 저장
+     * 순서: PostgreSQL 작업 → MongoDB 작업 (비동기)
      */
     public void saveDetailedBacktestResults(Long backtestId, BacktestExecutionResponse response) {
-        String metricId = null;
-        Long portfolioSnapshotId = null;
-        
         try {
             log.info("Saving detailed backtest results for backtestId: {}", backtestId);
             
@@ -242,32 +239,18 @@ public class BacktestExecutionService {
                 throw new IllegalStateException("BacktestExecutionResponse is null");
             }
             
-            // 1단계: MongoDB에 성과 지표 먼저 저장 (트랜잭션 밖에서)
-            metricId = saveMongoMetricsSync(response.metrics());
-            log.info("Step 1: Saved MongoDB metrics with ID: {}", metricId);
+            // 1단계: PostgreSQL 작업을 별도 트랜잭션에서 처리
+            Long portfolioSnapshotId = savePostgresDataInTransaction(backtestId, response, null);
+            log.info("Step 1: Saved PostgreSQL data with portfolioSnapshotId: {}", portfolioSnapshotId);
             
-            // 2단계: PostgreSQL 작업을 별도 트랜잭션에서 처리
-            portfolioSnapshotId = savePostgresDataInTransaction(backtestId, response, metricId);
-            log.info("Step 2: Saved PostgreSQL data with portfolioSnapshotId: {}", portfolioSnapshotId);
-            
-            // 3단계: MongoDB 메트릭에 portfolio_snapshot_id 업데이트 (비동기)
-            updateMongoMetricsWithSnapshotIdAsync(metricId, portfolioSnapshotId);
-            log.info("Step 3: Started async MongoDB metrics update for metricId: {}", metricId);
+            // 2단계: MongoDB 작업을 완전히 비동기로 처리 (트랜잭션 밖에서)
+            saveMongoMetricsWithSnapshotIdAsync(response.metrics(), portfolioSnapshotId);
+            log.info("Step 2: Started async MongoDB metrics save for portfolioSnapshotId: {}", portfolioSnapshotId);
             
             log.info("All detailed backtest results saved successfully for backtestId: {}", backtestId);
             
         } catch (Exception e) {
             log.error("Failed to save backtest results for backtestId: {} - {}", backtestId, e.getMessage(), e);
-            
-            // MongoDB 데이터 정리 (이미 저장된 경우)
-            if (metricId != null) {
-                try {
-                    rollbackMongoMetrics(metricId);
-                } catch (Exception rollbackError) {
-                    log.error("Failed to rollback MongoDB metrics with ID: {}", metricId, rollbackError);
-                }
-            }
-            
             throw new RuntimeException("Failed to save backtest results for backtestId: " + backtestId, e);
         }
     }
@@ -389,25 +372,46 @@ public class BacktestExecutionService {
      * MongoDB에 성과 지표를 동기적으로 저장 (트랜잭션 밖에서)
      * 성공 시에만 metricId 반환, 실패 시 예외 발생
      */
+    @Async("backgroundTaskExecutor")
+    public CompletableFuture<String> saveMongoMetricsAsync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse) {
+        try {
+            BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
+                    null, // portfolioSnapshotId는 나중에 업데이트
+                    metricsResponse.totalReturn(),
+                    metricsResponse.annualizedReturn(),
+                    metricsResponse.volatility(),
+                    metricsResponse.sharpeRatio(),
+                    metricsResponse.maxDrawdown(),
+                    metricsResponse.var95(),
+                    metricsResponse.var99(),
+                    metricsResponse.cvar95(),
+                    metricsResponse.cvar99(),
+                    metricsResponse.winRate(),
+                    metricsResponse.profitLossRatio()
+            );
+            
+            BacktestMetricsDocument savedMetrics = backtestMetricsRepository.save(metricsDoc);
+            log.info("Saved MongoDB metrics with ID: {}", savedMetrics.getId());
+            return CompletableFuture.completedFuture(savedMetrics.getId());
+            
+        } catch (Exception e) {
+            log.error("Failed to save MongoDB metrics: {}", e.getMessage(), e);
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * MongoDB에 성과 지표를 동기적으로 저장 (트랜잭션 밖에서)
+     * 성공 시에만 metricId 반환, 실패 시 예외 발생
+     */
     private String saveMongoMetricsSync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse) {
-        BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
-                null, // portfolioSnapshotId는 나중에 업데이트
-                metricsResponse.totalReturn(),
-                metricsResponse.annualizedReturn(),
-                metricsResponse.volatility(),
-                metricsResponse.sharpeRatio(),
-                metricsResponse.maxDrawdown(),
-                metricsResponse.var95(),
-                metricsResponse.var99(),
-                metricsResponse.cvar95(),
-                metricsResponse.cvar99(),
-                metricsResponse.winRate(),
-                metricsResponse.profitLossRatio()
-        );
-        
-        BacktestMetricsDocument savedMetrics = backtestMetricsRepository.save(metricsDoc);
-        log.debug("Saved MongoDB metrics with ID: {}", savedMetrics.getId());
-        return savedMetrics.getId();
+        try {
+            CompletableFuture<String> future = saveMongoMetricsAsync(metricsResponse);
+            return future.get(); // 동기적으로 대기
+        } catch (Exception e) {
+            log.error("Failed to save MongoDB metrics synchronously: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to save MongoDB metrics", e);
+        }
     }
 
     /**
@@ -429,6 +433,38 @@ public class BacktestExecutionService {
         } catch (Exception e) {
             log.error("Failed to update MongoDB metrics atomically: metricId={}, portfolioSnapshotId={}, error={}", 
                      metricId, portfolioSnapshotId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * MongoDB에 성과 지표를 완전히 비동기로 저장 (트랜잭션 밖에서)
+     */
+    @Async("backgroundTaskExecutor")
+    public void saveMongoMetricsWithSnapshotIdAsync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse, 
+                                                   Long portfolioSnapshotId) {
+        try {
+            BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
+                    portfolioSnapshotId, // portfolioSnapshotId를 바로 설정
+                    metricsResponse.totalReturn(),
+                    metricsResponse.annualizedReturn(),
+                    metricsResponse.volatility(),
+                    metricsResponse.sharpeRatio(),
+                    metricsResponse.maxDrawdown(),
+                    metricsResponse.var95(),
+                    metricsResponse.var99(),
+                    metricsResponse.cvar95(),
+                    metricsResponse.cvar99(),
+                    metricsResponse.winRate(),
+                    metricsResponse.profitLossRatio()
+            );
+            
+            BacktestMetricsDocument savedMetrics = backtestMetricsRepository.save(metricsDoc);
+            log.info("Successfully saved MongoDB metrics: metricId={}, portfolioSnapshotId={}", 
+                    savedMetrics.getId(), portfolioSnapshotId);
+                    
+        } catch (Exception e) {
+            log.error("Failed to save MongoDB metrics asynchronously: portfolioSnapshotId={}, error={}", 
+                     portfolioSnapshotId, e.getMessage(), e);
         }
     }
 
