@@ -31,7 +31,7 @@ spring:
       uri: ${mongodb.uri}
       # MongoDB 트랜잭션 관련 설정
       transaction:
-        enabled: true
+        enabled: false
     redis:
       host: ${redis.host}
       port: ${redis.port}

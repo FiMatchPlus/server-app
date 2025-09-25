@@ -27,9 +27,8 @@ public class MongoBacktestMetricsService {
     private final JdbcTemplate jdbcTemplate;
 
     /**
-     * MongoDB에 성과 지표를 동기적으로 저장 (트랜잭션 밖에서)
+     * MongoDB에 성과 지표를 동기적으로 저장
      */
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void saveMetricsSync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse, 
                                Long portfolioSnapshotId) {
         try {

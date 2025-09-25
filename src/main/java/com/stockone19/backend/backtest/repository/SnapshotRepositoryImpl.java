@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Arrays;
 import java.util.List;
@@ -220,7 +221,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                         snapshot.price(),
                         snapshot.quantity(),
                         snapshot.value(),
-                        java.sql.Timestamp.valueOf(snapshot.recordedAt()),
+                        Timestamp.valueOf(snapshot.recordedAt()),
                         snapshot.contribution(),
                         snapshot.dailyRatio()
                 })
