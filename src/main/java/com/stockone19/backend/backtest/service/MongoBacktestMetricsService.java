@@ -7,11 +7,10 @@ import com.stockone19.backend.backtest.repository.SnapshotRepository;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * MongoDB 백테스트 메트릭 전용 서비스 (트랜잭션 완전 분리)
@@ -23,16 +22,16 @@ public class MongoBacktestMetricsService {
 
     private final BacktestMetricsRepository backtestMetricsRepository;
     private final SnapshotRepository snapshotRepository;
-    private final BacktestRepository backtestRepository;
+    private final MongoTemplate mongoTemplate;
     private final JdbcTemplate jdbcTemplate;
 
     /**
-     * MongoDB에 성과 지표를 동기적으로 저장
+     * MongoDB에 성과 지표를 동기적으로 저장 (MongoTemplate 직접 사용으로 트랜잭션 완전 우회)
      */
     public void saveMetricsSync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse, 
                                Long portfolioSnapshotId) {
         try {
-            log.info("Starting MongoDB metrics save for portfolioSnapshotId: {}", portfolioSnapshotId);
+            log.info("Starting MongoDB metrics save using MongoTemplate for portfolioSnapshotId: {}", portfolioSnapshotId);
             
             BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
                     portfolioSnapshotId,
@@ -49,12 +48,13 @@ public class MongoBacktestMetricsService {
                     metricsResponse.profitLossRatio()
             );
             
-            BacktestMetricsDocument savedMetrics = backtestMetricsRepository.save(metricsDoc);
-            log.info("Successfully saved MongoDB metrics: metricId={}, portfolioSnapshotId={}", 
+            // MongoTemplate 직접 사용 - Spring Data MongoDB 자동 트랜잭션 관리 우회
+            BacktestMetricsDocument savedMetrics = mongoTemplate.insert(metricsDoc, "metrics");
+            log.info("Successfully saved MongoDB metrics using MongoTemplate: metricId={}, portfolioSnapshotId={}", 
                     savedMetrics.getId(), portfolioSnapshotId);
                     
         } catch (Exception e) {
-            log.error("Failed to save MongoDB metrics synchronously: portfolioSnapshotId={}, error={}", 
+            log.error("Failed to save MongoDB metrics using MongoTemplate: portfolioSnapshotId={}, error={}", 
                      portfolioSnapshotId, e.getMessage(), e);
             throw e; // 예외를 다시 던져서 호출자에게 알림
         }
