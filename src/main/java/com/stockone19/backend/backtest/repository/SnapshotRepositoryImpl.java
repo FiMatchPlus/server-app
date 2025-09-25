@@ -35,7 +35,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     private PortfolioSnapshot insertPortfolioSnapshot(PortfolioSnapshot snapshot) {
         String sql = """
             INSERT INTO portfolio_snapshots (backtest_id, base_value, current_value, created_at, 
-                                           metric_id, start_at, end_at, execution_time)
+                                           metrics, start_at, end_at, execution_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
@@ -46,7 +46,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             ps.setDouble(2, snapshot.baseValue());
             ps.setDouble(3, snapshot.currentValue());
             ps.setTimestamp(4, java.sql.Timestamp.valueOf(snapshot.createdAt()));
-            ps.setString(5, snapshot.metricId());
+            ps.setString(5, snapshot.metrics());
             ps.setTimestamp(6, snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null);
             ps.setTimestamp(7, snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null);
             if (snapshot.executionTime() != null) {
@@ -60,7 +60,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
         Long id = extractGeneratedId(keyHolder);
         return PortfolioSnapshot.of(
                 id, snapshot.backtestId(), snapshot.baseValue(), snapshot.currentValue(), 
-                snapshot.createdAt(), snapshot.metricId(), snapshot.startAt(), snapshot.endAt(), 
+                snapshot.createdAt(), snapshot.metrics(), snapshot.startAt(), snapshot.endAt(), 
                 snapshot.executionTime()
         );
     }
@@ -69,7 +69,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
         String sql = """
             UPDATE portfolio_snapshots
             SET backtest_id = ?, base_value = ?, current_value = ?, created_at = ?,
-                metric_id = ?, start_at = ?, end_at = ?, execution_time = ?
+                metrics = ?, start_at = ?, end_at = ?, execution_time = ?
             WHERE id = ?
             """;
 
@@ -78,7 +78,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 snapshot.baseValue(),
                 snapshot.currentValue(),
                 java.sql.Timestamp.valueOf(snapshot.createdAt()),
-                snapshot.metricId(),
+                snapshot.metrics(),
                 snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null,
                 snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null,
                 snapshot.executionTime(),
@@ -102,7 +102,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     public List<PortfolioSnapshot> findPortfolioSnapshotsByBacktestId(Long backtestId) {
         String sql = """
             SELECT id, backtest_id, base_value, current_value, created_at, 
-                   metric_id, start_at, end_at, execution_time
+                   metrics, start_at, end_at, execution_time
             FROM portfolio_snapshots
             WHERE backtest_id = ?
             ORDER BY created_at ASC
@@ -118,7 +118,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                     rs.getDouble("base_value"),
                     rs.getDouble("current_value"),
                     rs.getTimestamp("created_at").toLocalDateTime(),
-                    rs.getString("metric_id"),
+                    rs.getString("metrics"),
                     rs.getTimestamp("start_at") != null ? rs.getTimestamp("start_at").toLocalDateTime() : null,
                     rs.getTimestamp("end_at") != null ? rs.getTimestamp("end_at").toLocalDateTime() : null,
                     executionTime
@@ -130,7 +130,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     public PortfolioSnapshot findLatestPortfolioSnapshotByBacktestId(Long backtestId) {
         String sql = """
             SELECT id, backtest_id, base_value, current_value, created_at, 
-                   metric_id, start_at, end_at, execution_time
+                   metrics, start_at, end_at, execution_time
             FROM portfolio_snapshots
             WHERE backtest_id = ?
             ORDER BY created_at DESC
@@ -147,7 +147,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                     rs.getDouble("base_value"),
                     rs.getDouble("current_value"),
                     rs.getTimestamp("created_at").toLocalDateTime(),
-                    rs.getString("metric_id"),
+                    rs.getString("metrics"),
                     rs.getTimestamp("start_at") != null ? rs.getTimestamp("start_at").toLocalDateTime() : null,
                     rs.getTimestamp("end_at") != null ? rs.getTimestamp("end_at").toLocalDateTime() : null,
                     executionTime

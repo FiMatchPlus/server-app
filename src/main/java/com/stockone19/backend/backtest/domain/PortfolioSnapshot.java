@@ -8,7 +8,7 @@ public record PortfolioSnapshot(
         double baseValue,
         double currentValue,
         LocalDateTime createdAt,
-        String metricId,
+        String metrics,
         LocalDateTime startAt,
         LocalDateTime endAt,
         Double executionTime
@@ -20,14 +20,14 @@ public record PortfolioSnapshot(
             double baseValue,
             double currentValue,
             LocalDateTime createdAt,
-            String metricId,
+            String metrics,
             LocalDateTime startAt,
             LocalDateTime endAt,
             Double executionTime
     ) {
         return new PortfolioSnapshot(
                 id, backtestId, baseValue, currentValue, createdAt, 
-                metricId, startAt, endAt, executionTime
+                metrics, startAt, endAt, executionTime
         );
     }
 
@@ -35,14 +35,14 @@ public record PortfolioSnapshot(
             Long backtestId,
             double baseValue,
             double currentValue,
-            String metricId,
+            String metrics,
             LocalDateTime startAt,
             LocalDateTime endAt,
             Double executionTime
     ) {
         return new PortfolioSnapshot(
                 null, backtestId, baseValue, currentValue, LocalDateTime.now(), 
-                metricId, startAt, endAt, executionTime
+                metrics, startAt, endAt, executionTime
         );
     }
 

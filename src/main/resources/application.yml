@@ -26,12 +26,6 @@ spring:
         batch_versioned_data: true          # 버전 데이터 배치 처리
         connection:
           provider_disables_autocommit: false  # JdbcTemplate 호환성
-  data:
-    mongodb:
-      uri: ${mongodb.uri}
-      # MongoDB 트랜잭션 관련 설정
-      transaction:
-        enabled: false
     redis:
       host: ${redis.host}
       port: ${redis.port}
@@ -59,12 +53,6 @@ management:
 logging:
   level:
     com.stockone19: INFO
-    # MongoDB 쿼리 로그 활성화
-    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
-    org.springframework.data.mongodb.core.query: DEBUG
-    org.springframework.data.mongodb: DEBUG
-    # MongoDB 드라이버 로그 (선택사항)
-    org.mongodb.driver: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     
