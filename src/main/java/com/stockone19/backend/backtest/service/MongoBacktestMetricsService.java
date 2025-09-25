@@ -67,6 +67,17 @@ public class MongoBacktestMetricsService {
             // 동기적으로 완료 대기
             future.get();
                     
+        } catch (java.util.concurrent.ExecutionException e) {
+            // CompletableFuture에서 발생한 예외를 원본 예외로 언래핑
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            } else {
+                throw new RuntimeException("MongoDB save failed", cause);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // 인터럽트 상태 복원
+            throw new RuntimeException("MongoDB save was interrupted", e);
         } catch (Exception e) {
             log.error("Failed to save MongoDB metrics: portfolioSnapshotId={}, error={}", 
                      portfolioSnapshotId, e.getMessage(), e);
