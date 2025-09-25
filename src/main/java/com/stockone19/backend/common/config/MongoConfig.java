@@ -15,8 +15,8 @@ public class MongoConfig {
     @Bean(name = "transactionManager")
     public PlatformTransactionManager mongoTransactionManager(MongoDatabaseFactory mongoDatabaseFactory) {
         MongoTransactionManager transactionManager = new MongoTransactionManager(mongoDatabaseFactory);
-        // MongoDB 트랜잭션 타임아웃 설정 (5분)
-        transactionManager.setDefaultTimeout(300);
+        // MongoDB 트랜잭션 타임아웃 설정 (2분) - 동시성 충돌 방지를 위해 단축
+        transactionManager.setDefaultTimeout(120);
         return transactionManager;
     }
 }
