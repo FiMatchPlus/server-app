@@ -406,7 +406,6 @@ public class BacktestExecutionService {
     @Async("backgroundTaskExecutor")
     public void updateMongoMetricsWithSnapshotIdAsync(String metricId, Long portfolioSnapshotId) {
         try {
-            // 원자적 업데이트: findById + save 대신 직접 업데이트
             BacktestMetricsDocument updatedMetrics = new BacktestMetricsDocument();
             updatedMetrics.setId(metricId);
             updatedMetrics.setPortfolioSnapshotId(portfolioSnapshotId);
