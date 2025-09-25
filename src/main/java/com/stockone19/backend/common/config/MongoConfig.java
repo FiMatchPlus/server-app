@@ -12,7 +12,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration
 public class MongoConfig {
 
-    @Bean
+    @Bean(name = "transactionManager")
     public PlatformTransactionManager mongoTransactionManager(MongoDatabaseFactory mongoDatabaseFactory) {
         MongoTransactionManager transactionManager = new MongoTransactionManager(mongoDatabaseFactory);
         // MongoDB 트랜잭션 타임아웃 설정 (5분)
