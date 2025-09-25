@@ -1,13 +1,12 @@
 package com.stockone19.backend.backtest.dto;
 
 import com.stockone19.backend.backtest.domain.Backtest;
-import com.stockone19.backend.backtest.domain.BacktestMetricsDocument;
 import com.stockone19.backend.backtest.exception.BacktestExecutionException;
-import com.stockone19.backend.backtest.repository.BacktestMetricsRepository;
 import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
 import com.stockone19.backend.backtest.repository.SnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -23,7 +22,7 @@ import java.util.stream.Collectors;
 public class BacktestResponseMapper {
 
     private final SnapshotRepository snapshotRepository;
-    private final BacktestMetricsRepository backtestMetricsRepository;
+    private final ObjectMapper objectMapper;
 
     /**
      * Backtest 도메인 객체를 BacktestResponse로 변환
@@ -84,30 +83,47 @@ public class BacktestResponseMapper {
 
 
     /**
-     * 백테스트 성과 지표 조회 (BacktestService의 로직과 동일)
+     * 백테스트 성과 지표 조회 (JSON에서 파싱)
      */
     private BacktestMetrics getBacktestMetrics(PortfolioSnapshot latestSnapshot) {
-        if (latestSnapshot.metricId() == null) {
+        if (latestSnapshot.metrics() == null || latestSnapshot.metrics().trim().isEmpty()) {
             return null;
         }
 
-        BacktestMetricsDocument metricsDoc = backtestMetricsRepository
-                .findById(latestSnapshot.metricId())
-                .orElse(null);
-
-        if (metricsDoc == null) {
+        try {
+            Map<String, Object> metricsMap = objectMapper.readValue(latestSnapshot.metrics(), Map.class);
+            
+            return BacktestMetrics.of(
+                    getDoubleValue(metricsMap, "totalReturn"),
+                    getDoubleValue(metricsMap, "annualizedReturn"),
+                    getDoubleValue(metricsMap, "volatility"),
+                    getDoubleValue(metricsMap, "sharpeRatio"),
+                    getDoubleValue(metricsMap, "maxDrawdown"),
+                    getDoubleValue(metricsMap, "winRate"),
+                    getDoubleValue(metricsMap, "profitLossRatio")
+            );
+        } catch (Exception e) {
             return null;
         }
-
-        return BacktestMetrics.of(
-                metricsDoc.getTotalReturn(),
-                metricsDoc.getAnnualizedReturn(),
-                metricsDoc.getVolatility(),
-                metricsDoc.getSharpeRatio(),
-                metricsDoc.getMaxDrawdown(),
-                metricsDoc.getWinRate(),
-                metricsDoc.getProfitLossRatio()
-        );
+    }
+    
+    /**
+     * JSON에서 Double 값 추출 (안전한 타입 변환)
+     */
+    private Double getDoubleValue(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value == null) return 0.0;
+        
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        } else if (value instanceof String) {
+            try {
+                return Double.parseDouble((String) value);
+            } catch (NumberFormatException e) {
+                return 0.0;
+            }
+        }
+        return 0.0;
     }
 
     private List<BacktestResponse.DailyReturn> generateDailyReturns(Long backtestId) {

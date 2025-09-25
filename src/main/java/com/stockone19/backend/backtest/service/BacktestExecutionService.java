@@ -25,6 +25,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -322,19 +323,18 @@ public class BacktestExecutionService {
      */
     private String convertMetricsToJson(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse) {
         try {
-            Map<String, Object> metricsMap = Map.of(
-                    "totalReturn", metricsResponse.totalReturn(),
-                    "annualizedReturn", metricsResponse.annualizedReturn(),
-                    "volatility", metricsResponse.volatility(),
-                    "sharpeRatio", metricsResponse.sharpeRatio(),
-                    "maxDrawdown", metricsResponse.maxDrawdown(),
-                    "var95", metricsResponse.var95(),
-                    "var99", metricsResponse.var99(),
-                    "cvar95", metricsResponse.cvar95(),
-                    "cvar99", metricsResponse.cvar99(),
-                    "winRate", metricsResponse.winRate(),
-                    "profitLossRatio", metricsResponse.profitLossRatio()
-            );
+            Map<String, Object> metricsMap = new HashMap<>();
+            metricsMap.put("totalReturn", metricsResponse.totalReturn());
+            metricsMap.put("annualizedReturn", metricsResponse.annualizedReturn());
+            metricsMap.put("volatility", metricsResponse.volatility());
+            metricsMap.put("sharpeRatio", metricsResponse.sharpeRatio());
+            metricsMap.put("maxDrawdown", metricsResponse.maxDrawdown());
+            metricsMap.put("var95", metricsResponse.var95());
+            metricsMap.put("var99", metricsResponse.var99());
+            metricsMap.put("cvar95", metricsResponse.cvar95());
+            metricsMap.put("cvar99", metricsResponse.cvar99());
+            metricsMap.put("winRate", metricsResponse.winRate());
+            metricsMap.put("profitLossRatio", metricsResponse.profitLossRatio());
             
             return objectMapper.writeValueAsString(metricsMap);
         } catch (Exception e) {
@@ -400,116 +400,5 @@ public class BacktestExecutionService {
         }
     }
 
-    /**
-     * MongoDB에 성과 지표를 동기적으로 저장 (트랜잭션 밖에서)
-     * 성공 시에만 metricId 반환, 실패 시 예외 발생
-     */
-    @Async("backgroundTaskExecutor")
-    public CompletableFuture<String> saveMongoMetricsAsync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse) {
-        try {
-            BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
-                    null, // portfolioSnapshotId는 나중에 업데이트
-                    metricsResponse.totalReturn(),
-                    metricsResponse.annualizedReturn(),
-                    metricsResponse.volatility(),
-                    metricsResponse.sharpeRatio(),
-                    metricsResponse.maxDrawdown(),
-                    metricsResponse.var95(),
-                    metricsResponse.var99(),
-                    metricsResponse.cvar95(),
-                    metricsResponse.cvar99(),
-                    metricsResponse.winRate(),
-                    metricsResponse.profitLossRatio()
-            );
-            
-            BacktestMetricsDocument savedMetrics = backtestMetricsRepository.save(metricsDoc);
-            log.info("Saved MongoDB metrics with ID: {}", savedMetrics.getId());
-            return CompletableFuture.completedFuture(savedMetrics.getId());
-            
-        } catch (Exception e) {
-            log.error("Failed to save MongoDB metrics: {}", e.getMessage(), e);
-            return CompletableFuture.failedFuture(e);
-        }
-    }
-
-    /**
-     * MongoDB에 성과 지표를 동기적으로 저장 (트랜잭션 밖에서)
-     * 성공 시에만 metricId 반환, 실패 시 예외 발생
-     */
-    private String saveMongoMetricsSync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse) {
-        try {
-            CompletableFuture<String> future = saveMongoMetricsAsync(metricsResponse);
-            return future.get(); // 동기적으로 대기
-        } catch (Exception e) {
-            log.error("Failed to save MongoDB metrics synchronously: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to save MongoDB metrics", e);
-        }
-    }
-
-    /**
-     * MongoDB 메트릭에 portfolio_snapshot_id를 원자적으로 업데이트
-     */
-    @Async("backgroundTaskExecutor")
-    public void updateMongoMetricsWithSnapshotIdAsync(String metricId, Long portfolioSnapshotId) {
-        try {
-            BacktestMetricsDocument updatedMetrics = new BacktestMetricsDocument();
-            updatedMetrics.setId(metricId);
-            updatedMetrics.setPortfolioSnapshotId(portfolioSnapshotId);
-            updatedMetrics.setUpdatedAt(java.time.LocalDateTime.now());
-            
-            // MongoDB의 upsert 또는 직접 업데이트 사용
-            backtestMetricsRepository.save(updatedMetrics);
-            log.info("Successfully updated MongoDB metrics atomically: metricId={}, portfolioSnapshotId={}", 
-                    metricId, portfolioSnapshotId);
-                    
-        } catch (Exception e) {
-            log.error("Failed to update MongoDB metrics atomically: metricId={}, portfolioSnapshotId={}, error={}", 
-                     metricId, portfolioSnapshotId, e.getMessage(), e);
-        }
-    }
-
-    /**
-     * MongoDB에 성과 지표를 완전히 비동기로 저장 (트랜잭션 밖에서)
-     */
-    @Async("backgroundTaskExecutor")
-    public void saveMongoMetricsWithSnapshotIdAsync(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse, 
-                                                   Long portfolioSnapshotId) {
-        try {
-            BacktestMetricsDocument metricsDoc = new BacktestMetricsDocument(
-                    portfolioSnapshotId, // portfolioSnapshotId를 바로 설정
-                    metricsResponse.totalReturn(),
-                    metricsResponse.annualizedReturn(),
-                    metricsResponse.volatility(),
-                    metricsResponse.sharpeRatio(),
-                    metricsResponse.maxDrawdown(),
-                    metricsResponse.var95(),
-                    metricsResponse.var99(),
-                    metricsResponse.cvar95(),
-                    metricsResponse.cvar99(),
-                    metricsResponse.winRate(),
-                    metricsResponse.profitLossRatio()
-            );
-            
-            BacktestMetricsDocument savedMetrics = backtestMetricsRepository.save(metricsDoc);
-            log.info("Successfully saved MongoDB metrics: metricId={}, portfolioSnapshotId={}", 
-                    savedMetrics.getId(), portfolioSnapshotId);
-                    
-        } catch (Exception e) {
-            log.error("Failed to save MongoDB metrics asynchronously: portfolioSnapshotId={}, error={}", 
-                     portfolioSnapshotId, e.getMessage(), e);
-        }
-    }
-
-    /**
-     * MongoDB 메트릭 롤백
-     */
-    private void rollbackMongoMetrics(String metricId) {
-        try {
-            backtestMetricsRepository.deleteById(metricId);
-            log.info("Rolled back MongoDB metrics with ID: {}", metricId);
-        } catch (Exception e) {
-            log.error("Failed to rollback MongoDB metrics with ID: {}", metricId, e);
-        }
-    }
 
 }
