@@ -1,12 +1,10 @@
 package com.stockone19.backend.backtest.service;
 
 import com.stockone19.backend.backtest.domain.Backtest;
-import com.stockone19.backend.backtest.domain.BacktestMetricsDocument;
 import com.stockone19.backend.backtest.domain.HoldingSnapshot;
 import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
 import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
 import com.stockone19.backend.backtest.dto.BacktestMetrics;
-import com.stockone19.backend.backtest.repository.BacktestMetricsRepository;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.SnapshotRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
@@ -21,6 +19,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Service
@@ -30,8 +29,8 @@ public class BacktestQueryService {
 
     private final BacktestRepository backtestRepository;
     private final SnapshotRepository snapshotRepository;
-    private final BacktestMetricsRepository backtestMetricsRepository;
     private final StockRepository stockRepository;
+    private final ObjectMapper objectMapper;
 
     /**
      * 백테스트 상세 정보 조회 (새로운 응답 구조)
@@ -91,30 +90,48 @@ public class BacktestQueryService {
     }
 
     /**
-     * 백테스트 성과 지표 조회
+     * 백테스트 성과 지표 조회 (JSON에서 파싱)
      */
     private BacktestMetrics getBacktestMetrics(PortfolioSnapshot latestSnapshot) {
-        if (latestSnapshot.metricId() == null) {
+        if (latestSnapshot.metrics() == null || latestSnapshot.metrics().trim().isEmpty()) {
             return null;
         }
 
-        BacktestMetricsDocument metricsDoc = backtestMetricsRepository
-                .findById(latestSnapshot.metricId())
-                .orElse(null);
-
-        if (metricsDoc == null) {
+        try {
+            Map<String, Object> metricsMap = objectMapper.readValue(latestSnapshot.metrics(), Map.class);
+            
+            return BacktestMetrics.of(
+                    getDoubleValue(metricsMap, "totalReturn"),
+                    getDoubleValue(metricsMap, "annualizedReturn"),
+                    getDoubleValue(metricsMap, "volatility"),
+                    getDoubleValue(metricsMap, "sharpeRatio"),
+                    getDoubleValue(metricsMap, "maxDrawdown"),
+                    getDoubleValue(metricsMap, "winRate"),
+                    getDoubleValue(metricsMap, "profitLossRatio")
+            );
+        } catch (Exception e) {
+            log.error("Failed to parse metrics JSON for portfolioSnapshotId: {}", latestSnapshot.id(), e);
             return null;
         }
-
-        return BacktestMetrics.of(
-                metricsDoc.getTotalReturn(),
-                metricsDoc.getAnnualizedReturn(),
-                metricsDoc.getVolatility(),
-                metricsDoc.getSharpeRatio(),
-                metricsDoc.getMaxDrawdown(),
-                metricsDoc.getWinRate(),
-                metricsDoc.getProfitLossRatio()
-        );
+    }
+    
+    /**
+     * JSON에서 Double 값 추출 (안전한 타입 변환)
+     */
+    private Double getDoubleValue(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value == null) return 0.0;
+        
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        } else if (value instanceof String) {
+            try {
+                return Double.parseDouble((String) value);
+            } catch (NumberFormatException e) {
+                return 0.0;
+            }
+        }
+        return 0.0;
     }
 
     /**
