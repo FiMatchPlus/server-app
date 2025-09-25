@@ -11,8 +11,10 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -197,6 +199,35 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                 holdingSnapshot.contribution(),
                 holdingSnapshot.dailyRatio()
         );
+    }
+
+    @Override
+    public int saveHoldingSnapshotsBatch(List<HoldingSnapshot> holdingSnapshots) {
+        if (holdingSnapshots == null || holdingSnapshots.isEmpty()) {
+            return 0;
+        }
+
+        String sql = """
+            INSERT INTO holding_snapshots (portfolio_snapshot_id, stock_code, weight, price, quantity, value, recorded_at, contribution, daily_ratio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+
+        List<Object[]> batchArgs = holdingSnapshots.stream()
+                .map(snapshot -> new Object[]{
+                        snapshot.portfolioSnapshotId(),
+                        snapshot.stockCode(),
+                        snapshot.weight(),
+                        snapshot.price(),
+                        snapshot.quantity(),
+                        snapshot.value(),
+                        java.sql.Timestamp.valueOf(snapshot.recordedAt()),
+                        snapshot.contribution(),
+                        snapshot.dailyRatio()
+                })
+                .collect(Collectors.toList());
+
+        int[] results = jdbcTemplate.batchUpdate(sql, batchArgs);
+        return Arrays.stream(results).sum();
     }
 
     @Override
