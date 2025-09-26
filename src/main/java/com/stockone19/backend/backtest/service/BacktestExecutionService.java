@@ -551,13 +551,8 @@ public class BacktestExecutionService {
                 portfolioSnapshotId = savePortfolioSnapshot(backtest, executionResponse.portfolioSnapshot(), executionResponse.metrics());
             }
             
-            // 3. BenchmarkCode 저장 및 벤치마크 정보 로깅
+            // 3. 벤치마크 정보는 로그로만 저장 (backtests 테이블은 수정하지 않음)
             if (callback.benchmarkInfo() != null) {
-                String benchmarkCode = callback.benchmarkInfo().benchmarkCode();
-                backtest.setBenchmarkCode(benchmarkCode);
-                backtestRepository.save(backtest);
-                
-                // 벤치마크 상세 정보는 로그로만 저장
                 logBenchmarkInfo(callback.benchmarkInfo());
             }
             
