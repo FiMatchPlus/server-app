@@ -4,10 +4,14 @@ import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.domain.HoldingSnapshot;
 import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
 import com.stockone19.backend.backtest.dto.*;
+import com.stockone19.backend.backtest.domain.ResultStatus;
+import com.stockone19.backend.backtest.domain.ExecutionLog;
+import com.stockone19.backend.backtest.domain.ActionType;
 import com.stockone19.backend.backtest.event.BacktestFailureEvent;
 import com.stockone19.backend.backtest.event.BacktestSuccessEvent;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.SnapshotRepository;
+import com.stockone19.backend.backtest.repository.ExecutionLogJdbcRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.common.service.BacktestJobMappingService;
 import com.stockone19.backend.portfolio.domain.Holding;
@@ -42,6 +46,7 @@ public class BacktestExecutionService {
     private final BacktestJobMappingService jobMappingService;
     private final PortfolioRepository portfolioRepository;
     private final SnapshotRepository snapshotRepository;
+    private final ExecutionLogJdbcRepository executionLogJdbcRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     
@@ -108,7 +113,7 @@ public class BacktestExecutionService {
      * 백테스트 성공 콜백 처리
      */
     @Async("backgroundTaskExecutor")
-    public void handleBacktestSuccess(BacktestCallbackResponse callback) {
+    public void handleBacktestSuccessCallback(BacktestCallbackResponse callback) {
         Long backtestId = jobMappingService.getAndRemoveMapping(callback.jobId());
         
         if (backtestId == null) {
@@ -150,7 +155,7 @@ public class BacktestExecutionService {
     }
 
     /**
-     * 백테스트 성공 이벤트 처리
+     * 백테스트 성공 이벤트 처리 - 개선된 2단계 커밋 방식
      */
     @EventListener
     @Transactional(propagation = REQUIRES_NEW)
@@ -158,16 +163,8 @@ public class BacktestExecutionService {
         log.info("Handling backtest success event for backtestId: {}", event.backtestId());
         
         try {
-            // 백테스트 상태를 완료로 업데이트
-            updateBacktestStatus(event.backtestId(), BacktestStatus.COMPLETED);
-            
-            // 상세 데이터 저장 (분석용)
-            BacktestExecutionResponse executionResponse = event.callback().toBacktestExecutionResponse();
-            if (executionResponse != null) {
-                saveDetailedBacktestResults(event.backtestId(), executionResponse);
-            } else {
-                log.warn("Cannot convert callback to BacktestExecutionResponse for backtestId: {}", event.backtestId());
-            }
+            // 개선된 백테스트 성공 처리
+            handleBacktestSuccess(event.callback());
             
             log.info("Backtest completed successfully: backtestId={}, jobId={}", 
                     event.backtestId(), event.callback().jobId());
@@ -175,6 +172,38 @@ public class BacktestExecutionService {
         } catch (Exception e) {
             log.error("Failed to process backtest success event: backtestId={}, jobId={}", 
                     event.backtestId(), event.callback().jobId(), e);
+        }
+    }
+
+    /**
+     * 백테스트 성공 처리 - 2단계 커밋 방식
+     */
+    public void handleBacktestSuccess(BacktestCallbackResponse callback) {
+        Long backtestId = callback.portfolioSnapshot().portfolioId();
+        Long portfolioSnapshotId = null;
+        
+        try {
+            // 1단계: JPA 데이터 저장 (핵심 데이터)
+            portfolioSnapshotId = saveJpaDataInTransaction(backtestId, callback);
+            
+            // 2단계: JDBC 배치 저장 (대량 데이터)
+            saveJdbcDataInTransaction(portfolioSnapshotId, callback);
+            
+            log.info("Successfully processed backtest completion for backtestId: {}", backtestId);
+            
+        } catch (Exception e) {
+            log.error("Failed to process backtest success for backtestId: {}", backtestId, e);
+            
+            // JDBC 실패 시 JPA 데이터 롤백
+            if (portfolioSnapshotId != null) {
+                try {
+                    rollbackJpaData(backtestId, portfolioSnapshotId);
+                } catch (Exception rollbackException) {
+                    log.error("Failed to rollback JPA data for backtestId: {}", backtestId, rollbackException);
+                }
+            }
+            
+            throw new RuntimeException("Failed to process backtest completion", e);
         }
     }
 
@@ -400,5 +429,196 @@ public class BacktestExecutionService {
         }
     }
 
-
+    /**
+     * JPA 데이터 저장 (핵심 데이터)
+     */
+    @Transactional(timeout = 60)
+    public Long saveJpaDataInTransaction(Long backtestId, BacktestCallbackResponse callback) {
+        // 1. Backtest 상태를 PENDING으로 설정 (JDBC 처리 전 상태)
+        Backtest backtest = backtestRepository.findById(backtestId)
+            .orElseThrow(() -> new ResourceNotFoundException("Backtest not found: " + backtestId));
+        
+        backtest.updateResultStatus(ResultStatus.PENDING); // 완료 전 상태
+        backtestRepository.save(backtest);
+        
+        // 2. PortfolioSnapshot 저장   
+        BacktestExecutionResponse executionResponse = callback.toBacktestExecutionResponse();
+        if (executionResponse != null) {
+            Long portfolioSnapshotId = savePortfolioSnapshot(backtest, executionResponse.portfolioSnapshot(), executionResponse.metrics());
+            
+            // 3. BenchmarkCode 저장 및 벤치마크 정보 로깅
+            if (callback.benchmarkInfo() != null) {
+                String benchmarkCode = callback.benchmarkInfo().benchmarkCode();
+                backtest.setBenchmarkCode(benchmarkCode);
+                backtestRepository.save(backtest);
+                
+                // 벤치마크 상세 정보는 로그로만 저장
+                logBenchmarkInfo(callback.benchmarkInfo());
+            }
+            
+            return portfolioSnapshotId;
+        }
+        
+        throw new RuntimeException("Failed to convert callback to BacktestExecutionResponse");
+    }
+    
+    /**
+     * JDBC 배치 데이터 저장 (대량 데이터)
+     */
+    @Transactional(timeout = 300)
+    public void saveJdbcDataInTransaction(Long portfolioSnapshotId, BacktestCallbackResponse callback) {
+        try {
+            BacktestExecutionResponse executionResponse = callback.toBacktestExecutionResponse();
+            
+            // 1. HoldingSnapshot 배치 저장
+            if (executionResponse != null && executionResponse.resultSummary() != null && !executionResponse.resultSummary().isEmpty()) {
+                List<HoldingSnapshot> holdingSnapshots = createHoldingSnapshots(executionResponse.resultSummary(), portfolioSnapshotId);
+                snapshotRepository.saveHoldingSnapshotsBatch(holdingSnapshots);
+            }
+            
+            // 2. ExecutionLog 배치 저장
+            if (callback.executionLogs() != null && !callback.executionLogs().isEmpty()) {
+                // PortfolioSnapshot에서 backtestId 조회
+                Long backtestId = getBacktestIdFromPortfolioSnapshot(portfolioSnapshotId);
+                List<ExecutionLog> executionLogs = createExecutionLogs(backtestId, callback.executionLogs());
+                executionLogJdbcRepository.batchInsert(executionLogs);
+            }
+            
+            // JDBC 성공 시 Backtest 상태를 결과 상태로 업데이트
+            updateBacktestResultStatusToCompleted(portfolioSnapshotId, callback.resultStatus());
+            
+        } catch (Exception e) {
+            log.error("JDBC batch save failed for portfolioSnapshotId: {}", portfolioSnapshotId, e);
+            throw e; // 상위에서 롤백 처리
+        }
+    }
+    
+    /**
+     * JPA 데이터 롤백 (JDBC 실패 시)
+     */
+    @Transactional
+    public void rollbackJpaData(Long backtestId, Long portfolioSnapshotId) {
+        log.info("Rolling back JPA data for backtestId: {}, portfolioSnapshotId: {}", backtestId, portfolioSnapshotId);
+        
+        try {
+            // 1. PortfolioSnapshot 삭제
+            snapshotRepository.deletePortfolioSnapshotById(portfolioSnapshotId);
+            
+            // 2. Backtest 상태를 FAILED로 변경
+            Backtest backtest = backtestRepository.findById(backtestId).orElse(null);
+            if (backtest != null) {
+                backtest.updateResultStatus(ResultStatus.FAILED);
+                backtestRepository.save(backtest);
+            }
+            
+            log.info("Successfully rolled back JPA data for backtestId: {}", backtestId);
+            
+        } catch (Exception e) {
+            log.error("Failed to rollback JPA data for backtestId: {}", backtestId, e);
+            // 롤백 실패는 별도 알림 처리 필요
+        }
+    }
+    
+    /**
+     * ExecutionLog 엔티티 생성
+     */
+    private List<ExecutionLog> createExecutionLogs(Long backtestId, List<BacktestCallbackResponse.ExecutionLogResponse> logResponses) {
+        return logResponses.stream()
+            .map(logResponse -> ExecutionLog.builder()
+                .backtestId(backtestId)
+                .logDate(logResponse.date())
+                .actionType(ActionType.valueOf(logResponse.action()))
+                .category(logResponse.category())
+                .triggerValue(logResponse.triggerValue())
+                .thresholdValue(logResponse.thresholdValue())
+                .reason(logResponse.reason())
+                .portfolioValue(logResponse.portfolioValue())
+                .build())
+            .toList();
+    }
+    
+    /**
+     * 벤치마크 정보 로깅
+     */
+    private void logBenchmarkInfo(BacktestCallbackResponse.BenchmarkInfoResponse benchmarkInfoResponse) {
+        log.info("Benchmark Info - Code: {}, Latest Price: {}, Latest Date: {}, Change Rate: {}, Data Range: {} ~ {}", 
+                benchmarkInfoResponse.benchmarkCode(),
+                benchmarkInfoResponse.latestPrice(),
+                benchmarkInfoResponse.latestDate(),
+                benchmarkInfoResponse.latestChangeRate(),
+                benchmarkInfoResponse.dataRange() != null ? benchmarkInfoResponse.dataRange().startDate() : "N/A",
+                benchmarkInfoResponse.dataRange() != null ? benchmarkInfoResponse.dataRange().endDate() : "N/A");
+    }
+    
+    /**
+     * PortfolioSnapshot에서 backtestId 조회
+     */
+    private Long getBacktestIdFromPortfolioSnapshot(Long portfolioSnapshotId) {
+        PortfolioSnapshot snapshot = snapshotRepository.findById(portfolioSnapshotId);
+        if (snapshot != null) {
+            return snapshot.backtestId();
+        }
+        throw new ResourceNotFoundException("PortfolioSnapshot not found with id: " + portfolioSnapshotId);
+    }
+    
+    /**
+     * 백테스트 결과 상태 업데이트
+     */
+    private void updateBacktestResultStatusToCompleted(Long portfolioSnapshotId, String resultStatus) {
+        try {
+            // PortfolioSnapshot에서 backtest_id 조회 후 상태 업데이트
+            Long backtestId = getBacktestIdFromPortfolioSnapshot(portfolioSnapshotId);
+            Backtest backtest = backtestRepository.findById(backtestId).orElse(null);
+            if (backtest != null && resultStatus != null) {
+                backtest.updateResultStatus(ResultStatus.valueOf(resultStatus));
+                backtestRepository.save(backtest);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update backtest result status for portfolioSnapshotId: {}", portfolioSnapshotId, e);
+        }
+    }
+    
+    /**
+     * HoldingSnapshot 리스트 생성 (DB 저장용 객체 생성)
+     */
+    private List<HoldingSnapshot> createHoldingSnapshots(List<BacktestExecutionResponse.DailyResultResponse> dailyResults, Long portfolioSnapshotId) {
+        if (portfolioSnapshotId == null) {
+            throw new IllegalArgumentException("portfolioSnapshotId cannot be null for holding snapshots");
+        }
+        
+        List<HoldingSnapshot> holdingSnapshots = new ArrayList<>();
+        
+        for (BacktestExecutionResponse.DailyResultResponse dailyResult : dailyResults) {
+            LocalDateTime date = dailyResult.date();
+            
+            for (BacktestExecutionResponse.DailyStockResponse stockData : dailyResult.stocks()) {
+                try {
+                    int quantity = stockData.quantity();
+                    double value = stockData.getValue();
+                    
+                    HoldingSnapshot holdingSnapshot = HoldingSnapshot.createWithDate(
+                        stockData.closePrice(),
+                        quantity,
+                        value,
+                        stockData.portfolioWeight(),
+                        portfolioSnapshotId,
+                        stockData.stockCode(),
+                        date,
+                        stockData.portfolioContribution(),
+                        stockData.dailyReturn()
+                    );
+                    
+                    holdingSnapshots.add(holdingSnapshot);
+                    
+                } catch (Exception e) {
+                    log.error("Failed to create holding snapshot: stockCode={}, date={}, portfolioSnapshotId={}", 
+                             stockData.stockCode(), date, portfolioSnapshotId, e);
+                }
+            }
+        }
+        
+        return holdingSnapshots;
+    }
+    
+    
 }

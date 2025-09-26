@@ -149,7 +149,7 @@ public class BacktestController {
         try {
             if (Boolean.TRUE.equals(callback.success())) {
                 // 성공 처리
-                backtestExecutionService.handleBacktestSuccess(callback);
+                backtestExecutionService.handleBacktestSuccessCallback(callback);
             } else {
                 // 실패 처리
                 backtestExecutionService.handleBacktestFailure(callback);

@@ -22,6 +22,12 @@ public record BacktestCallbackResponse(
     Double executionTime,
     @JsonProperty("request_id")
     String requestId,
+    @JsonProperty("execution_logs")
+    List<ExecutionLogResponse> executionLogs, 
+    @JsonProperty("result_status")
+    String resultStatus,
+    @JsonProperty("benchmark_info")
+    BenchmarkInfoResponse benchmarkInfo,
     String timestamp  // ISO 문자열로 받아서 필요시 변환
 ) {
     
@@ -50,6 +56,29 @@ public record BacktestCallbackResponse(
         String stockId,
         Integer quantity
     ) {}
+    
+    public record ExecutionLogResponse(
+        LocalDateTime date,
+        String action,
+        String category,
+        Double triggerValue,
+        Double thresholdValue,
+        String reason,
+        Double portfolioValue
+    ) {}
+    
+    public record BenchmarkInfoResponse(
+        String benchmarkCode,
+        Double latestPrice,
+        LocalDateTime latestDate,
+        BenchmarkDataRange dataRange,
+        Double latestChangeRate
+    ) {
+        public record BenchmarkDataRange(
+            LocalDateTime startDate,
+            LocalDateTime endDate
+        ) {}
+    }
     
     public record ErrorResponse(
         @JsonProperty("error_type")
