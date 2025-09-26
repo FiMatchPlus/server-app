@@ -25,6 +25,9 @@ public class Rules {
     @Field("take_profit")
     private List<RuleItem> takeProfit;
 
+    @Field("basic_benchmark")
+    private String basicBenchmark;
+
     @Field("created_at")
     private LocalDateTime createdAt;
 
@@ -38,6 +41,17 @@ public class Rules {
         this.rebalance = rebalance;
         this.stopLoss = stopLoss;
         this.takeProfit = takeProfit;
+        this.basicBenchmark = null;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public Rules(String memo, List<RuleItem> rebalance, List<RuleItem> stopLoss, List<RuleItem> takeProfit, String basicBenchmark) {
+        this.memo = memo;
+        this.rebalance = rebalance;
+        this.stopLoss = stopLoss;
+        this.takeProfit = takeProfit;
+        this.basicBenchmark = basicBenchmark;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -81,6 +95,9 @@ public class Rules {
 
     public List<RuleItem> getTakeProfit() { return takeProfit; }
     public void setTakeProfit(List<RuleItem> takeProfit) { this.takeProfit = takeProfit; }
+
+    public String getBasicBenchmark() { return basicBenchmark; }
+    public void setBasicBenchmark(String basicBenchmark) { this.basicBenchmark = basicBenchmark; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

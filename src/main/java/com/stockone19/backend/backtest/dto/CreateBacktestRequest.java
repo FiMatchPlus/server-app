@@ -18,7 +18,10 @@ public record CreateBacktestRequest(
         @NotNull(message = "종료일은 필수입니다")
         LocalDateTime endAt,
 
-        RulesRequest rules
+        RulesRequest rules,
+        
+        @NotNull(message = "벤치마크 지수는 필수입니다")
+        String benchmarkCode
 ) {
 
     public record RulesRequest(
