@@ -138,20 +138,9 @@ public class BacktestExecutionService {
             return;
         }
         
-        try {
-            Backtest backtest = backtestRepository.findById(backtestId)
-                .orElseThrow(() -> new ResourceNotFoundException("Backtest not found: " + backtestId));
-            
-            backtest.updateStatus(BacktestStatus.FAILED);
-            backtestRepository.save(backtest);
-            
-            log.info("Updated backtest status to FAILED: backtestId={}, jobId={}, error={}", 
-                    backtestId, callback.jobId(), callback.errorMessage());
-                    
-        } catch (Exception e) {
-            log.error("Failed to update backtest status to FAILED: backtestId={}, jobId={}", 
-                    backtestId, callback.jobId(), e);
-        }
+        setBacktestStatusToFailed(backtestId);
+        log.info("Updated backtest status to FAILED: backtestId={}, jobId={}, error={}", 
+                backtestId, callback.jobId(), callback.errorMessage());
     }
 
     /**
@@ -163,8 +152,8 @@ public class BacktestExecutionService {
         log.info("Handling backtest success event for backtestId: {}", event.backtestId());
         
         try {
-            // 개선된 백테스트 성공 처리
-            handleBacktestSuccess(event.callback());
+            // 백테스트 성공 처리
+            handleBacktestSuccess(event.backtestId(), event.callback());
             
             log.info("Backtest completed successfully: backtestId={}, jobId={}", 
                     event.backtestId(), event.callback().jobId());
@@ -172,14 +161,17 @@ public class BacktestExecutionService {
         } catch (Exception e) {
             log.error("Failed to process backtest success event: backtestId={}, jobId={}", 
                     event.backtestId(), event.callback().jobId(), e);
+            
+            // 성공 이벤트 처리 중 실패 시 백테스트 상태를 FAILED로 변경
+            setBacktestStatusToFailed(event.backtestId());
+            log.info("Updated backtest status to FAILED due to processing error: backtestId={}", event.backtestId());
         }
     }
 
     /**
      * 백테스트 성공 처리 - 2단계 커밋 방식
      */
-    public void handleBacktestSuccess(BacktestCallbackResponse callback) {
-        Long backtestId = callback.portfolioSnapshot().portfolioId();
+    public void handleBacktestSuccess(Long backtestId, BacktestCallbackResponse callback) {
         Long portfolioSnapshotId = null;
         
         try {
@@ -213,8 +205,32 @@ public class BacktestExecutionService {
     @EventListener
     @Transactional(propagation = REQUIRES_NEW)
     public void handleBacktestFailure(BacktestFailureEvent event) {
-        log.info("Handling backtest failure event for backtestId: {}", event.backtestId());
-        updateBacktestStatus(event.backtestId(), BacktestStatus.FAILED);
+        log.info("Handling backtest failure event for backtestId: {}, errorMessage: {}", 
+                event.backtestId(), event.errorMessage());
+        
+        try {
+            updateBacktestStatus(event.backtestId(), BacktestStatus.FAILED);
+            log.info("Successfully updated backtest status to FAILED for backtestId: {}", event.backtestId());
+        } catch (Exception e) {
+            log.error("Failed to update backtest status to FAILED for backtestId: {}", event.backtestId(), e);
+        }
+    }
+
+    /**
+     * 백테스트 상태를 FAILED로 변경하는 공통 함수
+     */
+    private void setBacktestStatusToFailed(Long backtestId) {
+        try {
+            Backtest backtest = backtestRepository.findById(backtestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Backtest not found: " + backtestId));
+            
+            backtest.updateStatus(BacktestStatus.FAILED);
+            backtestRepository.save(backtest);
+            
+            log.info("Successfully updated backtest status to FAILED for backtestId: {}", backtestId);
+        } catch (Exception e) {
+            log.error("Failed to update backtest status to FAILED for backtestId: {}", backtestId, e);
+        }
     }
 
     /**
@@ -224,12 +240,18 @@ public class BacktestExecutionService {
     public void updateBacktestStatus(Long backtestId, BacktestStatus status) {
         log.info("Updating backtest status to {} for backtestId: {}", status, backtestId);
         
-        Backtest backtest = backtestRepository.findById(backtestId)
-            .orElseThrow(() -> new ResourceNotFoundException("Backtest not found with id: " + backtestId));
-        backtest.updateStatus(status);
-        backtestRepository.save(backtest);
-        
-        log.info("Successfully updated backtest status to {} for backtestId: {}", status, backtestId);
+        try {
+            Backtest backtest = backtestRepository.findById(backtestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Backtest not found with id: " + backtestId));
+            
+            backtest.updateStatus(status);
+            backtestRepository.save(backtest);
+            
+            log.info("Successfully updated backtest status to {} for backtestId: {}", status, backtestId);
+        } catch (Exception e) {
+            log.error("Failed to update backtest status to {} for backtestId: {}", status, backtestId, e);
+            throw new RuntimeException("Failed to update backtest status", e);
+        }
     }
 
     /**
