@@ -32,7 +32,11 @@ spring:
         order-updates: true                 # UPDATE 순서 최적화
         batch-versioned-data: true          # 버전 데이터 배치 처리
         connection:
-          provider-disables-autocommit: false  # JdbcTemplate 호환성
+          provider-disables-autocommit: false  # JdbcTemplate 호환성 
+        # SQL 줄바꿈과 포맷팅을 위한 설정
+        type:
+          sql-trace: true
+    show-sql: true
   cache:
     type: redis
     redis:
@@ -56,6 +60,15 @@ logging:
   level:
     com:
       stockone19: INFO
+    org:
+      hibernate:
+        type:
+          descriptor:
+            sql:
+              BasicBinder: TRACE              # SQL 파라미터 바인딩 추적
+        SQL: DEBUG                           # SQL 로깅 활성화
+      springframework:
+        web: DEBUG                           # 웹 레이어 디버깅
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     

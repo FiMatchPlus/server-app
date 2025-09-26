@@ -573,24 +573,38 @@ public class BacktestExecutionService {
     @Transactional(timeout = 300)
     public void saveJdbcDataInTransaction(Long portfolioSnapshotId, BacktestCallbackResponse callback) {
         try {
+            log.info("Starting JDBC batch save for portfolioSnapshotId: {}", portfolioSnapshotId);
+            
             BacktestExecutionResponse executionResponse = callback.toBacktestExecutionResponse();
             
             // 1. HoldingSnapshot 배치 저장
             if (executionResponse != null && executionResponse.resultSummary() != null && !executionResponse.resultSummary().isEmpty()) {
+                log.info("Saving holding snapshots - {} daily results found", executionResponse.resultSummary().size());
                 List<HoldingSnapshot> holdingSnapshots = createHoldingSnapshots(executionResponse.resultSummary(), portfolioSnapshotId);
+                log.info("Created {} holding snapshots, starting batch save", holdingSnapshots.size());
                 snapshotRepository.saveHoldingSnapshotsBatch(holdingSnapshots);
+                log.info("Successfully saved holding snapshots");
+            } else {
+                log.info("No holding snapshots to save");
             }
             
             // 2. ExecutionLog 배치 저장
             if (callback.executionLogs() != null && !callback.executionLogs().isEmpty()) {
+                log.info("Saving execution logs - {} logs found", callback.executionLogs().size());
                 // PortfolioSnapshot에서 backtestId 조회
                 Long backtestId = getBacktestIdFromPortfolioSnapshot(portfolioSnapshotId);
                 List<ExecutionLog> executionLogs = createExecutionLogs(backtestId, callback.executionLogs());
+                log.info("Created {} execution logs, starting batch insert", executionLogs.size());
                 executionLogJdbcRepository.batchInsert(executionLogs);
+                log.info("Successfully saved execution logs");
+            } else {
+                log.info("No execution logs to save");
             }
             
             // JDBC 성공 시 Backtest 상태를 결과 상태로 업데이트
+            log.info("Updating backtest result status to completed");
             updateBacktestResultStatusToCompleted(portfolioSnapshotId, callback.resultStatus());
+            log.info("JDBC batch save completed successfully for portfolioSnapshotId: {}", portfolioSnapshotId);
             
         } catch (Exception e) {
             log.error("JDBC batch save failed for portfolioSnapshotId: {}", portfolioSnapshotId, e);
