@@ -4,6 +4,7 @@ import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.domain.HoldingSnapshot;
 import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
 import com.stockone19.backend.backtest.dto.*;
+import com.stockone19.backend.backtest.dto.BacktestStatus;
 import com.stockone19.backend.backtest.domain.ResultStatus;
 import com.stockone19.backend.backtest.domain.ExecutionLog;
 import com.stockone19.backend.backtest.domain.ActionType;
@@ -701,7 +702,7 @@ public class BacktestExecutionService {
     }
     
     /**
-     * 백테스트 결과 상태 업데이트
+     * 백테스트 결과 상태 업데이트 
      */
     private void updateBacktestResultStatusToCompleted(Long portfolioSnapshotId, String resultStatus) {
         try {
@@ -709,8 +710,16 @@ public class BacktestExecutionService {
             Long backtestId = getBacktestIdFromPortfolioSnapshot(portfolioSnapshotId);
             Backtest backtest = backtestRepository.findById(backtestId).orElse(null);
             if (backtest != null && resultStatus != null) {
+                // 백테스트 상태를 COMPLETED로 변경 (RUNNING → COMPLETED)
+                backtest.updateStatus(BacktestStatus.COMPLETED);
+                
+                // 결과 상태도 업데이트 (PENDING → COMPLETED)
                 backtest.updateResultStatus(ResultStatus.valueOf(resultStatus));
+                
                 backtestRepository.save(backtest);
+                
+                log.info("Updated backtest status to COMPLETED and result status to {} for backtestId: {}", 
+                         resultStatus, backtestId);
             }
         } catch (Exception e) {
             log.error("Failed to update backtest result status for portfolioSnapshotId: {}", portfolioSnapshotId, e);
