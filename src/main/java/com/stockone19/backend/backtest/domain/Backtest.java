@@ -46,6 +46,13 @@ public class Backtest {
     @Column(name = "status", nullable = false, length = 20)
     private BacktestStatus status = BacktestStatus.CREATED;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "result_status", length = 20)
+    private ResultStatus resultStatus;
+
+    @Column(name = "benchmark_code", length = 20)
+    private String benchmarkCode;
+
 
     public Backtest(Long portfolioId, String title, String description, 
                     LocalDateTime startAt, LocalDateTime endAt, String ruleId) {
@@ -84,5 +91,13 @@ public class Backtest {
 
     public void updateStatus(BacktestStatus status) {
         this.status = status;
+    }
+
+    public void updateResultStatus(ResultStatus resultStatus) {
+        this.resultStatus = resultStatus;
+    }
+
+    public void setBenchmarkCode(String benchmarkCode) {
+        this.benchmarkCode = benchmarkCode;
     }
 }

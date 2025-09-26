@@ -46,7 +46,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             ps.setLong(1, snapshot.backtestId());
             ps.setDouble(2, snapshot.baseValue());
             ps.setDouble(3, snapshot.currentValue());
-            ps.setTimestamp(4, java.sql.Timestamp.valueOf(snapshot.createdAt()));
+            ps.setTimestamp(4, Timestamp.valueOf(snapshot.createdAt()));
             if (snapshot.metrics() != null) {
                 PGobject jsonbObject = new PGobject();
                 jsonbObject.setType("jsonb");
@@ -55,8 +55,8 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             } else {
                 ps.setNull(5, Types.OTHER);
             }
-            ps.setTimestamp(6, snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null);
-            ps.setTimestamp(7, snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null);
+            ps.setTimestamp(6, snapshot.startAt() != null ? Timestamp.valueOf(snapshot.startAt()) : null);
+            ps.setTimestamp(7, snapshot.endAt() != null ? Timestamp.valueOf(snapshot.endAt()) : null);
             if (snapshot.executionTime() != null) {
                 ps.setDouble(8, snapshot.executionTime());
             } else {
@@ -86,7 +86,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             ps.setLong(1, snapshot.backtestId());
             ps.setDouble(2, snapshot.baseValue());
             ps.setDouble(3, snapshot.currentValue());
-            ps.setTimestamp(4, java.sql.Timestamp.valueOf(snapshot.createdAt()));
+            ps.setTimestamp(4, Timestamp.valueOf(snapshot.createdAt()));
             if (snapshot.metrics() != null) {
                 PGobject jsonbObject = new PGobject();
                 jsonbObject.setType("jsonb");
@@ -95,8 +95,8 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             } else {
                 ps.setNull(5, Types.OTHER);
             }
-            ps.setTimestamp(6, snapshot.startAt() != null ? java.sql.Timestamp.valueOf(snapshot.startAt()) : null);
-            ps.setTimestamp(7, snapshot.endAt() != null ? java.sql.Timestamp.valueOf(snapshot.endAt()) : null);
+            ps.setTimestamp(6, snapshot.startAt() != null ? Timestamp.valueOf(snapshot.startAt()) : null);
+            ps.setTimestamp(7, snapshot.endAt() != null ? Timestamp.valueOf(snapshot.endAt()) : null);
             if (snapshot.executionTime() != null) {
                 ps.setDouble(8, snapshot.executionTime());
             } else {
@@ -202,7 +202,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             ps.setDouble(4, holdingSnapshot.price());
             ps.setInt(5, holdingSnapshot.quantity());
             ps.setDouble(6, holdingSnapshot.value());
-            ps.setTimestamp(7, java.sql.Timestamp.valueOf(holdingSnapshot.recordedAt()));
+            ps.setTimestamp(7, Timestamp.valueOf(holdingSnapshot.recordedAt()));
             ps.setDouble(8, holdingSnapshot.contribution());
             ps.setDouble(9, holdingSnapshot.dailyRatio());
             return ps;
@@ -357,5 +357,42 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     public int deletePortfolioSnapshotById(Long portfolioSnapshotId) {
         String sql = "DELETE FROM portfolio_snapshots WHERE id = ?";
         return jdbcTemplate.update(sql, portfolioSnapshotId);
+    }
+
+    @Override
+    public PortfolioSnapshot findById(Long id) {
+        String sql = """
+            SELECT id, backtest_id, base_value, current_value, created_at, 
+                   metrics, start_at, end_at, execution_time
+            FROM portfolio_snapshots 
+            WHERE id = ?
+            """;
+        
+        try {
+            return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
+                Long backtestId = rs.getLong("backtest_id");
+                Double baseValue = rs.getDouble("base_value");
+                Double currentValue = rs.getDouble("current_value");
+                Timestamp createdAt = rs.getTimestamp("created_at");
+                String metrics = rs.getString("metrics");
+                Timestamp startAt = rs.getTimestamp("start_at");
+                Timestamp endAt = rs.getTimestamp("end_at");
+                Double executionTime = rs.getDouble("execution_time");
+                
+                return new PortfolioSnapshot(
+                    rs.getLong("id"),
+                    backtestId,
+                    baseValue,
+                    currentValue,
+                    createdAt.toLocalDateTime(),
+                    metrics,
+                    startAt.toLocalDateTime(),
+                    endAt.toLocalDateTime(),
+                    executionTime
+                );
+            }, id);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
