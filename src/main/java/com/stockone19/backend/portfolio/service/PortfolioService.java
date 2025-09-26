@@ -1,6 +1,7 @@
 package com.stockone19.backend.portfolio.service;
 
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
+import com.stockone19.backend.portfolio.domain.BenchmarkIndex;
 import com.stockone19.backend.portfolio.domain.Holding;
 import com.stockone19.backend.portfolio.domain.Portfolio;
 import com.stockone19.backend.portfolio.domain.Rules;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -28,6 +30,7 @@ public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final RulesRepository rulesRepository;
     private final StockService stockService;
+    private final BenchmarkDeterminerService benchmarkDeterminerService;
 
     /**
      * 사용자별 포트폴리오 합계 정보 조회
@@ -125,10 +128,14 @@ public class PortfolioService {
         // 1. Rules를 MongoDB에 저장 (선택 사항)
         String ruleId = null;
         if (request.rules() != null) {
-            Rules rules = createRulesFromRequest(request.rules());
+            // Holdings 분석하여 벤치마크 결정
+            List<Holding> holdingsForAnalysis = convertHoldingsFromRequest(request.holdings());
+            BenchmarkIndex determinedBenchmark = benchmarkDeterminerService.determineBenchmark(holdingsForAnalysis);
+            
+            Rules rules = createRulesFromRequest(request.rules(), determinedBenchmark.getCode());
             Rules savedRules = rulesRepository.save(rules);
             ruleId = savedRules.getId();
-            log.info("Rules saved to MongoDB with id: {}", ruleId);
+            log.info("Rules saved to MongoDB with benchmark {} -> ruleId: {}", determinedBenchmark.getCode(), ruleId);
         } else {
             log.info("No rules provided. Skipping rules save.");
         }
@@ -170,7 +177,8 @@ public class PortfolioService {
         );
     }
 
-    private Rules createRulesFromRequest(CreatePortfolioRequest.RulesRequest rulesRequest) {
+
+    private Rules createRulesFromRequest(CreatePortfolioRequest.RulesRequest rulesRequest, String benchmarkCode) {
         List<Rules.RuleItem> rebalanceItems = getRuleItems(rulesRequest.rebalance());
         List<Rules.RuleItem> stopLossItems = getRuleItems(rulesRequest.stopLoss());
         List<Rules.RuleItem> takeProfitItems = getRuleItems(rulesRequest.takeProfit());
@@ -179,7 +187,8 @@ public class PortfolioService {
                 rulesRequest.memo(),
                 rebalanceItems,
                 stopLossItems,
-                takeProfitItems
+                takeProfitItems,
+                benchmarkCode
         );
     }
 
@@ -288,33 +297,90 @@ public class PortfolioService {
 
 
     /**
-     * 포트폴리오 상세 정보 조회 (보유 종목 상세 포함)
+     * 포트폴리오 상세 정보 조회 (보유 종목 상세 포함 + Rules 정보)
      *
      * @param portfolioId 포트폴리오 식별자
-     * @return 해당 포트폴리오의 상세 정보 (포트폴리오 ID, 보유 종목 상세, 룰 ID)
+     * @return 해당 포트폴리오의 상세 정보 (포트폴리오 ID, 보유 종목 상세, 룰 ID, Rules 내용)
      */
     public PortfolioLongResponse getPortfolioLong(Long portfolioId) {
         log.info("Getting portfolio long info for portfolioId: {}", portfolioId);
 
         PortfolioData data = getPortfolioData(portfolioId);
-
-        if (data.holdings().isEmpty()) {
-            return new PortfolioLongResponse(
-                    data.portfolio().id(),
-                    List.of(),
-                    data.portfolio().ruleId()
-            );
+        
+        // Rules 정보 조회
+        PortfolioLongResponse.RulesDetail rulesDetail = null;
+        if (data.portfolio().ruleId() != null && !data.portfolio().ruleId().trim().isEmpty()) {
+            try {
+                Optional<Rules> rulesOptional = rulesRepository.findById(data.portfolio().ruleId());
+                if (rulesOptional.isPresent()) {
+                    Rules rules = rulesOptional.get();
+                    rulesDetail = convertRulesToDetail(rules);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to load rules for ruleId: {}, error: {}", data.portfolio().ruleId(), e.getMessage());
+            }
         }
 
-        List<PortfolioLongResponse.HoldingDetail> holdingDetails = data.holdings().stream()
-                .map(holding -> createHoldingDetailWithMaps(holding, data.stockMap(), data.priceMap()))
-                .collect(Collectors.toList());
+        List<PortfolioLongResponse.HoldingDetail> holdingDetails = List.of();
+        if (!data.holdings().isEmpty()) {
+            holdingDetails = data.holdings().stream()
+                    .map(holding -> createHoldingDetailWithMaps(holding, data.stockMap(), data.priceMap()))
+                    .collect(Collectors.toList());
+        }
 
         return new PortfolioLongResponse(
                 data.portfolio().id(),
                 holdingDetails,
-                data.portfolio().ruleId()
+                data.portfolio().ruleId(),
+                rulesDetail
         );
+    }
+
+    /**
+     * Rules 도메인 객체를 PortfolioLongResponse RulesDetail로 변환
+     */
+    private PortfolioLongResponse.RulesDetail convertRulesToDetail(Rules rules) {
+        PortfolioLongResponse.BenchmarkDetail benchmarkDetail = null;
+        
+        // basicBenchmark가 있으면 BenchmarkIndex 정보도 포함
+        if (rules.getBasicBenchmark() != null && !rules.getBasicBenchmark().trim().isEmpty()) {
+            BenchmarkIndex benchmarkIndex = BenchmarkIndex.fromCode(rules.getBasicBenchmark());
+            if (benchmarkIndex != null) {
+                benchmarkDetail = new PortfolioLongResponse.BenchmarkDetail(
+                        benchmarkIndex.getCode(),
+                        benchmarkIndex.getName(),
+                        benchmarkIndex.getDescription()
+                );
+            }
+        }
+        
+        return new PortfolioLongResponse.RulesDetail(
+                rules.getId(),
+                rules.getMemo(),
+                rules.getBasicBenchmark(),
+                benchmarkDetail,
+                convertRuleItems(rules.getRebalance()),
+                convertRuleItems(rules.getStopLoss()),
+                convertRuleItems(rules.getTakeProfit()),
+                rules.getCreatedAt(),
+                rules.getUpdatedAt()
+        );
+    }
+
+    /**
+     * Rules.RuleItem 리스트를 PortfolioLongResponse.RuleItemDetail 리스트로 변환
+     */
+    private List<PortfolioLongResponse.RuleItemDetail> convertRuleItems(List<Rules.RuleItem> ruleItems) {
+        if (ruleItems == null) {
+            return List.of();
+        }
+        return ruleItems.stream()
+                .map(item -> new PortfolioLongResponse.RuleItemDetail(
+                        item.getCategory(),
+                        item.getThreshold(),
+                        item.getDescription()
+                ))
+                .collect(Collectors.toList());
     }
 
     private PortfolioLongResponse.HoldingDetail createHoldingDetailWithMaps(
@@ -614,5 +680,31 @@ public class PortfolioService {
         
         double dailyReturnPercent = totalAssets > 0 ? (dailyChange / totalAssets) * 100 : 0.0;
         return new PortfolioTotals(totalAssets, dailyChange, dailyReturnPercent);
+    }
+
+    /**
+     * CreatePortfolioRequest의 Holdings를 Holding 도메인 객체로 변환
+     * (벤치마크 분석을 위해 임시 생성)
+     */
+    private List<Holding> convertHoldingsFromRequest(List<CreatePortfolioRequest.HoldingRequest> holdingRequests) {
+        if (holdingRequests == null || holdingRequests.isEmpty()) {
+            return List.of();
+        }
+        
+        return holdingRequests.stream()
+                .map(holdingRequest -> new Holding(
+                        null, // temporary id
+                        null, // temporary portfolioId  
+                        holdingRequest.symbol(),
+                        holdingRequest.shares(),
+                        holdingRequest.currentPrice(),
+                        holdingRequest.totalValue(),
+                        holdingRequest.change(),
+                        holdingRequest.changePercent(),
+                        holdingRequest.weight(),
+                        null, // temporary createdAt
+                        null  // temporary updatedAt
+                ))
+                .toList();
     }
 }
