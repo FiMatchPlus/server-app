@@ -146,6 +146,7 @@ public class BacktestReportService {
             
             // 저장된 메트릭스에서 벤치마크 데이터 추출 (이미 조회된 스냅샷 활용)
             String benchmarkAnalysis = extractBenchmarkFromMetricsOptimized(snapshotForMetrics);
+            
             if (!benchmarkAnalysis.trim().isEmpty()) {
                 benchmarkInfo.append(benchmarkAnalysis);
             } else {
@@ -219,14 +220,6 @@ public class BacktestReportService {
         }
     }
     
-    /**
-     * 저장된 메트릭스 JSON에서 벤치마크 데이터 추출 (Legacy 호환용)
-     */
-    private String extractBenchmarkFromMetrics(Long backtestId, String benchmarkCode) {
-        // 최신 portfolio snapshot 조회하여 최적화 버전 메서드 호출
-        PortfolioSnapshot latestSnapshot = snapshotRepository.findLatestPortfolioSnapshotByBacktestId(backtestId);
-        return extractBenchmarkFromMetricsOptimized(latestSnapshot);
-    }
     
     /**
      * JSON에서 Double 값 추출 (안전한 타입 변환)
