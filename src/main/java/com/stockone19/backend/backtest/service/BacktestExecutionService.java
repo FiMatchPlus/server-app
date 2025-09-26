@@ -456,6 +456,11 @@ public class BacktestExecutionService {
                 logBenchmarkInfo(callback.benchmarkInfo());
             }
             
+            // 4. 무위험 수익률 정보 로깅
+            if (callback.riskFreeRateInfo() != null) {
+                logRiskFreeRateInfo(callback.riskFreeRateInfo());
+            }
+            
             return portfolioSnapshotId;
         }
         
@@ -548,6 +553,26 @@ public class BacktestExecutionService {
                 benchmarkInfoResponse.latestChangeRate(),
                 benchmarkInfoResponse.dataRange() != null ? benchmarkInfoResponse.dataRange().startDate() : "N/A",
                 benchmarkInfoResponse.dataRange() != null ? benchmarkInfoResponse.dataRange().endDate() : "N/A");
+    }
+    
+    /**
+     * 무위험 수익률 정보 로깅
+     */
+    private void logRiskFreeRateInfo(BacktestCallbackResponse.RiskFreeRateInfoResponse riskFreeRateInfoResponse) {
+        log.info("Risk-Free Rate Info - Rate Type: {}, Avg Annual Rate: {}%, Data Points: {}, Backtest Days: {}, Period Classification: {}, Selection Reason: {}", 
+                riskFreeRateInfoResponse.rateType(),
+                riskFreeRateInfoResponse.avgAnnualRate(),
+                riskFreeRateInfoResponse.dataPoints(),
+                riskFreeRateInfoResponse.decisionInfo() != null ? riskFreeRateInfoResponse.decisionInfo().backtestDays() : "N/A",
+                riskFreeRateInfoResponse.decisionInfo() != null ? riskFreeRateInfoResponse.decisionInfo().periodClassification() : "N/A",
+                riskFreeRateInfoResponse.decisionInfo() != null ? riskFreeRateInfoResponse.decisionInfo().selectionReason() : "N/A");
+        
+        if (riskFreeRateInfoResponse.rateInfo() != null) {
+            log.info("Rate Details - Latest Rate: {}%, Source: {}, Rate Type: {}", 
+                    riskFreeRateInfoResponse.rateInfo().latestRate(),
+                    riskFreeRateInfoResponse.rateInfo().source(),
+                    riskFreeRateInfoResponse.rateInfo().rateType());
+        }
     }
     
     /**
