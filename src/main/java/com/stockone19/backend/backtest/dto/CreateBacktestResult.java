@@ -8,6 +8,7 @@ public record CreateBacktestResult(
         String description,
         String ruleId,
         LocalDateTime startAt,
-        LocalDateTime endAt
+        LocalDateTime endAt,
+        String benchmarkCode
 ) {
 }

@@ -348,6 +348,36 @@ public class BacktestExecutionService {
     }
 
     /**
+     * PostgreSQL에 포트폴리오 스냅샷 저장 (벤치마크 메트릭스 포함)
+     * 콜백 응답에서 벤치마크 메트릭스를 함께 저장
+     */
+    private Long savePortfolioSnapshotWithBenchmark(Backtest backtest,
+                                                   BacktestExecutionResponse.PortfolioSnapshotResponse snapshotResponse,
+                                                   BacktestExecutionResponse.BacktestMetricsResponse metricsResponse,
+                                                   BacktestCallbackResponse.BenchmarkMetricsResponse benchmarkMetrics) {
+        
+        // 메트릭을 JSON 문자열로 변환 (벤치마크 메트릭스 포함)
+        String metricsJson = convertMetricsToJsonWithBenchmark(metricsResponse, benchmarkMetrics);
+        
+        PortfolioSnapshot portfolioSnapshot = PortfolioSnapshot.create(
+                backtest.getId(),
+                snapshotResponse.baseValue(),
+                snapshotResponse.currentValue(),
+                metricsJson,
+                snapshotResponse.startAt() != null ? snapshotResponse.startAt() : backtest.getStartAt(),
+                snapshotResponse.endAt() != null ? snapshotResponse.endAt() : backtest.getEndAt(),
+                snapshotResponse.executionTime()
+        );
+        
+        PortfolioSnapshot savedSnapshot = snapshotRepository.savePortfolioSnapshot(portfolioSnapshot);
+        
+        log.debug("Created portfolio snapshot with benchmark metrics JSON: portfolioId={}, baseValue={:.2f}, currentValue={:.2f}", 
+                 backtest.getPortfolioId(), snapshotResponse.baseValue(), snapshotResponse.currentValue());
+        
+        return savedSnapshot.id();
+    }
+
+    /**
      * 메트릭 응답을 JSON 문자열로 변환
      */
     private String convertMetricsToJson(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse) {
@@ -364,6 +394,47 @@ public class BacktestExecutionService {
             metricsMap.put("cvar99", metricsResponse.cvar99());
             metricsMap.put("winRate", metricsResponse.winRate());
             metricsMap.put("profitLossRatio", metricsResponse.profitLossRatio());
+            
+            return objectMapper.writeValueAsString(metricsMap);
+        } catch (Exception e) {
+            log.error("Failed to convert metrics to JSON", e);
+            throw new RuntimeException("Failed to convert metrics to JSON", e);
+        }
+    }
+
+    /**
+     * 메트릭과 벤치마크 메트릭스를 포함한 JSON 문자열로 변환
+     */
+    private String convertMetricsToJsonWithBenchmark(BacktestExecutionResponse.BacktestMetricsResponse metricsResponse,
+                                                    BacktestCallbackResponse.BenchmarkMetricsResponse benchmarkMetrics) {
+        try {
+            Map<String, Object> metricsMap = new HashMap<>();
+            
+            // 포트폴리오 메트릭
+            metricsMap.put("totalReturn", metricsResponse.totalReturn());
+            metricsMap.put("annualizedReturn", metricsResponse.annualizedReturn());
+            metricsMap.put("volatility", metricsResponse.volatility());
+            metricsMap.put("sharpeRatio", metricsResponse.sharpeRatio());
+            metricsMap.put("maxDrawdown", metricsResponse.maxDrawdown());
+            metricsMap.put("var95", metricsResponse.var95());
+            metricsMap.put("var99", metricsResponse.var99());
+            metricsMap.put("cvar95", metricsResponse.cvar95());
+            metricsMap.put("cvar99", metricsResponse.cvar99());
+            metricsMap.put("winRate", metricsResponse.winRate());
+            metricsMap.put("profitLossRatio", metricsResponse.profitLossRatio());
+            
+            // 벤치마크 메트릭 추가
+            if (benchmarkMetrics != null) {
+                Map<String, Object> benchmarkMap = new HashMap<>();
+                benchmarkMap.put("benchmark_total_return", benchmarkMetrics.benchmarkTotalReturn());
+                benchmarkMap.put("benchmark_volatility", benchmarkMetrics.benchmarkVolatility());
+                benchmarkMap.put("benchmark_max_price", benchmarkMetrics.benchmarkMaxPrice());
+                benchmarkMap.put("benchmark_min_price", benchmarkMetrics.benchmarkMinPrice());
+                benchmarkMap.put("alpha", benchmarkMetrics.alpha());
+                benchmarkMap.put("benchmark_daily_average", benchmarkMetrics.benchmarkDailyAverage());
+                
+                metricsMap.put("benchmark", benchmarkMap);
+            }
             
             return objectMapper.writeValueAsString(metricsMap);
         } catch (Exception e) {
@@ -441,10 +512,22 @@ public class BacktestExecutionService {
         backtest.updateResultStatus(ResultStatus.PENDING); // 완료 전 상태
         backtestRepository.save(backtest);
         
-        // 2. PortfolioSnapshot 저장   
+        // 2. PortfolioSnapshot 저장 (벤치마크 메트릭스 포함)   
         BacktestExecutionResponse executionResponse = callback.toBacktestExecutionResponse();
         if (executionResponse != null) {
-            Long portfolioSnapshotId = savePortfolioSnapshot(backtest, executionResponse.portfolioSnapshot(), executionResponse.metrics());
+            Long portfolioSnapshotId;
+            
+            // 벤치마크 메트릭이 있는 경우 포함하여 저장
+            if (callback.benchmarkMetrics() != null) {
+                portfolioSnapshotId = savePortfolioSnapshotWithBenchmark(
+                    backtest, 
+                    executionResponse.portfolioSnapshot(), 
+                    executionResponse.metrics(),
+                    callback.benchmarkMetrics()
+                );
+            } else {
+                portfolioSnapshotId = savePortfolioSnapshot(backtest, executionResponse.portfolioSnapshot(), executionResponse.metrics());
+            }
             
             // 3. BenchmarkCode 저장 및 벤치마크 정보 로깅
             if (callback.benchmarkInfo() != null) {

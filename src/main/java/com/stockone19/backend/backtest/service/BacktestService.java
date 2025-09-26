@@ -59,13 +59,19 @@ public class BacktestService {
             savedBacktest = backtestRepository.save(savedBacktest);
         }
 
+        // 벤치마크 지수 설정 (필수 필드)
+        savedBacktest.setBenchmarkCode(request.benchmarkCode());
+        savedBacktest = backtestRepository.save(savedBacktest);
+        log.info("벤치마크 지수 설정 완료: {} for backtestId: {}", request.benchmarkCode(), savedBacktest.getId());
+
         return new CreateBacktestResult(
                 savedBacktest.getId(),
                 savedBacktest.getTitle(),
                 savedBacktest.getDescription(),
                 savedBacktest.getRuleId(),
                 savedBacktest.getStartAt(),
-                savedBacktest.getEndAt()
+                savedBacktest.getEndAt(),
+                savedBacktest.getBenchmarkCode()
         );
     }
 
