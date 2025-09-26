@@ -28,6 +28,8 @@ public record BacktestCallbackResponse(
     String resultStatus,
     @JsonProperty("benchmark_info")
     BenchmarkInfoResponse benchmarkInfo,
+    @JsonProperty("risk_free_rate_info")
+    RiskFreeRateInfoResponse riskFreeRateInfo, // 새로 추가
     String timestamp  // ISO 문자열로 받아서 필요시 변환
 ) {
     
@@ -77,6 +79,27 @@ public record BacktestCallbackResponse(
         public record BenchmarkDataRange(
             LocalDateTime startDate,
             LocalDateTime endDate
+        ) {}
+    }
+    
+    public record RiskFreeRateInfoResponse(
+        String rateType,
+        Double avgAnnualRate,
+        Integer dataPoints,
+        DecisionInfo decisionInfo,
+        RateInfo rateInfo
+    ) {
+        public record DecisionInfo(
+            Integer backtestDays,
+            String periodClassification,
+            String selectionReason
+        ) {}
+        
+        public record RateInfo(
+            String rateType,
+            Double latestRate,
+            String source,
+            Object characteristics // JSON 객체로 받음
         ) {}
     }
     
