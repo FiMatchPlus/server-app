@@ -65,21 +65,31 @@ public record BacktestCallbackResponse(
         LocalDateTime date,
         String action,
         String category,
+        @JsonProperty("value")
         Double triggerValue,
+        @JsonProperty("threshold")
         Double thresholdValue,
         String reason,
+        @JsonProperty("portfolio_value")
         Double portfolioValue
     ) {}
     
     public record BenchmarkInfoResponse(
+        @JsonProperty("benchmark_code")
         String benchmarkCode,
+        @JsonProperty("latest_price")
         Double latestPrice,
+        @JsonProperty("latest_date")
         LocalDateTime latestDate,
+        @JsonProperty("data_range")
         BenchmarkDataRange dataRange,
+        @JsonProperty("latest_change_rate")
         Double latestChangeRate
     ) {
         public record BenchmarkDataRange(
+            @JsonProperty("start_date")
             LocalDateTime startDate,
+            @JsonProperty("end_date")
             LocalDateTime endDate
         ) {}
     }
@@ -99,23 +109,42 @@ public record BacktestCallbackResponse(
     ) {}
     
     public record RiskFreeRateInfoResponse(
+        @JsonProperty("rate_type")
         String rateType,
+        @JsonProperty("avg_annual_rate")
         Double avgAnnualRate,
+        @JsonProperty("data_points")
         Integer dataPoints,
+        @JsonProperty("decision_info")
         DecisionInfo decisionInfo,
+        @JsonProperty("rate_info")
         RateInfo rateInfo
     ) {
         public record DecisionInfo(
+            @JsonProperty("backtest_days")
             Integer backtestDays,
+            @JsonProperty("period_classification")
             String periodClassification,
+            @JsonProperty("selection_reason")
             String selectionReason
         ) {}
         
         public record RateInfo(
+            @JsonProperty("rate_type")
             String rateType,
+            @JsonProperty("latest_rate")
             Double latestRate,
+            @JsonProperty("source")
             String source,
-            Object characteristics // JSON 객체로 받음
+            @JsonProperty("data_range")
+            RateDataRange dataRange
+        ) {}
+        
+        public record RateDataRange(
+            @JsonProperty("start_date")
+            LocalDateTime startDate,
+            @JsonProperty("end_date")
+            LocalDateTime endDate
         ) {}
     }
     
