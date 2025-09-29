@@ -3,10 +3,13 @@ package com.stockone19.backend.backtest.service;
 import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.domain.HoldingSnapshot;
 import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
+import com.stockone19.backend.backtest.domain.BenchmarkPrice;
+import com.stockone19.backend.backtest.domain.BenchmarkIndex;
 import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
 import com.stockone19.backend.backtest.dto.BacktestMetrics;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.SnapshotRepository;
+import com.stockone19.backend.backtest.repository.BenchmarkPriceRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.repository.StockRepository;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,6 +34,7 @@ public class BacktestQueryService {
     private final BacktestRepository backtestRepository;
     private final SnapshotRepository snapshotRepository;
     private final StockRepository stockRepository;
+    private final BenchmarkPriceRepository benchmarkPriceRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -57,6 +62,11 @@ public class BacktestQueryService {
         // 일별 평가액 데이터 생성 (holding_snapshots의 recorded_at 기준으로 날짜별 그룹화)
         List<BacktestDetailResponse.DailyEquityData> dailyEquity = createDailyEquityDataOptimized(allHoldingSnapshots, stockCodeToNameMap);
         
+        // 벤치마크 데이터 조회
+        String benchmarkCode = backtest.getBenchmarkCode();
+        String benchmarkName = getBenchmarkName(benchmarkCode);
+        List<BacktestDetailResponse.BenchmarkData> benchmarkData = getBenchmarkData(benchmarkCode, backtest.getStartAt(), backtest.getEndAt());
+        
         // 최신 보유 정보 조회
         List<HoldingSnapshot> latestHoldingSnapshots = allHoldingSnapshots.stream()
                 .filter(holding -> holding.portfolioSnapshotId().equals(latestSnapshot.id()))
@@ -68,10 +78,13 @@ public class BacktestQueryService {
                 backtest.getTitle(),             // name
                 period,                          // period
                 executionTime,                   // executionTime
+                benchmarkCode,                   // benchmarkCode
+                benchmarkName,                   // benchmarkName
                 metrics,                         // metrics
                 dailyEquity,                     // dailyEquity
+                benchmarkData,                   // benchmarkData
                 holdings,                        // holdings
-                latestSnapshot.reportContent()   // reportContent
+                latestSnapshot.reportContent()   // report
         );
     }
 
@@ -218,5 +231,37 @@ public class BacktestQueryService {
                 .filter(entry -> entry.getValue() > 0)
                 .map(entry -> new BacktestDetailResponse.HoldingData(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 벤치마크 이름 조회
+     */
+    private String getBenchmarkName(String benchmarkCode) {
+        return BenchmarkIndex.getNameByCode(benchmarkCode);
+    }
+
+    /**
+     * 벤치마크 일별 데이터 조회
+     */
+    private List<BacktestDetailResponse.BenchmarkData> getBenchmarkData(String benchmarkCode, LocalDateTime startAt, LocalDateTime endAt) {
+        if (benchmarkCode == null || benchmarkCode.trim().isEmpty()) {
+            return List.of();
+        }
+
+        try {
+            List<BenchmarkPrice> benchmarkPrices = benchmarkPriceRepository.findByIndexCodeAndDateRange(
+                    benchmarkCode, startAt, endAt);
+
+            return benchmarkPrices.stream()
+                    .map(price -> new BacktestDetailResponse.BenchmarkData(
+                            price.datetime().toLocalDate().toString(),
+                            price.closePrice().doubleValue(),
+                            price.changeRate().doubleValue()
+                    ))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Failed to fetch benchmark data for code: {}", benchmarkCode, e);
+            return List.of();
+        }
     }
 }

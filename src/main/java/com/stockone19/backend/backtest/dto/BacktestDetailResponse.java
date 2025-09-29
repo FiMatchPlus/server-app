@@ -15,10 +15,13 @@ public record BacktestDetailResponse(
         String name,            // 백테스트 이름
         String period,          // 백테스트 기간
         Double executionTime,   // 실행 시간 (초)
+        String benchmarkCode,   // 벤치마크 코드
+        String benchmarkName,  // 벤치마크 이름
         BacktestMetrics metrics,    // 백테스트 성과 지표
         List<DailyEquityData> dailyEquity,  // 일별 평가액 데이터
+        List<BenchmarkData> benchmarkData,  // 벤치마크 일별 데이터
         List<HoldingData> holdings,         // 포트폴리오 보유 정보
-        String reportContent    // AI 생성 레포트 내용
+        String report          // 마크다운 형식의 전체 레포트
 ) {
     
     /**
@@ -28,6 +31,16 @@ public record BacktestDetailResponse(
             @JsonFormat(pattern = "yyyy-MM-dd")
             String date,
             Map<String, Double> stocks  // 각 주식의 평가액 (주식명 -> 평가액)
+    ) {}
+    
+    /**
+     * 벤치마크 일별 데이터
+     */
+    public record BenchmarkData(
+            @JsonFormat(pattern = "yyyy-MM-dd")
+            String date,        // 날짜
+            Double value,       // 벤치마크 지수 값
+            Double dailyReturn // 일일 수익률
     ) {}
     
     /**
@@ -46,13 +59,17 @@ public record BacktestDetailResponse(
             String name,
             String period,
             Double executionTime,
+            String benchmarkCode,
+            String benchmarkName,
             BacktestMetrics metrics,
             List<DailyEquityData> dailyEquity,
+            List<BenchmarkData> benchmarkData,
             List<HoldingData> holdings,
-            String reportContent
+            String report
     ) {
         return new BacktestDetailResponse(
-                historyId, name, period, executionTime, metrics, dailyEquity, holdings, reportContent
+                historyId, name, period, executionTime, benchmarkCode, benchmarkName,
+                metrics, dailyEquity, benchmarkData, holdings, report
         );
     }
 }
