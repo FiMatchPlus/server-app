@@ -101,7 +101,7 @@ public class BacktestEngineClient {
                 backtest.getStartAt(),
                 backtest.getEndAt(),
                 holdings,
-                callbackBaseUrl + "/api/backtests/callback"
+                callbackBaseUrl + "/backtests/callback"
             );
 
         } catch (Exception e) {
