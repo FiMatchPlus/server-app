@@ -6,12 +6,9 @@ import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
 import com.stockone19.backend.backtest.repository.SnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -22,7 +19,6 @@ import java.util.stream.Collectors;
 public class BacktestResponseMapper {
 
     private final SnapshotRepository snapshotRepository;
-    private final ObjectMapper objectMapper;
 
     /**
      * Backtest 도메인 객체를 BacktestResponse로 변환
@@ -38,38 +34,21 @@ public class BacktestResponseMapper {
         BacktestStatus status = backtest.getStatus();
         
         if (status == BacktestStatus.COMPLETED) {
-            // 완료된 경우 지표와 일별 수익률 포함
-            List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByBacktestId(backtest.getId());
-            BacktestMetrics metrics = null;
-            if (!snapshots.isEmpty()) {
-                PortfolioSnapshot latestSnapshot = snapshots.get(snapshots.size() - 1);
-                metrics = getBacktestMetrics(latestSnapshot);
-                executionTime = latestSnapshot.executionTime() != null ? 
-                    latestSnapshot.executionTime().longValue() : 0L;
+            // 완료된 경우 실행 시간만 조회 (성능 최적화)
+            PortfolioSnapshot latestSnapshot = snapshotRepository.findLatestPortfolioSnapshotByBacktestId(backtest.getId());
+            if (latestSnapshot != null && latestSnapshot.executionTime() != null) {
+                executionTime = latestSnapshot.executionTime().longValue();
             }
-            List<BacktestResponse.DailyReturn> dailyReturns = generateDailyReturns(backtest.getId());
-            
-            return BacktestResponse.ofCompleted(
-                    backtest.getId(),
-                    backtest.getTitle(),
-                    period,
-                    executionTime,
-                    backtest.getCreatedAt(),
-                    status,
-                    metrics,
-                    dailyReturns
-            );
-        } else {
-            // 진행 중이거나 생성됨 상태
-            return BacktestResponse.of(
-                    backtest.getId(),
-                    backtest.getTitle(),
-                    period,
-                    executionTime,
-                    backtest.getCreatedAt(),
-                    status
-            );
         }
+        
+        return BacktestResponse.of(
+                backtest.getId(),
+                backtest.getTitle(),
+                period,
+                executionTime,
+                backtest.getCreatedAt(),
+                status
+        );
     }
 
     /**
@@ -82,68 +61,7 @@ public class BacktestResponseMapper {
     }
 
 
-    /**
-     * 백테스트 성과 지표 조회 (JSON에서 파싱)
-     */
-    private BacktestMetrics getBacktestMetrics(PortfolioSnapshot latestSnapshot) {
-        if (latestSnapshot.metrics() == null || latestSnapshot.metrics().trim().isEmpty()) {
-            return null;
-        }
 
-        try {
-            Map<String, Object> metricsMap = objectMapper.readValue(latestSnapshot.metrics(), Map.class);
-            
-            return BacktestMetrics.of(
-                    getDoubleValue(metricsMap, "totalReturn"),
-                    getDoubleValue(metricsMap, "annualizedReturn"),
-                    getDoubleValue(metricsMap, "volatility"),
-                    getDoubleValue(metricsMap, "sharpeRatio"),
-                    getDoubleValue(metricsMap, "maxDrawdown"),
-                    getDoubleValue(metricsMap, "winRate"),
-                    getDoubleValue(metricsMap, "profitLossRatio")
-            );
-        } catch (Exception e) {
-            return null;
-        }
-    }
-    
-    /**
-     * JSON에서 Double 값 추출 (안전한 타입 변환)
-     */
-    private Double getDoubleValue(Map<String, Object> map, String key) {
-        Object value = map.get(key);
-        if (value == null) return 0.0;
-        
-        if (value instanceof Number) {
-            return ((Number) value).doubleValue();
-        } else if (value instanceof String) {
-            try {
-                return Double.parseDouble((String) value);
-            } catch (NumberFormatException e) {
-                return 0.0;
-            }
-        }
-        return 0.0;
-    }
-
-    private List<BacktestResponse.DailyReturn> generateDailyReturns(Long backtestId) {
-        // portfolio_snapshots에서 일별 수익률 데이터 조회
-            List<PortfolioSnapshot> snapshots = snapshotRepository.findPortfolioSnapshotsByBacktestId(backtestId);
-        
-        return snapshots.stream()
-                .map(snapshot -> {
-                    Map<String, Object> data = new HashMap<>();
-                    data.put("return", snapshot.getDailyReturn());
-                    data.put("value", snapshot.currentValue());
-                    data.put("change", snapshot.getDailyChange());
-                    
-                    return new BacktestResponse.DailyReturn(
-                            snapshot.createdAt().toLocalDate().toString(),
-                            data
-                    );
-                })
-                .toList();
-    }
     
     /**
      * 백테스트 실행 예외를 클라이언트 친화적인 에러 응답으로 변환
