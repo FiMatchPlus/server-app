@@ -70,7 +70,8 @@ public class BacktestQueryService {
                 executionTime,                   // executionTime
                 metrics,                         // metrics
                 dailyEquity,                     // dailyEquity
-                holdings                         // holdings
+                holdings,                        // holdings
+                latestSnapshot.reportContent()   // reportContent
         );
     }
 
