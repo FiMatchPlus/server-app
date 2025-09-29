@@ -53,8 +53,8 @@ public class BacktestQueryService {
         Double executionTime = latestSnapshot.executionTime();
         BacktestMetrics metrics = getBacktestMetrics(latestSnapshot);
         
-        // portfolio_snapshot_id로 홀딩 데이터 조회
-        List<HoldingSnapshot> allHoldingSnapshots = snapshotRepository.findHoldingSnapshotsByPortfolioSnapshotId(latestSnapshot.id());
+        // 백테스트 전체 기간의 홀딩 스냅샷 조회 (모든 날짜 포함)
+        List<HoldingSnapshot> allHoldingSnapshots = snapshotRepository.findHoldingSnapshotsByBacktestId(backtestId);
         
         // 주식 정보를 한 번에 조회 (N+1 문제 해결)
         Map<String, String> stockCodeToNameMap = getStockCodeToNameMap(allHoldingSnapshots);
