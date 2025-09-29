@@ -1,6 +1,7 @@
 package com.stockone19.backend.backtest.repository;
 
 import com.stockone19.backend.backtest.domain.ExecutionLog;
+import com.stockone19.backend.backtest.domain.ActionType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,5 +85,36 @@ public class ExecutionLogJdbcRepository {
         }
 
         return totalInserted;
+    }
+
+    /**
+     * 백테스트 ID로 ExecutionLog 조회
+     */
+    public List<ExecutionLog> findByBacktestId(Long backtestId) {
+        String SELECT_SQL = """
+            SELECT id, backtest_id, log_date, action_type, category, 
+                   trigger_value, threshold_value, reason, portfolio_value, created_at
+            FROM execution_logs 
+            WHERE backtest_id = ? 
+            ORDER BY log_date ASC
+            """;
+
+        try {
+            return jdbcTemplate.query(SELECT_SQL, (rs, rowNum) -> {
+                return ExecutionLog.builder()
+                    .backtestId(rs.getLong("backtest_id"))
+                    .logDate(rs.getTimestamp("log_date").toLocalDateTime())
+                    .actionType(ActionType.valueOf(rs.getString("action_type")))
+                    .category(rs.getString("category"))
+                    .triggerValue(rs.getDouble("trigger_value"))
+                    .thresholdValue(rs.getDouble("threshold_value"))
+                    .reason(rs.getString("reason"))
+                    .portfolioValue(rs.getDouble("portfolio_value"))
+                    .build();
+            }, backtestId);
+        } catch (Exception e) {
+            log.error("Failed to find execution logs by backtestId: {}", backtestId, e);
+            return List.of(); // 빈 리스트 반환
+        }
     }
 }

@@ -11,7 +11,9 @@ public record PortfolioSnapshot(
         String metrics,
         LocalDateTime startAt,
         LocalDateTime endAt,
-        Double executionTime
+        Double executionTime,
+        String reportContent,
+        LocalDateTime reportCreatedAt
 ) {
 
     public static PortfolioSnapshot of(
@@ -23,11 +25,13 @@ public record PortfolioSnapshot(
             String metrics,
             LocalDateTime startAt,
             LocalDateTime endAt,
-            Double executionTime
+            Double executionTime,
+            String reportContent,
+            LocalDateTime reportCreatedAt
     ) {
         return new PortfolioSnapshot(
                 id, backtestId, baseValue, currentValue, createdAt, 
-                metrics, startAt, endAt, executionTime
+                metrics, startAt, endAt, executionTime, reportContent, reportCreatedAt
         );
     }
 
@@ -42,7 +46,23 @@ public record PortfolioSnapshot(
     ) {
         return new PortfolioSnapshot(
                 null, backtestId, baseValue, currentValue, LocalDateTime.now(), 
-                metrics, startAt, endAt, executionTime
+                metrics, startAt, endAt, executionTime, null, null
+        );
+    }
+    
+    public static PortfolioSnapshot createWithReport(
+            Long backtestId,
+            double baseValue,
+            double currentValue,
+            String metrics,
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            Double executionTime,
+            String reportContent
+    ) {
+        return new PortfolioSnapshot(
+                null, backtestId, baseValue, currentValue, LocalDateTime.now(), 
+                metrics, startAt, endAt, executionTime, reportContent, LocalDateTime.now()
         );
     }
 
@@ -53,5 +73,9 @@ public record PortfolioSnapshot(
 
     public double getDailyChange() {
         return currentValue - baseValue;
+    }
+    
+    public boolean hasReport() {
+        return reportContent != null && !reportContent.trim().isEmpty();
     }
 }

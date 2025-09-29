@@ -5,8 +5,11 @@ import com.stockone19.backend.ai.dto.BacktestReportResponse;
 import com.stockone19.backend.backtest.service.BacktestQueryService;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.SnapshotRepository;
+import com.stockone19.backend.backtest.repository.ExecutionLogJdbcRepository;
 import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.domain.PortfolioSnapshot;
+import com.stockone19.backend.backtest.domain.ExecutionLog;
+import com.stockone19.backend.backtest.domain.ActionType;
 import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
 import com.stockone19.backend.backtest.dto.BacktestMetrics;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
@@ -21,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 백테스트 레포트 생성 서비스
@@ -36,7 +41,9 @@ public class BacktestReportService {
     private final BacktestQueryService backtestQueryService;
     private final BacktestRepository backtestRepository;
     private final SnapshotRepository snapshotRepository;
+    private final ExecutionLogJdbcRepository executionLogRepository;
     private final ObjectMapper objectMapper;
+    private final PromptTemplateService promptTemplateService;
 
     /**
      * 백테스트 결과를 바탕으로 분석 레포트 생성
@@ -51,11 +58,11 @@ public class BacktestReportService {
             // 백테스트 데이터 조회 및 분석 데이터 준비
             String backtestData = getBacktestData(request.backtestId());
             
-            // TODO: 분석 초점이 지정된 경우 프롬프트 커스터마이징
-            String analysisPrompt = buildAnalysisPrompt(backtestData, request.analysisFocus());
+            // 프롬프트 템플릿 서비스를 사용하여 분석 프롬프트 생성
+            String analysisPrompt = promptTemplateService.buildBacktestReportPrompt(backtestData, request.analysisFocus());
             
             // AI 크레이트를 사용하여 레포트 생성
-            String report = reportAIService.generateResponse(analysisPrompt);
+            String report = reportAIService.generateResponse(promptTemplateService.getSystemPrompt(), analysisPrompt);
             
             return BacktestReportResponse.of(request.backtestId(), report);
             
@@ -64,12 +71,41 @@ public class BacktestReportService {
             throw new RuntimeException("백테스트 레포트 생성에 실패했습니다.", e);
         }
     }
+    
+    /**
+     * 백테스트 완료 후 레포트 생성 및 DB 업데이트
+     * 
+     * @param backtestId 백테스트 ID
+     * @param backtestData 백테스트 데이터 (이미 조회된 데이터)
+     * @return 생성된 레포트 내용
+     */
+    public String generateAndSaveReport(Long backtestId, String backtestData) {
+        log.info("Generating and saving backtest report for backtestId: {}", backtestId);
+        
+        try {
+            // 프롬프트 템플릿 서비스를 사용하여 분석 프롬프트 생성
+            String analysisPrompt = promptTemplateService.buildBacktestReportPrompt(backtestData, null);
+            
+            // AI 크레이트를 사용하여 레포트 생성
+            String report = reportAIService.generateResponse(promptTemplateService.getSystemPrompt(), analysisPrompt);
+            
+            // PortfolioSnapshot에 레포트 저장
+            saveReportToSnapshot(backtestId, report);
+            
+            log.info("Successfully generated and saved report for backtestId: {}", backtestId);
+            return report;
+            
+        } catch (Exception e) {
+            log.error("Failed to generate and save report for backtestId: {}", backtestId, e);
+            throw new RuntimeException("백테스트 레포트 생성 및 저장에 실패했습니다.", e);
+        }
+    }
 
     /**
-     * 백테스트 데이터 조회 (DB 조회 최적화 적용)
+     * 백테스트 데이터 조회
      * 한 번의 조회로 필요한 모든 데이터를 수집하여 중복 접근 방지
      */
-    private String getBacktestData(Long backtestId) {
+    public String getBacktestData(Long backtestId) {
         try {
             // 1. 한 번에 필요한 데이터 모두 로드 (N+1 문제 해결)
             BacktestDetailResponse backtestDetail = backtestQueryService.getBacktestDetail(backtestId);
@@ -108,6 +144,13 @@ public class BacktestReportService {
             if (!backtestDetail.dailyEquity().isEmpty()) {
                 dataBuilder.append("\n=== 포트폴리오 평가액 트렌드 분석 ===\n");
                 dataBuilder.append(formatDailyEquity(backtestDetail.dailyEquity()));
+            }
+            
+            // 거래 기록 (ExecutionLog) 조회 및 포맷팅
+            List<ExecutionLog> executionLogs = executionLogRepository.findByBacktestId(backtestId);
+            if (!executionLogs.isEmpty()) {
+                dataBuilder.append("\n=== 거래 기록 ===\n");
+                dataBuilder.append(formatExecutionLogs(executionLogs));
             }
             
             return dataBuilder.toString();
@@ -429,35 +472,78 @@ public class BacktestReportService {
     }
 
     /**
-     * AI 분석을 위한 프롬프트 구축
+     * ExecutionLog 포맷팅
      */
-    private String buildAnalysisPrompt(String backtestData, String analysisFocus) {
-        StringBuilder promptBuilder = new StringBuilder("""
-                다음 백테스트 결과를 분석하여 전문적인 투자 전략 리포트를 작성해주세요:
-
-                """);
-        
-        promptBuilder.append(backtestData).append("\n\n");
-        promptBuilder.append("""
-                다음 항목들을 포함하여 종합적인 분석 리포트를 작성해주세요:
-                - 백테스트 성과 요약 (수익률, 리스크 지표)
-                - 매매 전략의 효과성 분석
-                - 위험 관리 측면의 평가
-                - 벤치마크 지수 대비 성과 비교 분석 (벤치마크 지수 정보가 제공된 경우 해당 벤치마크와의 비교)
-                - 시장 환경 대비 성과 분석
-                - 전략 개선 방안 및 추천사항
-                """);
-        
-        if (analysisFocus != null && !analysisFocus.trim().isEmpty()) {
-            promptBuilder.append("\n특별히 다음 관점에서 분석해주세요: ").append(analysisFocus);
+    private String formatExecutionLogs(List<ExecutionLog> executionLogs) {
+        return executionLogs.stream()
+                .map(log -> String.format("%s | %s | %s | %s", 
+                    log.getLogDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                    convertActionTypeToKorean(log.getActionType()),
+                    log.getCategory(),
+                    log.getReason()))
+                .collect(Collectors.joining("\n"));
+    }
+    
+    /**
+     * ActionType을 한국어로 변환
+     */
+    private String convertActionTypeToKorean(ActionType actionType) {
+        return switch (actionType) {
+            case SELL -> "손절";
+            case BUY -> "매수";
+            case STOP_LOSS -> "손절";
+            case TAKE_PROFIT -> "익절";
+            case REBALANCE -> "리밸런싱";
+            case LIQUIDATION -> "청산";
+            default -> actionType.name();
+        };
+    }
+    
+    /**
+     * PortfolioSnapshot에 레포트 저장
+     */
+    private void saveReportToSnapshot(Long backtestId, String reportContent) {
+        try {
+            // 최신 PortfolioSnapshot 조회
+            PortfolioSnapshot latestSnapshot = snapshotRepository.findLatestPortfolioSnapshotByBacktestId(backtestId);
+            if (latestSnapshot == null) {
+                log.error("PortfolioSnapshot not found for backtestId: {}", backtestId);
+                return;
+            }
+            
+            // 레포트가 포함된 새로운 PortfolioSnapshot 생성
+            PortfolioSnapshot updatedSnapshot = new PortfolioSnapshot(
+                latestSnapshot.id(),
+                latestSnapshot.backtestId(),
+                latestSnapshot.baseValue(),
+                latestSnapshot.currentValue(),
+                latestSnapshot.createdAt(),
+                latestSnapshot.metrics(),
+                latestSnapshot.startAt(),
+                latestSnapshot.endAt(),
+                latestSnapshot.executionTime(),
+                reportContent,
+                LocalDateTime.now()
+            );
+            
+            // DB 업데이트
+            snapshotRepository.savePortfolioSnapshot(updatedSnapshot);
+            
+            log.info("Successfully saved report to PortfolioSnapshot for backtestId: {}", backtestId);
+            
+        } catch (Exception e) {
+            log.error("Failed to save report to PortfolioSnapshot for backtestId: {}", backtestId, e);
+            throw e;
         }
-        
-        promptBuilder.append("""
-                \n\n전문적이고 실용적인 투자 분석 리포트를 작성해주세요.
-                전문적으로 보이되, 어떤 의미를 가지는지 취약 금융 취약 소비자들도 쉽게 이해할 수 있도록 풀어서 작성해주세요.
-                """);
-        
-        return promptBuilder.toString();
+    }
+
+    /**
+     * AI 분석을 위한 프롬프트 구축 (기존 메서드 - 호환성 유지)
+     * @deprecated PromptTemplateService 사용 권장
+     */
+    @Deprecated
+    private String buildAnalysisPrompt(String backtestData, String analysisFocus) {
+        return promptTemplateService.buildBacktestReportPrompt(backtestData, analysisFocus);
     }
     
     /**
