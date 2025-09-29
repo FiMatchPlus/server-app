@@ -68,13 +68,14 @@ public class BacktestDataPersistenceService {
                 log.info("Successfully saved {} execution logs", savedLogs);
             }
             
-            // 2. HoldingSnapshot 배치 저장
-            if (callback.portfolioSnapshot() != null && 
-                callback.portfolioSnapshot().holdings() != null && 
-                !callback.portfolioSnapshot().holdings().isEmpty()) {
-                List<HoldingSnapshot> holdingSnapshots = createHoldingSnapshots(portfolioSnapshotId, callback.portfolioSnapshot().holdings());
+            // 2. HoldingSnapshot 배치 저장 (result_summary 기반: 일자별 × 종목별 스냅샷)
+            if (callback.resultSummary() != null && !callback.resultSummary().isEmpty()) {
+                List<HoldingSnapshot> holdingSnapshots = createHoldingSnapshotsFromResultSummary(
+                    portfolioSnapshotId,
+                    callback.resultSummary()
+                );
                 snapshotRepository.saveHoldingSnapshotsBatch(holdingSnapshots);
-                log.info("Successfully saved {} holding snapshots", holdingSnapshots.size());
+                log.info("Successfully saved {} holding snapshots from result_summary", holdingSnapshots.size());
             }
             
         } catch (Exception e) {
@@ -196,18 +197,22 @@ public class BacktestDataPersistenceService {
     /**
      * HoldingSnapshot 엔티티 생성
      */
-    private List<HoldingSnapshot> createHoldingSnapshots(Long portfolioSnapshotId, List<BacktestCallbackResponse.HoldingResponse> holdings) {
-        return holdings.stream()
-            .map(holding -> HoldingSnapshot.create(
-                0.0, // price - 임시값
-                holding.quantity(),
-                0.0, // value - 임시값
-                0.0, // weight - 임시값
+    private List<HoldingSnapshot> createHoldingSnapshotsFromResultSummary(
+            Long portfolioSnapshotId,
+            List<BacktestExecutionResponse.DailyResultResponse> resultSummary
+    ) {
+        return resultSummary.stream()
+            .flatMap(daily -> daily.stocks().stream().map(stock -> HoldingSnapshot.createWithDate(
+                stock.closePrice(),
+                stock.quantity(),
+                stock.getValue(),
+                stock.portfolioWeight(),
                 portfolioSnapshotId,
-                holding.stockId(), // stockCode 대신 stockId 사용
-                0.0, // contribution - 임시값
-                0.0  // dailyRatio - 임시값
-            ))
+                stock.stockCode(),
+                daily.date(),
+                stock.portfolioContribution(),
+                stock.dailyReturn()
+            )))
             .toList();
     }
 
