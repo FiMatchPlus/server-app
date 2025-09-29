@@ -1,5 +1,6 @@
 package com.stockone19.backend.backtest.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.dto.BacktestExecutionRequest;
 import com.stockone19.backend.backtest.dto.BacktestStartResponse;
@@ -33,6 +34,7 @@ public class BacktestEngineClient {
     private final BacktestJobMappingService jobMappingService;
     private final PortfolioRepository portfolioRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
 
     @Qualifier("backtestEngineWebClient")
     private final WebClient backtestEngineWebClient;
@@ -51,6 +53,15 @@ public class BacktestEngineClient {
 
             // 백테스트 요청 생성
             BacktestExecutionRequest request = createBacktestEngineRequest(backtest);
+
+            // 요청 body 로그 출력
+            try {
+                String requestBody = objectMapper.writeValueAsString(request);
+                log.info("Sending backtest request to engine - backtestId: {}, requestBody: {}", 
+                        backtestId, requestBody);
+            } catch (Exception e) {
+                log.warn("Failed to serialize request body for logging: {}", e.getMessage());
+            }
 
             // 백테스트 엔진에 요청
             BacktestStartResponse response = backtestEngineWebClient
