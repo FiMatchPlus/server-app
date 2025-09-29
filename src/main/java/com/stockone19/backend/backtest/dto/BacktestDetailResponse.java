@@ -17,7 +17,8 @@ public record BacktestDetailResponse(
         Double executionTime,   // 실행 시간 (초)
         BacktestMetrics metrics,    // 백테스트 성과 지표
         List<DailyEquityData> dailyEquity,  // 일별 평가액 데이터
-        List<HoldingData> holdings          // 포트폴리오 보유 정보
+        List<HoldingData> holdings,         // 포트폴리오 보유 정보
+        String reportContent    // AI 생성 레포트 내용
 ) {
     
     /**
@@ -47,10 +48,11 @@ public record BacktestDetailResponse(
             Double executionTime,
             BacktestMetrics metrics,
             List<DailyEquityData> dailyEquity,
-            List<HoldingData> holdings
+            List<HoldingData> holdings,
+            String reportContent
     ) {
         return new BacktestDetailResponse(
-                historyId, name, period, executionTime, metrics, dailyEquity, holdings
+                historyId, name, period, executionTime, metrics, dailyEquity, holdings, reportContent
         );
     }
 }

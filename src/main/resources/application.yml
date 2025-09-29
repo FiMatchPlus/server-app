@@ -56,6 +56,13 @@ management:
     health:
       show-details: when-authorized
 
+# AI 프롬프트 설정
+ai:
+  prompts:
+    backtest-report:
+      system: "당신은 AI 어시스턴트입니다. 주어진 지침에 따라 백테스트 보고서를 작성해주세요."
+      template-file: "classpath:templates/backtest-report-prompt.md"
+
 logging:
   level:
     com:

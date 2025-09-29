@@ -9,7 +9,9 @@ import java.util.List;
 /**
  * 백테스트 엔진으로 보낼 비동기 요청 DTO
  */
-public record BacktestAsyncRequest(
+public record BacktestExecutionRequest(
+    @JsonProperty("backtest_id")
+    Long backtestId,
     LocalDateTime start,
     LocalDateTime end,
     List<HoldingRequest> holdings,
@@ -18,12 +20,12 @@ public record BacktestAsyncRequest(
     @JsonProperty("callback_url")
     String callbackUrl // 콜백 받을 URL
 ) {
-    public static BacktestAsyncRequest of(LocalDateTime start, LocalDateTime end, 
-                                        List<Holding> holdings, String callbackUrl) {
+    public static BacktestExecutionRequest of(Long backtestId, LocalDateTime start, LocalDateTime end,
+                                              List<Holding> holdings, String callbackUrl) {
         List<HoldingRequest> holdingRequests = holdings.stream()
                 .map(holding -> new HoldingRequest(holding.symbol(), holding.shares()))
                 .toList();
-        return new BacktestAsyncRequest(start, end, holdingRequests, "daily", callbackUrl);
+        return new BacktestExecutionRequest(backtestId, start, end, holdingRequests, "daily", callbackUrl);
     }
     
     public record HoldingRequest(

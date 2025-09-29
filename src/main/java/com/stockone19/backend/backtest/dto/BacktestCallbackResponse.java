@@ -20,8 +20,8 @@ public record BacktestCallbackResponse(
     ErrorResponse error,
     @JsonProperty("execution_time")
     Double executionTime,
-    @JsonProperty("request_id")
-    String requestId,
+    @JsonProperty("backtest_id")
+    Long backtestId,
     @JsonProperty("execution_logs")
     List<ExecutionLogResponse> executionLogs, 
     @JsonProperty("result_status")

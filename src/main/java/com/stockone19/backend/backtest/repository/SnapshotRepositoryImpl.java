@@ -36,8 +36,8 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     private PortfolioSnapshot insertPortfolioSnapshot(PortfolioSnapshot snapshot) {
         String sql = """
             INSERT INTO portfolio_snapshots (backtest_id, base_value, current_value, created_at, 
-                                           metrics, start_at, end_at, execution_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                           metrics, start_at, end_at, execution_time, report_content, report_created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -62,6 +62,12 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             } else {
                 ps.setNull(8, Types.NUMERIC);
             }
+            ps.setString(9, snapshot.reportContent());
+            if (snapshot.reportCreatedAt() != null) {
+                ps.setTimestamp(10, Timestamp.valueOf(snapshot.reportCreatedAt()));
+            } else {
+                ps.setNull(10, Types.TIMESTAMP);
+            }
             return ps;
         }, keyHolder);
 
@@ -69,7 +75,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
         return PortfolioSnapshot.of(
                 id, snapshot.backtestId(), snapshot.baseValue(), snapshot.currentValue(), 
                 snapshot.createdAt(), snapshot.metrics(), snapshot.startAt(), snapshot.endAt(), 
-                snapshot.executionTime()
+                snapshot.executionTime(), snapshot.reportContent(), snapshot.reportCreatedAt()
         );
     }
 
@@ -77,7 +83,8 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
         String sql = """
             UPDATE portfolio_snapshots
             SET backtest_id = ?, base_value = ?, current_value = ?, created_at = ?,
-                metrics = ?, start_at = ?, end_at = ?, execution_time = ?
+                metrics = ?, start_at = ?, end_at = ?, execution_time = ?, 
+                report_content = ?, report_created_at = ?
             WHERE id = ?
             """;
 
@@ -102,7 +109,13 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             } else {
                 ps.setNull(8, Types.NUMERIC);
             }
-            ps.setLong(9, snapshot.id());
+            ps.setString(9, snapshot.reportContent());
+            if (snapshot.reportCreatedAt() != null) {
+                ps.setTimestamp(10, Timestamp.valueOf(snapshot.reportCreatedAt()));
+            } else {
+                ps.setNull(10, Types.TIMESTAMP);
+            }
+            ps.setLong(11, snapshot.id());
             return ps;
         });
 
@@ -123,7 +136,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     public List<PortfolioSnapshot> findPortfolioSnapshotsByBacktestId(Long backtestId) {
         String sql = """
             SELECT id, backtest_id, base_value, current_value, created_at, 
-                   metrics, start_at, end_at, execution_time
+                   metrics, start_at, end_at, execution_time, report_content, report_created_at
             FROM portfolio_snapshots
             WHERE backtest_id = ?
             ORDER BY created_at ASC
@@ -142,7 +155,9 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                     rs.getString("metrics"),
                     rs.getTimestamp("start_at") != null ? rs.getTimestamp("start_at").toLocalDateTime() : null,
                     rs.getTimestamp("end_at") != null ? rs.getTimestamp("end_at").toLocalDateTime() : null,
-                    executionTime
+                    executionTime,
+                    rs.getString("report_content"),
+                    rs.getTimestamp("report_created_at") != null ? rs.getTimestamp("report_created_at").toLocalDateTime() : null
             );
         }, backtestId);
     }
@@ -151,7 +166,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     public PortfolioSnapshot findLatestPortfolioSnapshotByBacktestId(Long backtestId) {
         String sql = """
             SELECT id, backtest_id, base_value, current_value, created_at, 
-                   metrics, start_at, end_at, execution_time
+                   metrics, start_at, end_at, execution_time, report_content, report_created_at
             FROM portfolio_snapshots
             WHERE backtest_id = ?
             ORDER BY created_at DESC
@@ -171,7 +186,9 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                     rs.getString("metrics"),
                     rs.getTimestamp("start_at") != null ? rs.getTimestamp("start_at").toLocalDateTime() : null,
                     rs.getTimestamp("end_at") != null ? rs.getTimestamp("end_at").toLocalDateTime() : null,
-                    executionTime
+                    executionTime,
+                    rs.getString("report_content"),
+                    rs.getTimestamp("report_created_at") != null ? rs.getTimestamp("report_created_at").toLocalDateTime() : null
             );
         }, backtestId);
         
@@ -363,7 +380,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     public PortfolioSnapshot findById(Long id) {
         String sql = """
             SELECT id, backtest_id, base_value, current_value, created_at, 
-                   metrics, start_at, end_at, execution_time
+                   metrics, start_at, end_at, execution_time, report_content, report_created_at
             FROM portfolio_snapshots 
             WHERE id = ?
             """;
@@ -388,7 +405,9 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
                     metrics,
                     startAt.toLocalDateTime(),
                     endAt.toLocalDateTime(),
-                    executionTime
+                    executionTime,
+                    rs.getString("report_content"),
+                    rs.getTimestamp("report_created_at") != null ? rs.getTimestamp("report_created_at").toLocalDateTime() : null
                 );
             }, id);
         } catch (Exception e) {

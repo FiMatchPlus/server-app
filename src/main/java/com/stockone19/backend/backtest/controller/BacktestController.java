@@ -9,18 +9,22 @@ import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
 import com.stockone19.backend.backtest.service.BacktestService;
 import com.stockone19.backend.backtest.service.BacktestQueryService;
 import com.stockone19.backend.backtest.service.BacktestExecutionService;
+import com.stockone19.backend.backtest.event.BacktestSuccessEvent;
+import com.stockone19.backend.backtest.event.BacktestFailureEvent;
 import com.stockone19.backend.common.dto.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import com.stockone19.backend.backtest.dto.BacktestCallbackResponse;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @RestController
@@ -32,6 +36,7 @@ public class BacktestController {
     private final BacktestQueryService backtestQueryService;
     private final BacktestExecutionService backtestExecutionService;
     private final BacktestResponseMapper backtestResponseMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     /**
      * 백테스트 생성
@@ -125,8 +130,16 @@ public class BacktestController {
         // todo: 회원 처리
         // Long userId = 1L;
         
-        // 백테스트 실행 시작 (상태 업데이트 포함)
-        backtestExecutionService.startBacktest(backtestId);
+        // 백테스트 실행 시작 (비동기)
+        CompletableFuture<Void> future = backtestExecutionService.startBacktest(backtestId);
+        
+        // 백그라운드에서 완료 처리 (선택사항)
+        future.thenRun(() -> {
+            log.info("Backtest execution completed for backtestId: {}", backtestId);
+        }).exceptionally(throwable -> {
+            log.error("Backtest execution failed for backtestId: {}", backtestId, throwable);
+            return null;
+        });
         
         return ResponseEntity.ok(ApiResponse.success(
             "백테스트 실행이 시작되었습니다", 
@@ -147,12 +160,21 @@ public class BacktestController {
                 clientIP, callback.jobId(), callback.success());
         
         try {
+            // 콜백에서 직접 backtestId 사용
+            Long backtestId = callback.backtestId();
+            if (backtestId == null) {
+                log.error("No backtestId found in callback for jobId: {}", callback.jobId());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+            
             if (Boolean.TRUE.equals(callback.success())) {
-                // 성공 처리
-                backtestExecutionService.handleBacktestSuccessCallback(callback);
+                // 성공 처리 - 이벤트 발행
+                BacktestSuccessEvent successEvent = new BacktestSuccessEvent(backtestId, callback);
+                applicationEventPublisher.publishEvent(successEvent);
             } else {
-                // 실패 처리
-                backtestExecutionService.handleBacktestFailure(callback);
+                // 실패 처리 - 이벤트 발행
+                BacktestFailureEvent failureEvent = new BacktestFailureEvent(backtestId, "Backtest failed");
+                applicationEventPublisher.publishEvent(failureEvent);
             }
             return ResponseEntity.ok().build();
         } catch (Exception error) {
