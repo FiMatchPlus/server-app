@@ -8,7 +8,9 @@ import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.common.service.BacktestJobMappingService;
 import com.stockone19.backend.portfolio.domain.Holding;
+import com.stockone19.backend.portfolio.domain.Rules;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
+import com.stockone19.backend.portfolio.repository.RulesRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,6 +35,7 @@ public class BacktestEngineClient {
     private final BacktestRepository backtestRepository;
     private final BacktestJobMappingService jobMappingService;
     private final PortfolioRepository portfolioRepository;
+    private final RulesRepository rulesRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
@@ -95,18 +98,76 @@ public class BacktestEngineClient {
             // 포트폴리오 조회
             List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(backtest.getPortfolioId());
             
+            // Rule 조회 및 변환
+            BacktestExecutionRequest.RulesRequest rules = convertToEngineRules(backtest.getRuleId());
+            
             // BacktestExecutionRequest.of() 메서드 사용
             return BacktestExecutionRequest.of(
                 backtest.getId(),
                 backtest.getStartAt(),
                 backtest.getEndAt(),
                 holdings,
-                callbackBaseUrl + "/backtests/callback"
+                callbackBaseUrl + "/backtests/callback",
+                rules
             );
 
         } catch (Exception e) {
             log.error("Failed to create backtest engine request for backtestId: {}", backtest.getId(), e);
             throw new RuntimeException("Failed to create backtest engine request", e);
         }
+    }
+
+    /**
+     * MongoDB Rules를 백테스트 엔진 형식으로 변환
+     */
+    private BacktestExecutionRequest.RulesRequest convertToEngineRules(String ruleId) {
+        if (ruleId == null || ruleId.trim().isEmpty()) {
+            log.debug("Rule ID is null or empty, returning null rules");
+            return null;
+        }
+
+        try {
+            Rules mongoRules = rulesRepository.findById(ruleId).orElse(null);
+            if (mongoRules == null) {
+                log.warn("Rule not found for id: {}, returning null rules", ruleId);
+                return null;
+            }
+
+            // stopLoss 변환
+            List<BacktestExecutionRequest.RuleItem> stopLossItems = convertRuleItems(mongoRules.getStopLoss());
+            
+            // takeProfit 변환
+            List<BacktestExecutionRequest.RuleItem> takeProfitItems = convertRuleItems(mongoRules.getTakeProfit());
+
+            return new BacktestExecutionRequest.RulesRequest(stopLossItems, takeProfitItems);
+
+        } catch (Exception e) {
+            log.warn("Failed to convert rules for id: {}, returning null rules", ruleId, e);
+            return null;
+        }
+    }
+
+    /**
+     * MongoDB RuleItem을 백테스트 엔진 RuleItem으로 변환
+     */
+    private List<BacktestExecutionRequest.RuleItem> convertRuleItems(List<Rules.RuleItem> mongoRuleItems) {
+        if (mongoRuleItems == null || mongoRuleItems.isEmpty()) {
+            return List.of();
+        }
+
+        return mongoRuleItems.stream()
+                .map(item -> {
+                    try {
+                        // threshold 문자열을 Double로 변환
+                        Double value = Double.parseDouble(item.getThreshold());
+                        return new BacktestExecutionRequest.RuleItem(item.getCategory(), value);
+                    } catch (NumberFormatException e) {
+                        log.warn("Failed to parse threshold value: {} for category: {}", 
+                                item.getThreshold(), item.getCategory());
+                        return null;
+                    }
+                })
+                .filter(item -> item != null)
+                .toList();
     }
 }
