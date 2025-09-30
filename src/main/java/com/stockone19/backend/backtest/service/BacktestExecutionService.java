@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
+import org.springframework.scheduling.annotation.Async;
 
 @Slf4j
 @Service
@@ -47,6 +48,7 @@ public class BacktestExecutionService {
      * 백테스트 성공 이벤트 처리
      */
     @EventListener
+    @Async("backgroundTaskExecutor")
     @Transactional(propagation = REQUIRES_NEW)
     public void handleBacktestSuccessEvent(BacktestSuccessEvent event) {
         log.info("Handling backtest success event for backtestId: {}", event.backtestId());
@@ -112,6 +114,7 @@ public class BacktestExecutionService {
      * 백테스트 실패 이벤트 처리
      */
     @EventListener
+    @Async("backgroundTaskExecutor")
     @Transactional(propagation = REQUIRES_NEW)
     public void handleBacktestFailure(BacktestFailureEvent event) {
         log.info("Handling backtest failure event for backtestId: {}, errorMessage: {}", 
