@@ -13,6 +13,8 @@ import com.stockone19.backend.backtest.repository.BenchmarkPriceRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.repository.StockRepository;
+import com.stockone19.backend.portfolio.domain.Rules;
+import com.stockone19.backend.portfolio.repository.RulesRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class BacktestQueryService {
     private final SnapshotRepository snapshotRepository;
     private final StockRepository stockRepository;
     private final BenchmarkPriceRepository benchmarkPriceRepository;
+    private final RulesRepository rulesRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -73,6 +76,9 @@ public class BacktestQueryService {
                 .collect(Collectors.toList());
         List<BacktestDetailResponse.HoldingData> holdings = createHoldingDataOptimized(latestHoldingSnapshots, stockCodeToNameMap);
 
+        // Rule 정보 조회
+        Rules rule = getRuleById(backtest.getRuleId());
+
         return BacktestDetailResponse.of(
                 latestSnapshot.id().toString(),  // history_id
                 backtest.getTitle(),             // name
@@ -84,7 +90,8 @@ public class BacktestQueryService {
                 dailyEquity,                     // dailyEquity
                 benchmarkData,                   // benchmarkData
                 holdings,                        // holdings
-                latestSnapshot.reportContent()   // report
+                latestSnapshot.reportContent(),  // report
+                rule                             // rule
         );
     }
 
@@ -94,6 +101,24 @@ public class BacktestQueryService {
     private Backtest findBacktestById(Long backtestId) {
         return backtestRepository.findById(backtestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Backtest not found with id: " + backtestId));
+    }
+
+    /**
+     * Rule 정보 조회
+     * rule_id가 null이거나 존재하지 않는 경우 null 반환
+     */
+    private Rules getRuleById(String ruleId) {
+        if (ruleId == null || ruleId.trim().isEmpty()) {
+            log.debug("Rule ID is null or empty, returning null");
+            return null;
+        }
+
+        try {
+            return rulesRepository.findById(ruleId).orElse(null);
+        } catch (Exception e) {
+            log.warn("Failed to fetch rule with id: {}, returning null", ruleId, e);
+            return null;
+        }
     }
 
     /**
@@ -112,6 +137,7 @@ public class BacktestQueryService {
         }
 
         try {
+            @SuppressWarnings("unchecked")
             Map<String, Object> metricsMap = objectMapper.readValue(latestSnapshot.metrics(), Map.class);
             
             return BacktestMetrics.of(
