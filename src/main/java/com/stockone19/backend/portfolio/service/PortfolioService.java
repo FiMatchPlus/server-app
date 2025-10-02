@@ -5,6 +5,7 @@ import com.stockone19.backend.portfolio.domain.BenchmarkIndex;
 import com.stockone19.backend.portfolio.domain.Holding;
 import com.stockone19.backend.portfolio.domain.Portfolio;
 import com.stockone19.backend.portfolio.domain.Rules;
+import com.stockone19.backend.portfolio.event.PortfolioCreatedEvent;
 import com.stockone19.backend.portfolio.dto.*;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
 import com.stockone19.backend.portfolio.repository.RulesRepository;
@@ -12,6 +13,7 @@ import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.service.StockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,7 @@ public class PortfolioService {
     private final RulesRepository rulesRepository;
     private final StockService stockService;
     private final BenchmarkDeterminerService benchmarkDeterminerService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     /**
      * 사용자별 포트폴리오 합계 정보 조회
@@ -167,14 +170,21 @@ public class PortfolioService {
             }
         }
 
-        return new CreatePortfolioResult(
+        // 4. 즉시 응답 데이터 생성
+        CreatePortfolioResult result = new CreatePortfolioResult(
                 savedPortfolio.id(),
                 savedPortfolio.name(),
                 savedPortfolio.description(),
                 savedPortfolio.ruleId(),
                 request.totalValue(),
-                request.holdings().size()
+                request.holdings().size(),
+                savedPortfolio.status().name()
         );
+
+        // 5. 포트폴리오 생성 완료 이벤트 발행 (트랜잭션 커밋 후)
+        applicationEventPublisher.publishEvent(new PortfolioCreatedEvent(savedPortfolio.id()));
+
+        return result;
     }
 
 
@@ -706,5 +716,37 @@ public class PortfolioService {
                         null  // temporary updatedAt
                 ))
                 .toList();
+    }
+
+    /**
+     * 포트폴리오 상태 업데이트
+     */
+    @Transactional
+    public void updatePortfolioStatus(Long portfolioId, Portfolio.PortfolioStatus status) {
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
+        
+        Portfolio updatedPortfolio = portfolio.withStatus(status);
+        portfolioRepository.save(updatedPortfolio);
+        
+        log.info("Updated portfolio status - portfolioId: {}, status: {}", portfolioId, status);
+    }
+
+    /**
+     * 포트폴리오 분석 결과 저장
+     */
+    @Transactional
+    public void savePortfolioAnalysisResult(Long portfolioId, String analysisResult) {
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
+        
+        Portfolio updatedPortfolio = portfolio.withStatusAndResult(
+                Portfolio.PortfolioStatus.COMPLETED, 
+                analysisResult
+        );
+        portfolioRepository.save(updatedPortfolio);
+        
+        log.info("Saved portfolio analysis result - portfolioId: {}, result length: {}", 
+                portfolioId, analysisResult != null ? analysisResult.length() : 0);
     }
 }

@@ -6,5 +6,6 @@ public record CreatePortfolioResult (
         String description,
         String ruleId,
         Double totalValue,
-        Integer holdingCount
+        Integer holdingCount,
+        String status
 ) {}

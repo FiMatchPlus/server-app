@@ -45,6 +45,17 @@ public class WebClientConfig {
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024)) // 10MB
                 .build();
     }
+    
+    @Bean
+    public WebClient portfolioAnalysisEngineWebClient(
+            WebClient.Builder builder,
+            @Value("${portfolio.engine.url}") String baseUrl
+    ) {
+        return builder
+                .baseUrl(baseUrl)
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024)) // 10MB
+                .build();
+    }
 }
 
 
