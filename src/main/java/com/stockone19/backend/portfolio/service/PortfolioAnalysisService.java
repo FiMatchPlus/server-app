@@ -94,6 +94,9 @@ public class PortfolioAnalysisService {
             // 3. 포트폴리오 결과 저장 (현재 트랜잭션에서)
             savePortfolioAnalysisResult(event.getPortfolioId(), analysisResultJson);
             
+            // 4. LLM을 사용하여 분석 리포트 생성 (비동기)
+            generatePortfolioAnalysisReport(event.getPortfolioId(), analysisResultJson);
+            
             log.info("Portfolio analysis processing completed - portfolioId: {}, analysisId: {}", 
                     event.getPortfolioId(), event.getAnalysisId());
             
@@ -161,6 +164,85 @@ public class PortfolioAnalysisService {
         } catch (Exception e) {
             log.error("Failed to save portfolio analysis result - portfolioId: {}", portfolioId, e);
             throw e; // 트랜잭션 롤백을 위해 예외 재발생
+        }
+    }
+
+    /**
+     * 포트폴리오 분석 리포트 생성 (비동기)
+     * 포트폴리오 생성 후 자동으로 호출되거나 수동으로 호출 가능
+     */
+    @Async("backgroundTaskExecutor")
+    public CompletableFuture<String> generatePortfolioAnalysisReport(Long portfolioId, String analysisResultJson) {
+        log.info("Generating portfolio analysis report for portfolioId: {}", portfolioId);
+        
+        try {
+            // LLM을 사용하여 분석 리포트 생성
+            String report = portfolioReportService.generateOptimizationInsightFromAnalysis(analysisResultJson);
+            
+            log.info("Portfolio analysis report generated successfully - portfolioId: {}, report length: {}", 
+                    portfolioId, report.length());
+            
+            return CompletableFuture.completedFuture(report);
+            
+        } catch (Exception e) {
+            log.error("Failed to generate portfolio analysis report for portfolioId: {}", portfolioId, e);
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * 포트폴리오 분석 리포트 수동 생성
+     * DB에서 저장된 분석 결과를 조회하여 LLM 리포트 생성
+     */
+    public String generatePortfolioAnalysisReportFromDb(Long portfolioId) {
+        log.info("Manually generating portfolio analysis report for portfolioId: {}", portfolioId);
+        
+        try {
+            // DB에서 포트폴리오 분석 결과 조회
+            com.stockone19.backend.portfolio.domain.Portfolio portfolio = 
+                    portfolioService.getPortfolioById(portfolioId);
+            
+            if (portfolio.analysisResult() == null || portfolio.analysisResult().trim().isEmpty()) {
+                throw new RuntimeException("포트폴리오 분석 결과가 없습니다. 먼저 포트폴리오 분석을 실행해주세요.");
+            }
+            
+            // LLM을 사용하여 분석 리포트 생성
+            String report = portfolioReportService.generateOptimizationInsightFromAnalysis(portfolio.analysisResult());
+            
+            log.info("Portfolio analysis report generated successfully from DB - portfolioId: {}, report length: {}", 
+                    portfolioId, report.length());
+            
+            return report;
+            
+        } catch (Exception e) {
+            log.error("Failed to generate portfolio analysis report from DB for portfolioId: {}", portfolioId, e);
+            throw new RuntimeException("포트폴리오 분석 리포트 생성에 실패했습니다.", e);
+        }
+    }
+
+    /**
+     * 포트폴리오 분석 결과를 직접 파라미터로 받아서 LLM 리포트 생성
+     * 포트폴리오 생성 후 바로 호출하는 경우 사용
+     */
+    public String generatePortfolioAnalysisReportFromData(PortfolioAnalysisResponse analysisResponse) {
+        log.info("Generating portfolio analysis report from direct data");
+        
+        try {
+            // 분석 결과를 JSON으로 변환
+            String analysisResultJson = objectMapper.writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(analysisResponse);
+            
+            // LLM을 사용하여 분석 리포트 생성
+            String report = portfolioReportService.generateOptimizationInsightFromAnalysis(analysisResultJson);
+            
+            log.info("Portfolio analysis report generated successfully from direct data, report length: {}", 
+                    report.length());
+            
+            return report;
+            
+        } catch (Exception e) {
+            log.error("Failed to generate portfolio analysis report from direct data", e);
+            throw new RuntimeException("포트폴리오 분석 리포트 생성에 실패했습니다.", e);
         }
     }
 }

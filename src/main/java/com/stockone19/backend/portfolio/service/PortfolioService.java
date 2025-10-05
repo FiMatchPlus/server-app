@@ -749,4 +749,13 @@ public class PortfolioService {
         log.info("Saved portfolio analysis result - portfolioId: {}, result length: {}", 
                 portfolioId, analysisResult != null ? analysisResult.length() : 0);
     }
+
+    /**
+     * 포트폴리오 ID로 포트폴리오 조회
+     */
+    @Transactional(readOnly = true)
+    public Portfolio getPortfolioById(Long portfolioId) {
+        return portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
+    }
 }

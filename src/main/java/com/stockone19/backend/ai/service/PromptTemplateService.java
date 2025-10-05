@@ -2,6 +2,7 @@ package com.stockone19.backend.ai.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -20,38 +21,22 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PromptTemplateService {
     
+    @Qualifier("webApplicationContext")
     private final ResourceLoader resourceLoader;
     
-    @Value("${ai.prompts.backtest-report.system:당신은 투자 분석 전문가입니다. 정확하고 전문적인 분석을 제공해주세요.}")
-    private String systemPrompt;
+    @Value("${ai.prompts.backtest-report.template-file}")
+    private String backtestTemplatePath;
     
-    @Value("${ai.prompts.backtest-report.template:}")
-    private String templatePrompt;
-    
-    @Value("${ai.prompts.backtest-report.template-file:classpath:templates/backtest-report-prompt.md}")
-    private String templateFilePath;
-    
-    @Value("${ai.prompts.portfolio-optimization.template-file:classpath:templates/portfolio-optimization-prompt.md}")
-    private String portfolioOptimizationTemplateFilePath;
-    
-    /**
-     * 백테스트 리포트 생성용 시스템 프롬프트 반환
-     */
-    public String getSystemPrompt() {
-        return systemPrompt;
-    }
+    @Value("${ai.prompts.portfolio-optimization.template-file}")
+    private String portfolioTemplatePath;
     
     /**
      * 백테스트 리포트 생성용 프롬프트 템플릿 반환
-     * 설정 파일의 template이 있으면 우선 사용, 없으면 파일에서 로드
+     * 파일에서 로드
      */
     public String getBacktestReportPrompt() {
-        if (templatePrompt != null && !templatePrompt.trim().isEmpty()) {
-            return templatePrompt;
-        }
-        
         try {
-            Resource resource = resourceLoader.getResource(templateFilePath);
+            Resource resource = resourceLoader.getResource(backtestTemplatePath);
             if (resource.exists()) {
                 return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             }
@@ -108,7 +93,7 @@ public class PromptTemplateService {
      */
     public String getPortfolioOptimizationPrompt() {
         try {
-            Resource resource = resourceLoader.getResource(portfolioOptimizationTemplateFilePath);
+            Resource resource = resourceLoader.getResource(portfolioTemplatePath);
             if (resource.exists()) {
                 return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             }

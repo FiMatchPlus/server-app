@@ -1,6 +1,7 @@
 package com.stockone19.backend.portfolio.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -10,77 +11,85 @@ import java.util.Map;
 public record PortfolioAnalysisResponse(
     Boolean success,
     
-    // 최소 분산 포트폴리오 정보
-    @JsonProperty("min_variance")
-    PortfolioStrategyResponse minVariance,
+    // 분석 메타데이터
+    MetadataResponse metadata,
     
-    // 최대 샤프 비율 포트폴리오 정보
-    @JsonProperty("max_sharpe")
-    PortfolioStrategyResponse maxSharpe,
+    // 벤치마크 정보
+    BenchmarkInfoResponse benchmark,
     
-    // 성과 지표
-    MetricsResponse metrics,
-    
-    // 벤치마크 비교 정보
-    @JsonProperty("benchmark_comparison")
-    BenchmarkComparisonResponse benchmarkComparison,
+    // 3가지 포트폴리오 전략 (user, min_variance, max_sharpe)
+    List<PortfolioStrategyResponse> portfolios,
     
     // 종목별 상세 정보
     @JsonProperty("stock_details")
     Map<String, StockDetailResponse> stockDetails,
     
-    // 포트폴리오 베타 분석
-    @JsonProperty("portfolio_beta_analysis")
-    BetaAnalysisResponse portfolioBetaAnalysis,
-    
-    // 분석 환경 정보
-    @JsonProperty("risk_free_rate_used")
-    Double riskFreeRateUsed,
-    
-    @JsonProperty("analysis_period")
-    AnalysisPeriodResponse analysisPeriod,
-    
-    String notes,
-    
-    @JsonProperty("execution_time")
-    Double executionTime,
-    
-    @JsonProperty("analysis_id")
-    Long analysisId,
-    
-    String timestamp,
-    
     // 백테스트 관련 정보 (기존 콜백과의 호환성)
     @JsonProperty("job_id")
-    String jobId,
-    
-    @JsonProperty("portfolio_id")
-    Long portfolioId
+    String jobId
 ) {
     
     /**
-     * 포트폴리오 전략 정보 (Min-Variance, Max-Sharpe)
+     * 분석 메타데이터 정보
+     */
+    public record MetadataResponse(
+        @JsonProperty("risk_free_rate_used")
+        Double riskFreeRateUsed,
+        
+        PeriodResponse period,
+        
+        String notes,
+        
+        @JsonProperty("execution_time")
+        Double executionTime,
+        
+        @JsonProperty("analysis_id")
+        Long analysisId,
+        
+        @JsonProperty("portfolio_id")
+        Long portfolioId,
+        
+        String timestamp
+    ) {}
+    
+    /**
+     * 분석 기간 정보
+     */
+    public record PeriodResponse(
+        String start,
+        String end
+    ) {}
+    
+    /**
+     * 벤치마크 정보
+     */
+    public record BenchmarkInfoResponse(
+        String code,
+        Double return_,
+        Double volatility
+    ) {}
+    
+    /**
+     * 포트폴리오 전략 정보 (user, min_variance, max_sharpe 공통 구조)
      */
     public record PortfolioStrategyResponse(
+        String type,
+        
         Map<String, Double> weights,
+        
         @JsonProperty("beta_analysis")
-        BetaAnalysisResponse betaAnalysis
+        BetaAnalysisResponse betaAnalysis,
+        
+        MetricsResponse metrics,
+        
+        @JsonProperty("benchmark_comparison")
+        BenchmarkComparisonResponse benchmarkComparison
     ) {}
     
     /**
      * 성과 지표 정보
      */
     public record MetricsResponse(
-        @JsonProperty("min_variance")
-        StrategyMetricsResponse minVariance,
-        @JsonProperty("max_sharpe")
-        StrategyMetricsResponse maxSharpe
-    ) {}
-    
-    /**
-     * 개별 전략의 성과 지표
-     */
-    public record StrategyMetricsResponse(
         @JsonProperty("expected_return")
         Double expectedReturn,
         
@@ -136,15 +145,6 @@ public record PortfolioAnalysisResponse(
      * 벤치마크 비교 정보
      */
     public record BenchmarkComparisonResponse(
-        @JsonProperty("benchmark_code")
-        String benchmarkCode,
-        
-        @JsonProperty("benchmark_return")
-        Double benchmarkReturn,
-        
-        @JsonProperty("benchmark_volatility")
-        Double benchmarkVolatility,
-        
         @JsonProperty("excess_return")
         Double excessReturn,
         
@@ -182,13 +182,5 @@ public record PortfolioAnalysisResponse(
         @JsonProperty("r_square")
         Double rSquare,
         Double alpha
-    ) {}
-    
-    /**
-     * 분석 기간 정보
-     */
-    public record AnalysisPeriodResponse(
-        String start,
-        String end
     ) {}
 }

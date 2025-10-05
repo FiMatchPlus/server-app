@@ -3,8 +3,6 @@ package com.stockone19.backend.portfolio.controller;
 import com.stockone19.backend.portfolio.dto.PortfolioAnalysisResponse;
 import com.stockone19.backend.portfolio.event.PortfolioAnalysisSuccessEvent;
 import com.stockone19.backend.portfolio.event.PortfolioAnalysisFailureEvent;
-import com.stockone19.backend.portfolio.service.PortfolioService;
-import com.stockone19.backend.portfolio.service.PortfolioAnalysisEngineClient;
 import com.stockone19.backend.portfolio.service.PortfolioAnalysisService;
 import com.stockone19.backend.common.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,8 +24,6 @@ import org.springframework.web.bind.annotation.*;
 public class PortfolioAnalysisController {
 
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final PortfolioAnalysisEngineClient portfolioAnalysisEngineClient;
-    private final PortfolioService portfolioService;
     private final PortfolioAnalysisService portfolioAnalysisService;
 
     /**
@@ -40,13 +36,13 @@ public class PortfolioAnalysisController {
             HttpServletRequest request) {
         
         String clientIP = getClientIP(request);
+        Long analysisId = analysisResponse.metadata() != null ? analysisResponse.metadata().analysisId() : null;
         log.info("Portfolio analysis callback received from IP: {}, analysisId: {}, success: {}", 
-                clientIP, analysisResponse.analysisId(), analysisResponse.success());
+                clientIP, analysisId, analysisResponse.success());
         
         try {
-            // 분석 ID와 포트폴리오 ID 확인
-            Long analysisId = analysisResponse.analysisId();
-            Long portfolioId = analysisResponse.portfolioId();
+            // 분석 ID와 포트폴리오 ID 확인 (metadata에서 추출)
+            Long portfolioId = analysisResponse.metadata() != null ? analysisResponse.metadata().portfolioId() : null;
             
             if (analysisId == null || portfolioId == null) {
                 log.error("Missing analysisId or portfolioId in callback - analysisId: {}, portfolioId: {}", 
@@ -75,7 +71,7 @@ public class PortfolioAnalysisController {
             return ResponseEntity.ok().build();
         } catch (Exception error) {
             log.error("Error processing portfolio analysis callback for analysisId: {}", 
-                    analysisResponse.analysisId(), error);
+                    analysisId, error);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -100,6 +96,29 @@ public class PortfolioAnalysisController {
             log.error("Failed to start portfolio analysis manually for portfolioId: {}", portfolioId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("포트폴리오 분석 시작에 실패했습니다."));
+        }
+    }
+
+    /**
+     * 포트폴리오 분석 리포트 수동 생성
+     * DB에 저장된 분석 결과를 바탕으로 LLM 리포트 생성
+     */
+    @PostMapping("/{portfolioId}/report")
+    public ResponseEntity<ApiResponse<String>> generatePortfolioAnalysisReport(@PathVariable Long portfolioId) {
+        log.info("POST /api/portfolio-analysis/{}/report - 수동 리포트 생성", portfolioId);
+        
+        try {
+            // DB에서 분석 결과를 조회하여 LLM 리포트 생성
+            String report = portfolioAnalysisService.generatePortfolioAnalysisReportFromDb(portfolioId);
+            
+            return ResponseEntity.ok(ApiResponse.success(
+                    "포트폴리오 분석 리포트를 생성했습니다", 
+                    report
+            ));
+        } catch (Exception e) {
+            log.error("Failed to generate portfolio analysis report for portfolioId: {}", portfolioId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("포트폴리오 분석 리포트 생성에 실패했습니다: " + e.getMessage()));
         }
     }
     
