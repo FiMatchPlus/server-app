@@ -26,3 +26,11 @@ spring:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
+
+# AI 프롬프트 설정
+ai:
+  prompts:
+    backtest-report:
+      template-file: "classpath:templates/backtest-report-prompt.md"
+    portfolio-optimization:
+      template-file: "classpath:templates/portfolio-optimization-prompt.md"
