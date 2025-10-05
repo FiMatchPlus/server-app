@@ -2,6 +2,7 @@ package com.stockone19.backend.ai.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -20,35 +21,22 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PromptTemplateService {
     
+    @Qualifier("webApplicationContext")
     private final ResourceLoader resourceLoader;
     
-    @Value("${ai.prompts.backtest-report.system:당신은 투자 분석 전문가입니다. 정확하고 전문적인 분석을 제공해주세요.}")
-    private String systemPrompt;
+    @Value("${ai.prompts.backtest-report.template-file}")
+    private String backtestTemplatePath;
     
-    @Value("${ai.prompts.backtest-report.template:}")
-    private String templatePrompt;
-    
-    @Value("${ai.prompts.backtest-report.template-file:classpath:templates/backtest-report-prompt.md}")
-    private String templateFilePath;
-    
-    /**
-     * 백테스트 리포트 생성용 시스템 프롬프트 반환
-     */
-    public String getSystemPrompt() {
-        return systemPrompt;
-    }
+    @Value("${ai.prompts.portfolio-optimization.template-file}")
+    private String portfolioTemplatePath;
     
     /**
      * 백테스트 리포트 생성용 프롬프트 템플릿 반환
-     * 설정 파일의 template이 있으면 우선 사용, 없으면 파일에서 로드
+     * 파일에서 로드
      */
     public String getBacktestReportPrompt() {
-        if (templatePrompt != null && !templatePrompt.trim().isEmpty()) {
-            return templatePrompt;
-        }
-        
         try {
-            Resource resource = resourceLoader.getResource(templateFilePath);
+            Resource resource = resourceLoader.getResource(backtestTemplatePath);
             if (resource.exists()) {
                 return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             }
@@ -101,6 +89,39 @@ public class PromptTemplateService {
     }
     
     /**
+     * 포트폴리오 최적화 리포트 생성용 프롬프트 템플릿 반환
+     */
+    public String getPortfolioOptimizationPrompt() {
+        try {
+            Resource resource = resourceLoader.getResource(portfolioTemplatePath);
+            if (resource.exists()) {
+                return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            log.warn("포트폴리오 최적화 프롬프트 템플릿 파일 로드 실패: {}", e.getMessage());
+        }
+        
+        // 기본 프롬프트 반환
+        return getDefaultPortfolioOptimizationPrompt();
+    }
+    
+    /**
+     * 포트폴리오 최적화 리포트용 프롬프트 생성 (편의 메서드)
+     * 
+     * @param portfolioData 포트폴리오 최적화 데이터
+     * @return 최종 프롬프트
+     */
+    public String buildPortfolioOptimizationPrompt(String portfolioData) {
+        String template = getPortfolioOptimizationPrompt();
+        
+        Map<String, Object> variables = Map.of(
+            "portfolioData", portfolioData != null ? portfolioData : ""
+        );
+        
+        return buildPrompt(template, variables);
+    }
+    
+    /**
      * 기본 백테스트 리포트 프롬프트 (fallback)
      */
     private String getDefaultBacktestReportPrompt() {
@@ -119,6 +140,26 @@ public class PromptTemplateService {
 
             전문적이고 실용적인 투자 분석 리포트를 작성해주세요.
             전문적으로 보이되, 어떤 의미를 가지는지 취약 금융 취약 소비자들도 쉽게 이해할 수 있도록 풀어서 작성해주세요.
+            """;
+    }
+    
+    /**
+     * 기본 포트폴리오 최적화 리포트 프롬프트 (fallback)
+     */
+    private String getDefaultPortfolioOptimizationPrompt() {
+        return """
+            다음 포트폴리오 최적화 분석 결과를 바탕으로 투자자를 위한 인사이트 리포트를 작성해주세요:
+
+            {{portfolioData}}
+
+            다음 항목들을 포함하여 종합적인 인사이트를 제공해주세요:
+            - 현재 포트폴리오 진단 (비중, 리스크 기여도, 성과 지표)
+            - MPT 기반 최적 포트폴리오 구성 제안 (최소 분산, 최대 샤프)
+            - 종목별 특성 및 비중 조정 근거
+            - 벤치마크 대비 성과 개선 전망
+            - 실행 가이드 및 주의사항
+
+            전문적이면서도 일반 투자자가 쉽게 이해할 수 있도록 작성해주세요.
             """;
     }
 }

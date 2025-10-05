@@ -62,7 +62,7 @@ public class BacktestReportService {
             String analysisPrompt = promptTemplateService.buildBacktestReportPrompt(backtestData, request.analysisFocus());
             
             // AI 크레이트를 사용하여 레포트 생성
-            String report = reportAIService.generateResponse(promptTemplateService.getSystemPrompt(), analysisPrompt);
+            String report = reportAIService.generateResponse("", analysisPrompt);
             
             return BacktestReportResponse.of(request.backtestId(), report);
             
@@ -87,7 +87,7 @@ public class BacktestReportService {
             String analysisPrompt = promptTemplateService.buildBacktestReportPrompt(backtestData, null);
             
             // AI 크레이트를 사용하여 레포트 생성
-            String report = reportAIService.generateResponse(promptTemplateService.getSystemPrompt(), analysisPrompt);
+            String report = reportAIService.generateResponse("", analysisPrompt);
             
             // PortfolioSnapshot에 레포트 저장
             saveReportToSnapshot(backtestId, report);
