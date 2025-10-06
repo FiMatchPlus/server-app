@@ -2,6 +2,7 @@ package com.stockone19.backend.portfolio.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.stockone19.backend.portfolio.domain.Portfolio;
 import com.stockone19.backend.portfolio.dto.PortfolioAnalysisResponse;
 import com.stockone19.backend.portfolio.event.PortfolioAnalysisSuccessEvent;
 import com.stockone19.backend.portfolio.event.PortfolioAnalysisFailureEvent;
@@ -30,7 +31,7 @@ import static org.springframework.transaction.annotation.Propagation.REQUIRES_NE
 public class PortfolioAnalysisService {
 
     private final PortfolioReportService portfolioReportService;
-    private final PortfolioService portfolioService;
+    private final PortfolioCommandService portfolioCommandService;
     private final ObjectMapper objectMapper;
     private final PortfolioAnalysisEngineClient portfolioAnalysisEngineClient;
 
@@ -45,7 +46,7 @@ public class PortfolioAnalysisService {
 
         try {
             // 포트폴리오 상태를 RUNNING으로 업데이트
-            portfolioService.updatePortfolioStatus(portfolioId, com.stockone19.backend.portfolio.domain.Portfolio.PortfolioStatus.RUNNING);
+            portfolioCommandService.updatePortfolioStatus(portfolioId, Portfolio.PortfolioStatus.RUNNING);
 
             // 분석 엔진에 요청
             portfolioAnalysisEngineClient.submitToPortfolioAnalysisEngineAsync(portfolioId);
@@ -53,7 +54,7 @@ public class PortfolioAnalysisService {
         } catch (Exception e) {
             log.error("Failed to start portfolio analysis for portfolioId: {}", portfolioId, e);
             // 분석 시작 실패 시 상태를 FAILED로 업데이트
-            portfolioService.updatePortfolioStatus(portfolioId, com.stockone19.backend.portfolio.domain.Portfolio.PortfolioStatus.FAILED);
+            portfolioCommandService.updatePortfolioStatus(portfolioId, Portfolio.PortfolioStatus.FAILED);
         }
     }
 
@@ -65,7 +66,7 @@ public class PortfolioAnalysisService {
         log.info("Manually starting portfolio analysis for portfolioId: {}", portfolioId);
 
         // 상태를 RUNNING으로 업데이트
-        portfolioService.updatePortfolioStatus(portfolioId, com.stockone19.backend.portfolio.domain.Portfolio.PortfolioStatus.RUNNING);
+        portfolioCommandService.updatePortfolioStatus(portfolioId, Portfolio.PortfolioStatus.RUNNING);
 
         // 비동기로 분석 시작
         portfolioAnalysisEngineClient.submitToPortfolioAnalysisEngineAsync(portfolioId);
@@ -106,8 +107,8 @@ public class PortfolioAnalysisService {
             
             // 분석 처리 실패 시 포트폴리오 상태를 FAILED로 업데이트
             try {
-                portfolioService.updatePortfolioStatus(event.getPortfolioId(), 
-                        com.stockone19.backend.portfolio.domain.Portfolio.PortfolioStatus.FAILED);
+                portfolioCommandService.updatePortfolioStatus(event.getPortfolioId(), 
+                        Portfolio.PortfolioStatus.FAILED);
             } catch (Exception updateException) {
                 log.error("Failed to update portfolio status to FAILED - portfolioId: {}", 
                         event.getPortfolioId(), updateException);
@@ -129,8 +130,8 @@ public class PortfolioAnalysisService {
         
         try {
             // 포트폴리오 상태를 FAILED로 업데이트
-            portfolioService.updatePortfolioStatus(event.getPortfolioId(), 
-                    com.stockone19.backend.portfolio.domain.Portfolio.PortfolioStatus.FAILED);
+            portfolioCommandService.updatePortfolioStatus(event.getPortfolioId(), 
+                    Portfolio.PortfolioStatus.FAILED);
             
         } catch (Exception e) {
             log.error("Failed to update portfolio status to FAILED - portfolioId: {}", 
@@ -158,7 +159,7 @@ public class PortfolioAnalysisService {
      */
     private void savePortfolioAnalysisResult(Long portfolioId, String analysisResultJson) {
         try {
-            portfolioService.savePortfolioAnalysisResult(portfolioId, analysisResultJson);
+            portfolioCommandService.savePortfolioAnalysisResult(portfolioId, analysisResultJson);
             log.info("Portfolio analysis result saved successfully - portfolioId: {}", portfolioId);
             
         } catch (Exception e) {
@@ -199,8 +200,7 @@ public class PortfolioAnalysisService {
         
         try {
             // DB에서 포트폴리오 분석 결과 조회
-            com.stockone19.backend.portfolio.domain.Portfolio portfolio = 
-                    portfolioService.getPortfolioById(portfolioId);
+            Portfolio portfolio = portfolioCommandService.getPortfolioById(portfolioId);
             
             if (portfolio.analysisResult() == null || portfolio.analysisResult().trim().isEmpty()) {
                 throw new RuntimeException("포트폴리오 분석 결과가 없습니다. 먼저 포트폴리오 분석을 실행해주세요.");

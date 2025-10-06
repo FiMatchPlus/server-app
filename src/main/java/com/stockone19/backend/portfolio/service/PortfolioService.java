@@ -9,6 +9,7 @@ import com.stockone19.backend.portfolio.event.PortfolioCreatedEvent;
 import com.stockone19.backend.portfolio.dto.*;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
 import com.stockone19.backend.portfolio.repository.RulesRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.service.StockService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class PortfolioService {
     private final StockService stockService;
     private final BenchmarkDeterminerService benchmarkDeterminerService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final ObjectMapper objectMapper;
 
     /**
      * 사용자별 포트폴리오 합계 정보 조회
@@ -77,7 +79,7 @@ public class PortfolioService {
         double totalAssets = allHoldings.stream()
                 .mapToDouble(Holding::totalValue)
                 .sum();
-        
+
         return new PortfolioSummaryResponse(totalAssets, 0.0, 0.0);
     }
 
@@ -97,12 +99,12 @@ public class PortfolioService {
 
         for (Holding holding : holdings) {
             StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
-            
+
             if (priceInfo != null) {
                 double currentPrice = priceInfo.currentPrice();
                 double currentValue = currentPrice * holding.shares();
                 double dailyChange = priceInfo.dailyChangePrice() * holding.shares();
-                
+
                 totalAssets += currentValue;
                 totalDailyChange += dailyChange;
             } else {
@@ -260,8 +262,8 @@ public class PortfolioService {
     }
 
     private PortfolioShortResponse.HoldingSummary createHoldingSummaryWithMaps(
-            Holding holding, 
-            Map<String, Stock> stockMap, 
+            Holding holding,
+            Map<String, Stock> stockMap,
             Map<String, StockService.StockPriceInfo> priceMap) {
         try {
             // Stock 정보를 Map에서 조회 (DB 쿼리 없음)
@@ -316,7 +318,7 @@ public class PortfolioService {
         log.info("Getting portfolio long info for portfolioId: {}", portfolioId);
 
         PortfolioData data = getPortfolioData(portfolioId);
-        
+
         // Rules 정보 조회
         PortfolioLongResponse.RulesDetail rulesDetail = null;
         if (data.portfolio().ruleId() != null && !data.portfolio().ruleId().trim().isEmpty()) {
@@ -338,11 +340,22 @@ public class PortfolioService {
                     .collect(Collectors.toList());
         }
 
+        // Analysis 정보 조회 및 변환
+        PortfolioLongResponse.AnalysisDetail analysisDetail = null;
+        if (data.portfolio().analysisResult() != null && !data.portfolio().analysisResult().trim().isEmpty()) {
+            try {
+                analysisDetail = convertAnalysisResultToDetail(data.portfolio().analysisResult(), data.portfolio().status());
+            } catch (Exception e) {
+                log.warn("Failed to parse analysis result for portfolioId: {}, error: {}", portfolioId, e.getMessage());
+            }
+        }
+
         return new PortfolioLongResponse(
                 data.portfolio().id(),
                 holdingDetails,
                 data.portfolio().ruleId(),
-                rulesDetail
+                rulesDetail,
+                analysisDetail
         );
     }
 
@@ -351,7 +364,7 @@ public class PortfolioService {
      */
     private PortfolioLongResponse.RulesDetail convertRulesToDetail(Rules rules) {
         PortfolioLongResponse.BenchmarkDetail benchmarkDetail = null;
-        
+
         // basicBenchmark가 있으면 BenchmarkIndex 정보도 포함
         if (rules.getBasicBenchmark() != null && !rules.getBasicBenchmark().trim().isEmpty()) {
             BenchmarkIndex benchmarkIndex = BenchmarkIndex.fromCode(rules.getBasicBenchmark());
@@ -363,7 +376,7 @@ public class PortfolioService {
                 );
             }
         }
-        
+
         return new PortfolioLongResponse.RulesDetail(
                 rules.getId(),
                 rules.getMemo(),
@@ -394,8 +407,8 @@ public class PortfolioService {
     }
 
     private PortfolioLongResponse.HoldingDetail createHoldingDetailWithMaps(
-            Holding holding, 
-            Map<String, Stock> stockMap, 
+            Holding holding,
+            Map<String, Stock> stockMap,
             Map<String, StockService.StockPriceInfo> priceMap) {
         try {
             // Stock 정보를 Map에서 조회 (DB 쿼리 없음)
@@ -403,6 +416,7 @@ public class PortfolioService {
             if (stock == null) {
                 log.warn("Stock not found for ticker: {}", holding.symbol());
                 return new PortfolioLongResponse.HoldingDetail(
+                        "Unknown",
                         "Unknown Stock",
                         holding.weight(),
                         holding.totalValue(),
@@ -414,6 +428,7 @@ public class PortfolioService {
             if (priceInfo == null) {
                 log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
                 return new PortfolioLongResponse.HoldingDetail(
+                        stock.getTicker(),
                         stock.getName(),
                         holding.weight(),
                         holding.totalValue(),
@@ -429,6 +444,7 @@ public class PortfolioService {
             double currentValue = holding.shares() * currentPrice;
 
             return new PortfolioLongResponse.HoldingDetail(
+                    stock.getTicker(),
                     stock.getName(),
                     holding.weight(),
                     currentValue,
@@ -437,6 +453,7 @@ public class PortfolioService {
         } catch (Exception e) {
             log.warn("Failed to get stock information for holding: {}, error: {}", holding.symbol(), e.getMessage());
             return new PortfolioLongResponse.HoldingDetail(
+                    "Unknown",
                     "Unknown Stock",
                     holding.weight(),
                     holding.totalValue(),
@@ -500,7 +517,7 @@ public class PortfolioService {
             Portfolio portfolio,
             Map<String, StockService.StockPriceInfo> priceMap) {
         List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolio.id());
-        
+
         if (holdings.isEmpty()) {
             return new PortfolioListResponse.PortfolioListItem(
                     portfolio.id(),
@@ -536,7 +553,7 @@ public class PortfolioService {
     private List<PortfolioListResponse.HoldingStock> getHoldingStocksWithPriceMap(Long portfolioId, Map<String, StockService.StockPriceInfo> priceMap) {
         try {
             List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
-            
+
             if (holdings.isEmpty()) {
                 return List.of();
             }
@@ -568,7 +585,7 @@ public class PortfolioService {
                             }
 
                             StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
-                            
+
                             if (priceInfo == null) {
                                 log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
                                 return new PortfolioListResponse.HoldingStock(
@@ -580,14 +597,14 @@ public class PortfolioService {
                                         0.0
                                 );
                             }
-                            
+
                             // 현재가와 일간 변동률을 사용하여 계산
                             double currentPrice = priceInfo.currentPrice();
                             double dailyRate = priceInfo.dailyChangeRate();
-                            
+
                             // 현재 가치 계산 (수량 * 현재가)
                             double value = holding.shares() * currentPrice;
-                            
+
                             return new PortfolioListResponse.HoldingStock(
                                     stock.getTicker(),
                                     stock.getName(),
@@ -670,15 +687,15 @@ public class PortfolioService {
     private PortfolioTotals computeTotalsFromHoldingsWithPriceMap(List<Holding> holdings, Map<String, StockService.StockPriceInfo> priceMap) {
         double totalAssets = 0.0;
         double dailyChange = 0.0;
-        
+
         for (Holding holding : holdings) {
             StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
-            
+
             if (priceInfo != null) {
                 double currentPrice = priceInfo.currentPrice();
                 double currentValue = currentPrice * holding.shares();
                 double holdingDailyChange = priceInfo.dailyChangePrice() * holding.shares();
-                
+
                 totalAssets += currentValue;
                 dailyChange += holdingDailyChange;
             } else {
@@ -687,7 +704,7 @@ public class PortfolioService {
                 totalAssets += holding.totalValue();
             }
         }
-        
+
         double dailyReturnPercent = totalAssets > 0 ? (dailyChange / totalAssets) * 100 : 0.0;
         return new PortfolioTotals(totalAssets, dailyChange, dailyReturnPercent);
     }
@@ -748,6 +765,80 @@ public class PortfolioService {
         
         log.info("Saved portfolio analysis result - portfolioId: {}, result length: {}", 
                 portfolioId, analysisResult != null ? analysisResult.length() : 0);
+    }
+
+    /**
+     * 분석 결과 JSON을 PortfolioLongResponse.AnalysisDetail로 변환
+     */
+    private PortfolioLongResponse.AnalysisDetail convertAnalysisResultToDetail(String analysisResultJson, Portfolio.PortfolioStatus status) {
+        try {
+            // 상태 변환
+            String analysisStatus = convertPortfolioStatusToAnalysisStatus(status);
+
+            // COMPLETED 상태가 아니면 results는 null로 설정
+            List<PortfolioLongResponse.AnalysisResult> results = null;
+
+            if (status == Portfolio.PortfolioStatus.COMPLETED) {
+                PortfolioAnalysisResponse analysisResponse = objectMapper.readValue(analysisResultJson, PortfolioAnalysisResponse.class);
+
+                if (analysisResponse != null && analysisResponse.portfolios() != null && !analysisResponse.portfolios().isEmpty()) {
+                    // 각 전략별로 AnalysisResult 생성
+                    results = analysisResponse.portfolios().stream()
+                            .map(strategy -> convertStrategyToAnalysisResult(strategy))
+                            .collect(Collectors.toList());
+                }
+            }
+
+            return new PortfolioLongResponse.AnalysisDetail(analysisStatus, results);
+
+        } catch (Exception e) {
+            log.error("Failed to convert analysis result to detail: {}", e.getMessage());
+            throw new RuntimeException("Failed to parse analysis result", e);
+        }
+    }
+
+    /**
+     * PortfolioStatus를 분석 상태 문자열로 변환
+     */
+    private String convertPortfolioStatusToAnalysisStatus(Portfolio.PortfolioStatus status) {
+        return switch (status) {
+            case COMPLETED -> "COMPLETED";
+            case RUNNING -> "RUNNING";
+            case PENDING -> "PENDING";
+            case FAILED -> "FAILED";
+        };
+    }
+
+    /**
+     * PortfolioStrategyResponse를 AnalysisResult로 변환
+     */
+    private PortfolioLongResponse.AnalysisResult convertStrategyToAnalysisResult(PortfolioAnalysisResponse.PortfolioStrategyResponse strategy) {
+        // downside_deviation 기반으로 risk level 계산
+        String riskLevel = calculateRiskLevel(strategy.metrics().downsideDeviation());
+        
+        return new PortfolioLongResponse.AnalysisResult(
+                strategy.type(),
+                riskLevel,
+                strategy.weights()
+        );
+    }
+
+    /**
+     * downside_deviation을 기반으로 risk level 계산
+     * 10% 미만: LOW, 15% 이상: HIGH, 그 중간: MEDIUM
+     */
+    private String calculateRiskLevel(Double downsideDeviation) {
+        if (downsideDeviation == null) {
+            return "UNKNOWN";
+        }
+        
+        if (downsideDeviation < 10.0) {
+            return "LOW";
+        } else if (downsideDeviation >= 15.0) {
+            return "HIGH";
+        } else {
+            return "MEDIUM";
+        }
     }
 
     /**

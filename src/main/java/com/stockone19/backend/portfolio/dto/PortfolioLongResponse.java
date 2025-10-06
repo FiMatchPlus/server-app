@@ -2,15 +2,18 @@ package com.stockone19.backend.portfolio.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 public record PortfolioLongResponse(
         Long portfolioId,
         List<HoldingDetail> holdings,
         String ruleId,
-        RulesDetail rules
+        RulesDetail rules,
+        AnalysisDetail analysis
 ) {
 
     public record HoldingDetail(
+            String ticker,
             String name,
             double weight,
             double value,
@@ -40,4 +43,16 @@ public record PortfolioLongResponse(
             String threshold,
             String description
     ) {}
+
+    public record AnalysisDetail(
+            String status,
+            List<AnalysisResult> results
+    ) {}
+
+    public record AnalysisResult(
+            String type,
+            String riskLevel,
+            Map<String, Double> holdings
+    ) {}
+
 }
