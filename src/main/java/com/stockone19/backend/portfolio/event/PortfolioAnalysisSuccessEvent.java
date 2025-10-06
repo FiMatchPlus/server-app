@@ -12,13 +12,11 @@ import org.springframework.context.ApplicationEvent;
 public class PortfolioAnalysisSuccessEvent extends ApplicationEvent {
     
     private final Long portfolioId;
-    private final Long analysisId;
     private final PortfolioAnalysisResponse analysisResponse;
     
-    public PortfolioAnalysisSuccessEvent(Long portfolioId, Long analysisId, PortfolioAnalysisResponse analysisResponse) {
+    public PortfolioAnalysisSuccessEvent(Long portfolioId, PortfolioAnalysisResponse analysisResponse) {
         super(analysisResponse);
         this.portfolioId = portfolioId;
-        this.analysisId = analysisId;
         this.analysisResponse = analysisResponse;
     }
 }

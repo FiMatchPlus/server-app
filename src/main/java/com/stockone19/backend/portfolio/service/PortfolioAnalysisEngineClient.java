@@ -68,14 +68,14 @@ public class PortfolioAnalysisEngineClient {
                 .bodyToMono(PortfolioAnalysisStartResponse.class)
                 .block();
 
-            log.info("Portfolio analysis submitted to engine: portfolioId={}, analysisId={}",
-                    portfolioId, response.analysisId());
+            log.info("Portfolio analysis submitted to engine: portfolioId={}, status={}, message={}",
+                    portfolioId, response.status(), response.message());
 
         } catch (Exception e) {
             log.error("Failed to submit portfolio analysis to engine: portfolioId={}", portfolioId, e);
             // 실패 이벤트 발행하여 상태 업데이트 트리거
             try {
-                eventPublisher.publishEvent(new PortfolioAnalysisFailureEvent(portfolioId, null, e.getMessage()));
+                eventPublisher.publishEvent(new PortfolioAnalysisFailureEvent(portfolioId,  e.getMessage()));
             } catch (Exception publishError) {
                 log.warn("Failed to publish PortfolioAnalysisFailureEvent for portfolioId: {} - {}", portfolioId, publishError.getMessage());
             }

@@ -36,42 +36,38 @@ public class PortfolioAnalysisController {
             HttpServletRequest request) {
         
         String clientIP = getClientIP(request);
-        Long analysisId = analysisResponse.metadata() != null ? analysisResponse.metadata().analysisId() : null;
-        log.info("Portfolio analysis callback received from IP: {}, analysisId: {}, success: {}", 
-                clientIP, analysisId, analysisResponse.success());
+        log.info("Portfolio analysis callback received from IP: {}, success: {}", 
+                clientIP, analysisResponse.success());
         
         try {
-            // 분석 ID와 포트폴리오 ID 확인 (metadata에서 추출)
+            // 포트폴리오 ID 확인 (metadata에서 추출)
             Long portfolioId = analysisResponse.metadata() != null ? analysisResponse.metadata().portfolioId() : null;
-            
-            if (analysisId == null || portfolioId == null) {
-                log.error("Missing analysisId or portfolioId in callback - analysisId: {}, portfolioId: {}", 
-                        analysisId, portfolioId);
+            if (portfolioId == null) {
+                log.error("Missing portfolioId in callback");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
             }
             
             if (Boolean.TRUE.equals(analysisResponse.success())) {
                 // 성공 처리 - 이벤트 발행
                 PortfolioAnalysisSuccessEvent successEvent = new PortfolioAnalysisSuccessEvent(
-                        portfolioId, analysisId, analysisResponse);
+                        portfolioId, analysisResponse);
                 applicationEventPublisher.publishEvent(successEvent);
                 
-                log.info("Portfolio analysis success event published - portfolioId: {}, analysisId: {}", 
-                        portfolioId, analysisId);
+                log.info("Portfolio analysis success event published - portfolioId: {}", 
+                        portfolioId);
             } else {
                 // 실패 처리 - 이벤트 발행
                 PortfolioAnalysisFailureEvent failureEvent = new PortfolioAnalysisFailureEvent(
-                        portfolioId, analysisId, "Portfolio analysis failed");
+                        portfolioId, "Portfolio analysis failed");
                 applicationEventPublisher.publishEvent(failureEvent);
                 
-                log.warn("Portfolio analysis failure event published - portfolioId: {}, analysisId: {}", 
-                        portfolioId, analysisId);
+                log.warn("Portfolio analysis failure event published - portfolioId: {}", 
+                        portfolioId);
             }
             
             return ResponseEntity.ok().build();
         } catch (Exception error) {
-            log.error("Error processing portfolio analysis callback for analysisId: {}", 
-                    analysisId, error);
+            log.error("Error processing portfolio analysis callback", error);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
