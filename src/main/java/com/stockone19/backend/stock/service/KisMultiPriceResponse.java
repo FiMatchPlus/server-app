@@ -1,14 +1,17 @@
 package com.stockone19.backend.stock.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record KisMultiPriceResponse(
         @JsonProperty("rt_cd") String rtCd,
         @JsonProperty("msg_cd") String msgCd,
         @JsonProperty("msg1") String msg1,
         @JsonProperty("output") List<ResponseBodyOutput> output
 ) {
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record ResponseBodyOutput(
             @JsonProperty("inter_shrn_iscd") String interShrnIscd,        // 종목코드
             @JsonProperty("inter_kor_isnm") String interKorIsnm,          // 종목 한글명
