@@ -103,7 +103,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     private Portfolio insert(Portfolio portfolio) {
         String sql = """
             INSERT INTO portfolios (name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -132,7 +132,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     private Portfolio update(Portfolio portfolio) {
         String sql = """
             UPDATE portfolios
-            SET name = ?, description = ?, rule_id = ?, is_main = ?, updated_at = ?, status = ?, analysis_result = ?
+            SET name = ?, description = ?, rule_id = ?, is_main = ?, updated_at = ?, status = ?, analysis_result = ?::jsonb
             WHERE id = ?
             """;
 
