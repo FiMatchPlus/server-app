@@ -11,13 +11,11 @@ import org.springframework.context.ApplicationEvent;
 public class PortfolioAnalysisFailureEvent extends ApplicationEvent {
     
     private final Long portfolioId;
-    private final Long analysisId;
     private final String errorMessage;
     
-    public PortfolioAnalysisFailureEvent(Long portfolioId, Long analysisId, String errorMessage) {
+    public PortfolioAnalysisFailureEvent(Long portfolioId, String errorMessage) {
         super(errorMessage);
         this.portfolioId = portfolioId;
-        this.analysisId = analysisId;
         this.errorMessage = errorMessage;
     }
 }

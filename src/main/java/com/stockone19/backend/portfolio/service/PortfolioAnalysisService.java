@@ -79,8 +79,8 @@ public class PortfolioAnalysisService {
     @Async("backgroundTaskExecutor")
     @Transactional(propagation = REQUIRES_NEW)
     public CompletableFuture<Void> handlePortfolioAnalysisSuccess(PortfolioAnalysisSuccessEvent event) {
-        log.info("Processing portfolio analysis success - portfolioId: {}, analysisId: {}", 
-                event.getPortfolioId(), event.getAnalysisId());
+        log.info("Processing portfolio analysis success - portfolioId: {}", 
+                event.getPortfolioId());
         
         try {
             PortfolioAnalysisResponse analysisResponse = event.getAnalysisResponse();
@@ -98,12 +98,12 @@ public class PortfolioAnalysisService {
             // 4. LLM을 사용하여 분석 리포트 생성 (비동기)
             generatePortfolioAnalysisReport(event.getPortfolioId(), analysisResultJson);
             
-            log.info("Portfolio analysis processing completed - portfolioId: {}, analysisId: {}", 
-                    event.getPortfolioId(), event.getAnalysisId());
+            log.info("Portfolio analysis processing completed - portfolioId: {}", 
+                    event.getPortfolioId());
             
         } catch (Exception e) {
-            log.error("Failed to process portfolio analysis success - portfolioId: {}, analysisId: {}", 
-                    event.getPortfolioId(), event.getAnalysisId(), e);
+            log.error("Failed to process portfolio analysis success - portfolioId: {}", 
+                    event.getPortfolioId(), e);
             
             // 분석 처리 실패 시 포트폴리오 상태를 FAILED로 업데이트
             try {
@@ -125,8 +125,8 @@ public class PortfolioAnalysisService {
     @Async("backgroundTaskExecutor")
     @Transactional(propagation = REQUIRES_NEW)
     public CompletableFuture<Void> handlePortfolioAnalysisFailure(PortfolioAnalysisFailureEvent event) {
-        log.error("Portfolio analysis failed - portfolioId: {}, analysisId: {}, error: {}", 
-                event.getPortfolioId(), event.getAnalysisId(), event.getErrorMessage());
+        log.error("Portfolio analysis failed - portfolioId: {}, error: {}", 
+                event.getPortfolioId(), event.getErrorMessage());
         
         try {
             // 포트폴리오 상태를 FAILED로 업데이트

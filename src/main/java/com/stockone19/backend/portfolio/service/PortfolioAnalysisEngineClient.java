@@ -6,10 +6,12 @@ import com.stockone19.backend.portfolio.domain.Portfolio;
 import com.stockone19.backend.portfolio.dto.PortfolioAnalysisRequest;
 import com.stockone19.backend.portfolio.dto.PortfolioAnalysisStartResponse;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
+import com.stockone19.backend.portfolio.event.PortfolioAnalysisFailureEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -28,6 +30,7 @@ public class PortfolioAnalysisEngineClient {
 
     private final PortfolioRepository portfolioRepository;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Qualifier("portfolioAnalysisEngineWebClient")
     private final WebClient portfolioAnalysisEngineWebClient;
@@ -65,11 +68,17 @@ public class PortfolioAnalysisEngineClient {
                 .bodyToMono(PortfolioAnalysisStartResponse.class)
                 .block();
 
-            log.info("Portfolio analysis submitted to engine: portfolioId={}, analysisId={}",
-                    portfolioId, response.analysisId());
+            log.info("Portfolio analysis submitted to engine: portfolioId={}, status={}, message={}",
+                    portfolioId, response.status(), response.message());
 
         } catch (Exception e) {
             log.error("Failed to submit portfolio analysis to engine: portfolioId={}", portfolioId, e);
+            // 실패 이벤트 발행하여 상태 업데이트 트리거
+            try {
+                eventPublisher.publishEvent(new PortfolioAnalysisFailureEvent(portfolioId,  e.getMessage()));
+            } catch (Exception publishError) {
+                log.warn("Failed to publish PortfolioAnalysisFailureEvent for portfolioId: {} - {}", portfolioId, publishError.getMessage());
+            }
         }
 
         return CompletableFuture.completedFuture(null);

@@ -43,9 +43,6 @@ public record PortfolioAnalysisResponse(
         @JsonProperty("execution_time")
         Double executionTime,
         
-        @JsonProperty("analysis_id")
-        Long analysisId,
-        
         @JsonProperty("portfolio_id")
         Long portfolioId,
         
