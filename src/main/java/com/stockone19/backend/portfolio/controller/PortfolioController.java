@@ -2,7 +2,8 @@ package com.stockone19.backend.portfolio.controller;
 
 import com.stockone19.backend.common.dto.ApiResponse;
 import com.stockone19.backend.portfolio.dto.*;
-import com.stockone19.backend.portfolio.service.PortfolioService;
+import com.stockone19.backend.portfolio.service.PortfolioCommandService;
+import com.stockone19.backend.portfolio.service.PortfolioQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/portfolios")
 public class PortfolioController {
 
-    private final PortfolioService portfolioService;
+    private final PortfolioCommandService portfolioCommandService;
+    private final PortfolioQueryService portfolioQueryService;
 
     /**
      * 사용자 포트폴리오 통합 합계 정보 조회 (포트폴리오 페이지 헤더)
@@ -29,7 +31,7 @@ public class PortfolioController {
         Long userId = 1L; // 고정된 userId 값 (나중에 인증/인가 로직 추가 예정)
         log.info("GET /api/portfolios/summary - userId: {}", userId);
 
-        PortfolioSummaryResponse response = portfolioService.getPortfolioSummary(userId);
+        PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(userId);
         return ApiResponse.success("포트폴리오 통합 정보를 조회합니다", response);
     }
 
@@ -46,7 +48,7 @@ public class PortfolioController {
             @Valid @RequestBody CreatePortfolioRequest request) {
         log.info("POST /api/portfolios - name: {}", request.name());
         Long userId = 1L; // 고정된 userId 값
-        CreatePortfolioResult data = portfolioService.createPortfolio(userId, request);
+        CreatePortfolioResult data = portfolioCommandService.createPortfolio(userId, request);
         return ApiResponse.success("새로운 포트폴리오를 생성합니다", data);
     }
 
@@ -65,7 +67,7 @@ public class PortfolioController {
         Long userId = 1L; // 고정된 userId 값 (나중에 인증/인가 로직 추가 예정)
         log.info("GET /api/portfolios/main - userId: {}", userId);
 
-        PortfolioShortResponse response = portfolioService.getMainPortfolioShort(userId);
+        PortfolioShortResponse response = portfolioQueryService.getMainPortfolioShort(userId);
         return ApiResponse.success("대표 포트폴리오 조회", response);
     }
 
@@ -81,8 +83,23 @@ public class PortfolioController {
     public ApiResponse<PortfolioLongResponse> getPortfolioLong(@PathVariable Long portfolioId) {
         log.info("GET /api/portfolios/{}/long", portfolioId);
 
-        PortfolioLongResponse response = portfolioService.getPortfolioLong(portfolioId);
+        PortfolioLongResponse response = portfolioQueryService.getPortfolioLong(portfolioId);
         return ApiResponse.success("단일 포트폴리오 조회", response);
+    }
+
+    /**
+     * 포트폴리오 분석 결과만 조회
+     * <ul>
+     *     <li>분석 상태 (PENDING, RUNNING, COMPLETED, FAILED)</li>
+     *     <li>분석 결과 (전략별 위험도, 비중 등)</li>
+     * </ul>
+     * */
+    @GetMapping("/{portfolioId}/analysis")
+    public ApiResponse<PortfolioLongResponse.AnalysisDetail> getPortfolioAnalysis(@PathVariable Long portfolioId) {
+        log.info("GET /api/portfolios/{}/analysis", portfolioId);
+
+        PortfolioLongResponse.AnalysisDetail analysisDetail = portfolioQueryService.getPortfolioAnalysisDetail(portfolioId);
+        return ApiResponse.success("포트폴리오 분석 결과를 조회합니다", analysisDetail);
     }
 
     /**
@@ -101,7 +118,7 @@ public class PortfolioController {
         Long userId = 1L; // 고정된 userId 값
         log.info("GET /api/portfolios - userId: {}", userId);
 
-        PortfolioListResponse response = portfolioService.getPortfolioList(userId);
+        PortfolioListResponse response = portfolioQueryService.getPortfolioList(userId);
         return ApiResponse.success("사용자의 포트폴리오 목록을 조회합니다", response);
     }
 }
