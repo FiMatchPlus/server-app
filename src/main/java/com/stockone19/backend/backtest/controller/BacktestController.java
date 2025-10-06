@@ -1,5 +1,6 @@
 package com.stockone19.backend.backtest.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.dto.CreateBacktestRequest;
 import com.stockone19.backend.backtest.dto.CreateBacktestResult;
@@ -37,6 +38,7 @@ public class BacktestController {
     private final BacktestExecutionService backtestExecutionService;
     private final BacktestResponseMapper backtestResponseMapper;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final ObjectMapper objectMapper;
 
     /**
      * 백테스트 생성
@@ -152,14 +154,15 @@ public class BacktestController {
      */
     @PostMapping("/callback")
     public ResponseEntity<Object> handleBacktestCallback(
-            @RequestBody BacktestCallbackResponse callback,
+            @RequestBody String rawBody,
             HttpServletRequest request) {
         
         String clientIP = getClientIP(request);
-        log.info("Backtest callback received from IP: {}, jobId: {}, success: {}", 
-                clientIP, callback.jobId(), callback.success());
+        log.info("Backtest callback raw body from IP {}: {}", clientIP, rawBody);
         
         try {
+            BacktestCallbackResponse callback = objectMapper.readValue(rawBody, BacktestCallbackResponse.class);
+            log.info("Backtest callback parsed - jobId: {}, success: {}", callback.jobId(), callback.success());
             // 콜백에서 직접 backtestId 사용
             Long backtestId = callback.backtestId();
             if (backtestId == null) {
@@ -178,8 +181,8 @@ public class BacktestController {
             }
             return ResponseEntity.ok().build();
         } catch (Exception error) {
-            log.error("Error processing backtest callback for jobId: {}", callback.jobId(), error);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Error processing backtest callback. Raw body: {}", rawBody, error);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
     
