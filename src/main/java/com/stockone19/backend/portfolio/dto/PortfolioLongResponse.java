@@ -1,5 +1,6 @@
 package com.stockone19.backend.portfolio.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,9 @@ public record PortfolioLongResponse(
             List<RuleItemDetail> rebalance,
             List<RuleItemDetail> stopLoss,
             List<RuleItemDetail> takeProfit,
+            @JsonFormat(shape = JsonFormat.Shape.STRING)
             LocalDateTime createdAt,
+            @JsonFormat(shape = JsonFormat.Shape.STRING)
             LocalDateTime updatedAt
     ) {}
 
