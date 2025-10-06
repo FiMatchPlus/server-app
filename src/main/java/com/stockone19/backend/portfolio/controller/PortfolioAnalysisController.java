@@ -1,6 +1,4 @@
 package com.stockone19.backend.portfolio.controller;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stockone19.backend.portfolio.dto.PortfolioAnalysisResponse;
 import com.stockone19.backend.portfolio.event.PortfolioAnalysisSuccessEvent;
 import com.stockone19.backend.portfolio.event.PortfolioAnalysisFailureEvent;
@@ -26,7 +24,6 @@ public class PortfolioAnalysisController {
 
     private final ApplicationEventPublisher applicationEventPublisher;
     private final PortfolioAnalysisService portfolioAnalysisService;
-    private final ObjectMapper objectMapper;
 
     /**
      * 포트폴리오 분석 엔진에서 콜백 수신
@@ -34,15 +31,13 @@ public class PortfolioAnalysisController {
      */
     @PostMapping("/callback")
     public ResponseEntity<Object> handlePortfolioAnalysisCallback(
-            @RequestBody String rawBody,
+            @RequestBody PortfolioAnalysisResponse analysisResponse,
             HttpServletRequest request) {
         
         String clientIP = getClientIP(request);
-        log.info("Portfolio analysis callback raw body from IP {}: {}", clientIP, rawBody);
         
         try {
-            PortfolioAnalysisResponse analysisResponse = objectMapper.readValue(rawBody, PortfolioAnalysisResponse.class);
-            log.info("Portfolio analysis callback parsed - success: {}", analysisResponse.success());
+            log.info("Portfolio analysis callback received - ip: {}, success: {}", clientIP, analysisResponse.success());
             // 포트폴리오 ID 확인 (metadata에서 추출)
             Long portfolioId = analysisResponse.metadata() != null ? analysisResponse.metadata().portfolioId() : null;
             if (portfolioId == null) {
@@ -70,7 +65,7 @@ public class PortfolioAnalysisController {
             
             return ResponseEntity.ok().build();
         } catch (Exception error) {
-            log.error("Error processing portfolio analysis callback. Raw body: {}", rawBody, error);
+            log.error("Error processing portfolio analysis callback", error);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
