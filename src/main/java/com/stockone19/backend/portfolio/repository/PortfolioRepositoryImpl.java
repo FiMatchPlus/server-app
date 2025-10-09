@@ -31,7 +31,8 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             rs.getTimestamp("updated_at").toLocalDateTime(),
             rs.getLong("user_id"),
             rs.getString("status") != null ? Portfolio.PortfolioStatus.valueOf(rs.getString("status")) : null,
-            rs.getString("analysis_result")
+            rs.getString("analysis_result"),
+            rs.getString("report_result")
     );
 
     private static final RowMapper<Holding> HOLDING_ROW_MAPPER = (rs, rowNum) -> {
@@ -58,7 +59,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     @Override
     public List<Portfolio> findByUserId(Long userId) {
         String sql = """
-            SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result
+            SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result, report_result
             FROM portfolios
             WHERE user_id = ?
             ORDER BY CASE WHEN is_main = 'Y' THEN 0 ELSE 1 END, created_at DESC
@@ -70,7 +71,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     @Override
     public Optional<Portfolio> findById(Long portfolioId) {
         String sql = """
-            SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result
+            SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result, report_result
             FROM portfolios
             WHERE id = ?
             """;
@@ -82,7 +83,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     @Override
     public Optional<Portfolio> findMainPortfolioByUserId(Long userId) {
         String sql = """
-            SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result
+            SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result, report_result
             FROM portfolios
             WHERE user_id = ? AND is_main = 'Y'
             """;
@@ -102,8 +103,8 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
 
     private Portfolio insert(Portfolio portfolio) {
         String sql = """
-            INSERT INTO portfolios (name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+            INSERT INTO portfolios (name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result, report_result)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -118,6 +119,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
             ps.setLong(7, portfolio.userId());
             ps.setString(8, portfolio.status() != null ? portfolio.status().name() : null);
             ps.setString(9, portfolio.analysisResult());
+            ps.setString(10, portfolio.reportResult());
             return ps;
         }, keyHolder);
 
@@ -125,14 +127,14 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
         return Portfolio.of(
                 id, portfolio.name(), portfolio.description(), portfolio.ruleId(),
                 portfolio.isMain(), portfolio.createdAt(), portfolio.updatedAt(), portfolio.userId(),
-                portfolio.status(), portfolio.analysisResult()
+                portfolio.status(), portfolio.analysisResult(), portfolio.reportResult()
         );
     }
 
     private Portfolio update(Portfolio portfolio) {
         String sql = """
             UPDATE portfolios
-            SET name = ?, description = ?, rule_id = ?, is_main = ?, updated_at = ?, status = ?, analysis_result = ?::jsonb
+            SET name = ?, description = ?, rule_id = ?, is_main = ?, updated_at = ?, status = ?, analysis_result = ?::jsonb, report_result = ?::jsonb
             WHERE id = ?
             """;
 
@@ -141,6 +143,7 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
                 portfolio.isMain() ? "Y" : "N", java.sql.Timestamp.valueOf(portfolio.updatedAt()), 
                 portfolio.status() != null ? portfolio.status().name() : null,
                 portfolio.analysisResult(),
+                portfolio.reportResult(),
                 portfolio.id()
         );
 

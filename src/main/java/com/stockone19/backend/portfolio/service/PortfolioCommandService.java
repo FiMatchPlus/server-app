@@ -130,6 +130,20 @@ public class PortfolioCommandService {
     }
 
     /**
+     * 포트폴리오 레포트 결과 저장
+     */
+    public void savePortfolioReportResult(Long portfolioId, String reportResult) {
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
+        
+        Portfolio updatedPortfolio = portfolio.withReportResult(reportResult);
+        portfolioRepository.save(updatedPortfolio);
+        
+        log.info("Saved portfolio report result - portfolioId: {}, report length: {}", 
+                portfolioId, reportResult != null ? reportResult.length() : 0);
+    }
+
+    /**
      * 포트폴리오 ID로 포트폴리오 조회 (읽기 전용)
      */
     @Transactional(readOnly = true)
