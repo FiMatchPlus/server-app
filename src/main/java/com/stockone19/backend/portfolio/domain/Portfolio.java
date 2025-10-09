@@ -12,7 +12,8 @@ public record Portfolio(
         LocalDateTime updatedAt,
         Long userId,
         PortfolioStatus status,
-        String analysisResult
+        String analysisResult,
+        String reportResult
 ) {
 
     public enum PortfolioStatus {
@@ -32,10 +33,11 @@ public record Portfolio(
             LocalDateTime updatedAt,
             Long userId,
             PortfolioStatus status,
-            String analysisResult
+            String analysisResult,
+            String reportResult
     ) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
         );
     }
 
@@ -49,37 +51,49 @@ public record Portfolio(
         LocalDateTime now = LocalDateTime.now();
         return new Portfolio(
                 null, name, description, ruleId, isMain, now, now, userId, 
-                PortfolioStatus.PENDING, null
+                PortfolioStatus.PENDING, null, null
         );
     }
 
     public Portfolio withId(Long id) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
         );
     }
 
     public Portfolio withUpdatedAt(LocalDateTime updatedAt) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
         );
     }
 
     public Portfolio withStatus(PortfolioStatus status) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
         );
     }
 
     public Portfolio withAnalysisResult(String analysisResult) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
         );
     }
 
     public Portfolio withStatusAndResult(PortfolioStatus status, String analysisResult) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+        );
+    }
+
+    public Portfolio withReportResult(String reportResult) {
+        return new Portfolio(
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+        );
+    }
+
+    public Portfolio withStatusAndReports(PortfolioStatus status, String analysisResult, String reportResult) {
+        return new Portfolio(
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
         );
     }
 }

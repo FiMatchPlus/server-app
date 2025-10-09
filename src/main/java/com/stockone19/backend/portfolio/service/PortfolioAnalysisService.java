@@ -180,7 +180,10 @@ public class PortfolioAnalysisService {
             // LLM을 사용하여 분석 리포트 생성
             String report = portfolioReportService.generateOptimizationInsightFromAnalysis(analysisResultJson);
             
-            log.info("Portfolio analysis report generated successfully - portfolioId: {}, report length: {}", 
+            // DB에 레포트 저장
+            portfolioCommandService.savePortfolioReportResult(portfolioId, report);
+            
+            log.info("Portfolio analysis report generated and saved successfully - portfolioId: {}, report length: {}", 
                     portfolioId, report.length());
             
             return CompletableFuture.completedFuture(report);
@@ -193,7 +196,7 @@ public class PortfolioAnalysisService {
 
     /**
      * 포트폴리오 분석 리포트 수동 생성
-     * DB에서 저장된 분석 결과를 조회하여 LLM 리포트 생성
+     * DB에서 저장된 분석 결과를 조회하여 LLM 리포트 생성 후 저장
      */
     public String generatePortfolioAnalysisReportFromDb(Long portfolioId) {
         log.info("Manually generating portfolio analysis report for portfolioId: {}", portfolioId);
@@ -209,7 +212,10 @@ public class PortfolioAnalysisService {
             // LLM을 사용하여 분석 리포트 생성
             String report = portfolioReportService.generateOptimizationInsightFromAnalysis(portfolio.analysisResult());
             
-            log.info("Portfolio analysis report generated successfully from DB - portfolioId: {}, report length: {}", 
+            // DB에 레포트 저장
+            portfolioCommandService.savePortfolioReportResult(portfolioId, report);
+            
+            log.info("Portfolio analysis report generated and saved successfully from DB - portfolioId: {}, report length: {}", 
                     portfolioId, report.length());
             
             return report;
