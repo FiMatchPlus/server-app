@@ -30,7 +30,7 @@ public class PortfolioReportService {
             String optimizationPrompt = promptTemplateService.buildPortfolioOptimizationPrompt(analysisData);
 
             // AI 서비스를 사용하여 인사이트 리포트 생성
-            return reportAIService.generateResponse(
+            String report = reportAIService.generateResponse(
                     """
                             당신은 포트폴리오 최적화 전문가이자 친절한 투자 상담사입니다.
                             금융 지식이 많지 않은 일반 투자자가 **포스트 모던 포트폴리오 이론(PMPT)** 기반의 최적화 결과를 이해하고,
@@ -42,10 +42,42 @@ public class PortfolioReportService {
                     optimizationPrompt
             );
 
+            // 마크다운 코드 블록 제거 및 순수 JSON 추출
+            return extractJsonFromMarkdown(report);
+
         } catch (Exception e) {
             log.error("Failed to generate portfolio optimization insight from analysis data", e);
             throw new RuntimeException("포트폴리오 최적화 인사이트 생성에 실패했습니다.", e);
         }
+    }
+
+    /**
+     * 마크다운 코드 블록에서 JSON 추출
+     * LLM이 ```json ... ``` 형식으로 반환하는 경우 순수 JSON만 추출
+     */
+    private String extractJsonFromMarkdown(String response) {
+        if (response == null || response.trim().isEmpty()) {
+            return response;
+        }
+        
+        String trimmed = response.trim();
+        
+        // 마크다운 코드 블록 패턴: ```json ... ``` 또는 ``` ... ```
+        if (trimmed.startsWith("```")) {
+            // 첫 번째 줄 제거 (```json 또는 ```)
+            int firstNewline = trimmed.indexOf('\n');
+            if (firstNewline != -1) {
+                trimmed = trimmed.substring(firstNewline + 1);
+            }
+            
+            // 마지막 ``` 제거
+            int lastBackticks = trimmed.lastIndexOf("```");
+            if (lastBackticks != -1) {
+                trimmed = trimmed.substring(0, lastBackticks);
+            }
+        }
+        
+        return trimmed.trim();
     }
 
 }
