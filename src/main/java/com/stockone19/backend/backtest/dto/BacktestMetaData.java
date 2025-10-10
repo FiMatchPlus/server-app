@@ -1,7 +1,8 @@
 package com.stockone19.backend.backtest.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.stockone19.backend.portfolio.domain.Rules;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.stockone19.backend.backtest.service.BacktestRuleDocument;
 
 import java.time.LocalDateTime;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
  * 백테스트 메타데이터 (설정 정보)
  * 백테스트 생성 시 설정한 정보들을 반환
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record BacktestMetaData(
         Long backtestId,
         Long portfolioId,
@@ -26,7 +28,7 @@ public record BacktestMetaData(
         
         String benchmarkCode,
         BacktestStatus status,
-        Rules rules
+        BacktestRuleDocument rules
 ) {
     
     /**
@@ -42,7 +44,7 @@ public record BacktestMetaData(
             LocalDateTime createdAt,
             String benchmarkCode,
             BacktestStatus status,
-            Rules rules
+            BacktestRuleDocument rules
     ) {
         return new BacktestMetaData(
                 backtestId,

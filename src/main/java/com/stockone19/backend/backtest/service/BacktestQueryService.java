@@ -14,8 +14,7 @@ import com.stockone19.backend.backtest.repository.BenchmarkPriceRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.stock.domain.Stock;
 import com.stockone19.backend.stock.repository.StockRepository;
-import com.stockone19.backend.portfolio.domain.Rules;
-import com.stockone19.backend.portfolio.repository.RulesRepository;
+import com.stockone19.backend.backtest.repository.BacktestRuleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,7 +37,7 @@ public class BacktestQueryService {
     private final SnapshotRepository snapshotRepository;
     private final StockRepository stockRepository;
     private final BenchmarkPriceRepository benchmarkPriceRepository;
-    private final RulesRepository rulesRepository;
+    private final BacktestRuleRepository backtestRuleRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -51,7 +50,7 @@ public class BacktestQueryService {
         log.info("Getting backtest metadata for backtestId: {}", backtestId);
 
         Backtest backtest = findBacktestById(backtestId);
-        Rules rule = getRuleById(backtest.getRuleId());
+        BacktestRuleDocument rule = getBacktestRuleById(backtest.getRuleId());
 
         return BacktestMetaData.of(
                 backtest.getId(),
@@ -104,7 +103,7 @@ public class BacktestQueryService {
         List<BacktestDetailResponse.HoldingData> holdings = createHoldingDataOptimized(latestHoldingSnapshots, stockCodeToNameMap);
 
         // Rule 정보 조회
-        Rules rule = getRuleById(backtest.getRuleId());
+        BacktestRuleDocument rule = getBacktestRuleById(backtest.getRuleId());
 
         return BacktestDetailResponse.of(
                 latestSnapshot.id().toString(),  // history_id
@@ -131,19 +130,19 @@ public class BacktestQueryService {
     }
 
     /**
-     * Rule 정보 조회
+     * 백테스트 Rule 정보 조회 (test 컬렉션에서 조회)
      * rule_id가 null이거나 존재하지 않는 경우 null 반환
      */
-    private Rules getRuleById(String ruleId) {
+    private BacktestRuleDocument getBacktestRuleById(String ruleId) {
         if (ruleId == null || ruleId.trim().isEmpty()) {
-            log.debug("Rule ID is null or empty, returning null");
+            log.debug("Backtest Rule ID is null or empty, returning null");
             return null;
         }
 
         try {
-            return rulesRepository.findById(ruleId).orElse(null);
+            return backtestRuleRepository.findById(ruleId).orElse(null);
         } catch (Exception e) {
-            log.warn("Failed to fetch rule with id: {}, returning null", ruleId, e);
+            log.warn("Failed to fetch backtest rule with id: {}, returning null", ruleId, e);
             return null;
         }
     }
