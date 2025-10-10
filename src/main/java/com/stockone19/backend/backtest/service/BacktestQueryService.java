@@ -7,6 +7,7 @@ import com.stockone19.backend.backtest.domain.BenchmarkPrice;
 import com.stockone19.backend.backtest.domain.BenchmarkIndex;
 import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
 import com.stockone19.backend.backtest.dto.BacktestMetrics;
+import com.stockone19.backend.backtest.dto.BacktestMetaData;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.SnapshotRepository;
 import com.stockone19.backend.backtest.repository.BenchmarkPriceRepository;
@@ -41,7 +42,33 @@ public class BacktestQueryService {
     private final ObjectMapper objectMapper;
 
     /**
-     * 백테스트 상세 정보 조회 (새로운 응답 구조)
+     * 백테스트 메타데이터 조회
+     *
+     * @param backtestId 백테스트 ID
+     * @return 백테스트 메타데이터 (설정 정보)
+     */
+    public BacktestMetaData getBacktestMetaData(Long backtestId) {
+        log.info("Getting backtest metadata for backtestId: {}", backtestId);
+
+        Backtest backtest = findBacktestById(backtestId);
+        Rules rule = getRuleById(backtest.getRuleId());
+
+        return BacktestMetaData.of(
+                backtest.getId(),
+                backtest.getPortfolioId(),
+                backtest.getTitle(),
+                backtest.getDescription(),
+                backtest.getStartAt(),
+                backtest.getEndAt(),
+                backtest.getCreatedAt(),
+                backtest.getBenchmarkCode(),
+                backtest.getStatus(),
+                rule
+        );
+    }
+
+    /**
+     * 백테스트 결과 상세 정보 조회 (새로운 응답 구조)
      *
      * @param backtestId 백테스트 ID
      * @return 백테스트 상세 정보

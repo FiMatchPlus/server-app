@@ -19,14 +19,17 @@ public record BacktestExecutionRequest(
     String rebalanceFrequency, // "daily"
     @JsonProperty("callback_url")
     String callbackUrl, // 콜백 받을 URL
-    RulesRequest rules // 매매 규칙
+    RulesRequest rules, // 매매 규칙
+    @JsonProperty("benchmark_code")
+    String benchmarkCode // 벤치마크 지수 코드
 ) {
     public static BacktestExecutionRequest of(Long backtestId, LocalDateTime start, LocalDateTime end,
-                                              List<Holding> holdings, String callbackUrl, RulesRequest rules) {
+                                              List<Holding> holdings, String callbackUrl, RulesRequest rules, 
+                                              String benchmarkCode) {
         List<HoldingRequest> holdingRequests = holdings.stream()
                 .map(holding -> new HoldingRequest(holding.symbol(), holding.shares()))
                 .toList();
-        return new BacktestExecutionRequest(backtestId, start, end, holdingRequests, "daily", callbackUrl, rules);
+        return new BacktestExecutionRequest(backtestId, start, end, holdingRequests, "daily", callbackUrl, rules, benchmarkCode);
     }
     
     public record HoldingRequest(

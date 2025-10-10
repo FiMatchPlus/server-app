@@ -5,6 +5,7 @@ import com.stockone19.backend.backtest.dto.CreateBacktestResult;
 import com.stockone19.backend.backtest.dto.BacktestResponse;
 import com.stockone19.backend.backtest.dto.BacktestResponseMapper;
 import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
+import com.stockone19.backend.backtest.dto.BacktestMetaData;
 import com.stockone19.backend.backtest.service.BacktestService;
 import com.stockone19.backend.backtest.service.BacktestQueryService;
 import com.stockone19.backend.backtest.service.BacktestExecutionService;
@@ -78,6 +79,23 @@ public class BacktestController {
         List<BacktestResponse> responses = backtestResponseMapper.toResponseList(backtests);
         
         return ApiResponse.success("포트폴리오 백테스트 목록을 조회했습니다", responses);
+    }
+
+    /**
+     * 백테스트 메타데이터 조회 (설정 정보만)
+     * <ul>
+     *     <li>백테스트 생성 시 설정한 정보들만 조회</li>
+     *     <li>제목, 설명, 기간, 벤치마크, 매매 규칙 등 포함</li>
+     * </ul>
+     */
+    @GetMapping("/{backtestId}/metadata")
+    public ApiResponse<BacktestMetaData> getBacktestMetaData(@PathVariable Long backtestId) {
+        
+        log.info("GET /api/backtests/{}/metadata", backtestId);
+        
+        BacktestMetaData response = backtestQueryService.getBacktestMetaData(backtestId);
+        
+        return ApiResponse.success("백테스트 메타데이터 조회 성공", response);
     }
 
     /**
