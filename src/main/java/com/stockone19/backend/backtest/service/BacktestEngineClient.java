@@ -108,7 +108,8 @@ public class BacktestEngineClient {
                 backtest.getEndAt(),
                 holdings,
                 callbackBaseUrl + "/backtests/callback",
-                rules
+                rules,
+                backtest.getBenchmarkCode()
             );
 
         } catch (Exception e) {
