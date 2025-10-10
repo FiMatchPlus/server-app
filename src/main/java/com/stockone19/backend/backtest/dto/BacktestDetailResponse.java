@@ -2,7 +2,7 @@ package com.stockone19.backend.backtest.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.stockone19.backend.portfolio.domain.Rules;
+import com.stockone19.backend.backtest.service.BacktestRuleDocument;
 
 import java.util.List;
 import java.util.Map;
@@ -23,7 +23,7 @@ public record BacktestDetailResponse(
         List<BenchmarkData> benchmarkData,  // 벤치마크 일별 데이터
         List<HoldingData> holdings,         // 포트폴리오 보유 정보
         String report,         // 마크다운 형식의 전체 레포트
-        Rules rule             // 매매 규칙 정보 (null일 수 있음)
+        BacktestRuleDocument rule             // 매매 규칙 정보 (null일 수 있음)
 ) {
     
     /**
@@ -68,7 +68,7 @@ public record BacktestDetailResponse(
             List<BenchmarkData> benchmarkData,
             List<HoldingData> holdings,
             String report,
-            Rules rule
+            BacktestRuleDocument rule
     ) {
         return new BacktestDetailResponse(
                 historyId, name, period, executionTime, benchmarkCode, benchmarkName,
