@@ -12,7 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -87,11 +90,11 @@ public class PortfolioAnalysisDetailService {
         // 분석 기간 추출
         PortfolioAnalysisDetailResponse.AnalysisPeriod analysisPeriod = 
                 new PortfolioAnalysisDetailResponse.AnalysisPeriod(
-                        analysisResponse.metadata().period().start(),
-                        analysisResponse.metadata().period().end()
+                        formatDate(analysisResponse.metadata().period().start()),
+                        formatDate(analysisResponse.metadata().period().end())
                 );
 
-        // 인사이트를 type별로 매핑 (빠른 조회를 위해)
+        // 인사이트를 type별로 매핑
         Map<String, PortfolioInsightReport.PortfolioInsight> insightMap = new HashMap<>();
         if (insightReport != null && insightReport.portfolioInsights() != null) {
             insightMap = insightReport.portfolioInsights().stream()
@@ -108,11 +111,11 @@ public class PortfolioAnalysisDetailService {
         if (analysisResponse.portfolios() != null) {
             for (PortfolioAnalysisResponse.PortfolioStrategyResponse portfolioStrategy : analysisResponse.portfolios()) {
                 String type = portfolioStrategy.type();
-                
-                // 인사이트 조회 (없을 수 있음)
+
+                // 인사이트 조회
                 PortfolioInsightReport.PortfolioInsight insight = insightMap.get(type);
-                
-                // risk_level 변환 (한국어 → 영어)
+
+                // risk_level 변환
                 String riskLevel = null;
                 List<String> strengths = null;
                 List<String> weaknesses = null;
@@ -134,7 +137,7 @@ public class PortfolioAnalysisDetailService {
                 // 포트폴리오 결과 생성
                 PortfolioAnalysisDetailResponse.PortfolioResult result = 
                         new PortfolioAnalysisDetailResponse.PortfolioResult(
-                                type,
+                                getDisplayName(type),
                                 riskLevel,
                                 portfolioStrategy.weights(),
                                 metrics,
@@ -171,6 +174,42 @@ public class PortfolioAnalysisDetailService {
             default -> {
                 log.warn("Unknown risk level: {}", koreanRiskLevel);
                 yield null;
+            }
+        };
+    }
+
+    /**
+     * 날짜 문자열을 yyyy-MM-dd 형식으로 변환
+     * 입력 형식: "2022-04-25T16:13:47.046744" -> 출력: "2022-04-25"
+     */
+    private String formatDate(String dateString) {
+        if (dateString == null || dateString.trim().isEmpty()) {
+            return dateString;
+        }
+        
+        // "2022-04-25T16:13:47.046744" 형식에서 'T' 앞부분만 추출
+        if (dateString.contains("T")) {
+            return dateString.substring(0, 10);
+        }
+        
+        return dateString;
+    }
+    
+    /**
+     * 포트폴리오 type 제목 변환
+     */
+    private String getDisplayName(String type) {
+        if (type == null) {
+            return null;
+        }
+        
+        return switch (type.toLowerCase()) {
+            case "user" -> "내 포트폴리오";
+            case "min-variance" -> "리스크 최소화";
+            case "max-sharpe" -> "위험 대비 수익 최적화";
+            default -> {
+                log.warn("Unknown portfolio type: {}", type);
+                yield type;
             }
         };
     }
