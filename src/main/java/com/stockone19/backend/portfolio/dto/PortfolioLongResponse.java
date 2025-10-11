@@ -53,7 +53,7 @@ public record PortfolioLongResponse(
     ) {}
 
     public record AnalysisResult(
-            String type,
+            String type,  // 내 포트폴리오, 리스크 최소화, 위험 대비 수익 최적화
             String riskLevel,
             Map<String, Double> holdings
     ) {}

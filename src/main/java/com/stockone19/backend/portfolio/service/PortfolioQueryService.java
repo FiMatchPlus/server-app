@@ -604,9 +604,31 @@ public class PortfolioQueryService {
         String riskLevel = portfolioCalculator.calculateRiskLevel(strategy.metrics().downsideDeviation());
 
         return new PortfolioLongResponse.AnalysisResult(
-                strategy.type(),
+                convertTypeName(strategy.type()),
                 riskLevel,
                 strategy.weights()
         );
+    }
+    
+    /**
+     * 포트폴리오 타입을 한국어 이름으로 변환
+     * user -> 내 포트폴리오
+     * min-variance -> 리스크 최소화
+     * max-sharpe -> 위험 대비 수익 최적화
+     */
+    private String convertTypeName(String type) {
+        if (type == null) {
+            return null;
+        }
+        
+        return switch (type.toLowerCase()) {
+            case "user" -> "내 포트폴리오";
+            case "min-variance" -> "리스크 최소화";
+            case "max-sharpe" -> "위험 대비 수익 최적화";
+            default -> {
+                log.warn("Unknown portfolio type: {}", type);
+                yield type;
+            }
+        };
     }
 }
