@@ -8,6 +8,7 @@ import com.stockone19.backend.portfolio.service.PortfolioQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -111,7 +112,7 @@ public class PortfolioController {
      *     <li>포트폴리오 이름</li>
      *     <li>분석 날짜</li>
      *     <li>분석 기간 (시작일, 종료일)</li>
-     *     <li>결과 (user, min-variance, max-sharpe)</li>
+     *     <li>최적화 결과(사용자 지정, 리스크 최소화, 위험 대비 수익 최적화)</li>
      *     <li>각 포트폴리오별 위험도, 보유 비중, 성과지표, 강점, 약점</li>
      * </ul>
      * */
@@ -141,5 +142,39 @@ public class PortfolioController {
 
         PortfolioListResponse response = portfolioQueryService.getPortfolioList(userId);
         return ApiResponse.success("사용자의 포트폴리오 목록을 조회합니다", response);
+    }
+
+    /**
+     * 포트폴리오 수정
+     * <ul>
+     *     <li>포트폴리오 기본 정보 (이름, 설명)</li>
+     *     <li>보유 종목 정보 (종목 코드, 이름, 수량, 가격, 비중 등)</li>
+     *     <li>매매 규칙 (리밸런싱, 손절, 익절 전략)</li>
+     * </ul>
+     * */
+    @PutMapping("/{portfolioId}")
+    public ApiResponse<Void> updatePortfolio(
+            @PathVariable Long portfolioId,
+            @Valid @RequestBody UpdatePortfolioRequest request) {
+        log.info("PUT /api/portfolios/{} - name: {}", portfolioId, request.name());
+        Long userId = 1L; // 고정된 userId 값
+        portfolioCommandService.updatePortfolio(portfolioId, userId, request);
+        return ApiResponse.success("포트폴리오가 수정되었습니다", null);
+    }
+
+    /**
+     * 포트폴리오 삭제 (Soft Delete)
+     * <ul>
+     *     <li>포트폴리오를 논리적으로 삭제합니다 (deleted_at 컬럼에 삭제 시간 기록)</li>
+     *     <li>실제 데이터는 DB에 남아있어 복구가 가능합니다</li>
+     * </ul>
+     * */
+    @DeleteMapping("/{portfolioId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ApiResponse<Void> deletePortfolio(@PathVariable Long portfolioId) {
+        log.info("DELETE /api/portfolios/{}", portfolioId);
+        Long userId = 1L; // 고정된 userId 값
+        portfolioCommandService.deletePortfolio(portfolioId, userId);
+        return ApiResponse.success("포트폴리오가 삭제되었습니다", null);
     }
 }
