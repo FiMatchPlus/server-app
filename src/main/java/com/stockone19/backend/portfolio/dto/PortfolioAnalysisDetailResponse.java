@@ -23,7 +23,7 @@ public record PortfolioAnalysisDetailResponse(
     ) {}
     
     /**
-     * 포트폴리오 결과 (user, min-variance, max-sharpe)
+     * 포트폴리오 결과 (내 포트폴리오, 리스크 최소화, 위험 대비 수익 최적화)
      */
     public record PortfolioResult(
             String type,
