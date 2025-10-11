@@ -115,9 +115,9 @@ public class PortfolioController {
      *     <li>각 포트폴리오별 위험도, 보유 비중, 성과지표, 강점, 약점</li>
      * </ul>
      * */
-    @GetMapping("/{portfolioId}/detail")
+    @GetMapping("/{portfolioId}/analysis")
     public ApiResponse<PortfolioAnalysisDetailResponse> getPortfolioAnalysisDetail(@PathVariable Long portfolioId) {
-        log.info("GET /api/portfolios/{}/detail", portfolioId);
+        log.info("GET /api/portfolios/{}/analysis", portfolioId);
 
         PortfolioAnalysisDetailResponse response = portfolioAnalysisDetailService.getPortfolioAnalysisDetail(portfolioId);
         return ApiResponse.success("포트폴리오 분석 상세 정보를 조회합니다", response);
