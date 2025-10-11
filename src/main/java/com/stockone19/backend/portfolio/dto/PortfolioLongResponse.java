@@ -7,6 +7,8 @@ import java.util.Map;
 
 public record PortfolioLongResponse(
         Long portfolioId,
+        String name,
+        String description,
         List<HoldingDetail> holdings,
         String ruleId,
         RulesDetail rules,

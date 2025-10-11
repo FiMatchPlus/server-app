@@ -352,6 +352,8 @@ public class PortfolioService {
 
         return new PortfolioLongResponse(
                 data.portfolio().id(),
+                data.portfolio().name(),
+                data.portfolio().description(),
                 holdingDetails,
                 data.portfolio().ruleId(),
                 rulesDetail,
