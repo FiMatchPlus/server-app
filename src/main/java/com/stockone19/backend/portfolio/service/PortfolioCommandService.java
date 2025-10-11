@@ -152,10 +152,104 @@ public class PortfolioCommandService {
                 .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
     }
 
+    /**
+     * 포트폴리오 수정
+     *
+     * @param portfolioId 수정할 포트폴리오 ID
+     * @param userId 사용자 ID
+     * @param request 수정 요청
+     */
+    public void updatePortfolio(Long portfolioId, Long userId, com.stockone19.backend.portfolio.dto.UpdatePortfolioRequest request) {
+        log.info("Updating portfolio - portfolioId: {}, userId: {}, name: {}", portfolioId, userId, request.name());
+
+        // 1. 기존 포트폴리오 조회 및 권한 확인
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
+        
+        if (!portfolio.userId().equals(userId)) {
+            throw new ResourceNotFoundException("포트폴리오 수정 권한이 없습니다: " + portfolioId);
+        }
+
+        // 2. 기본 정보 업데이트
+        Portfolio updatedPortfolio = portfolio.withNameAndDescription(request.name(), request.description());
+        portfolioRepository.save(updatedPortfolio);
+
+        // 3. 기존 holdings 삭제
+        portfolioRepository.deleteHoldingsByPortfolioId(portfolioId);
+
+        // 4. 새로운 holdings 저장
+        if (request.holdings() != null && !request.holdings().isEmpty()) {
+            for (com.stockone19.backend.portfolio.dto.UpdatePortfolioRequest.HoldingRequest holdingRequest : request.holdings()) {
+                Holding holding = Holding.create(
+                        portfolioId,
+                        holdingRequest.symbol(),
+                        holdingRequest.shares(),
+                        holdingRequest.currentPrice(),
+                        holdingRequest.totalValue(),
+                        holdingRequest.change(),
+                        holdingRequest.changePercent(),
+                        holdingRequest.weight()
+                );
+                portfolioRepository.saveHolding(holding);
+            }
+        }
+
+        // 5. Rules 업데이트 (선택 사항)
+        if (request.rules() != null && portfolio.ruleId() != null) {
+            // Holdings 분석하여 벤치마크 결정
+            List<Holding> holdingsForAnalysis = convertUpdateHoldingsFromRequest(request.holdings());
+            BenchmarkIndex determinedBenchmark = benchmarkDeterminerService.determineBenchmark(holdingsForAnalysis);
+            
+            Rules rules = createRulesFromRequest(request.rules(), determinedBenchmark.getCode());
+            rules.setId(portfolio.ruleId()); // 기존 ruleId 사용
+            rulesRepository.save(rules);
+            log.info("Rules updated in MongoDB - ruleId: {}", portfolio.ruleId());
+        }
+
+        log.info("Portfolio updated successfully - portfolioId: {}", portfolioId);
+    }
+
+    /**
+     * 포트폴리오 삭제 (Soft Delete)
+     *
+     * @param portfolioId 삭제할 포트폴리오 ID
+     * @param userId 사용자 ID
+     */
+    public void deletePortfolio(Long portfolioId, Long userId) {
+        log.info("Deleting portfolio - portfolioId: {}, userId: {}", portfolioId, userId);
+
+        // 1. 기존 포트폴리오 조회 및 권한 확인
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
+        
+        if (!portfolio.userId().equals(userId)) {
+            throw new ResourceNotFoundException("포트폴리오 삭제 권한이 없습니다: " + portfolioId);
+        }
+
+        // 2. Soft delete 수행
+        portfolioRepository.softDelete(portfolioId);
+
+        log.info("Portfolio soft deleted successfully - portfolioId: {}", portfolioId);
+    }
+
     private Rules createRulesFromRequest(CreatePortfolioRequest.RulesRequest rulesRequest, String benchmarkCode) {
         List<Rules.RuleItem> rebalanceItems = getRuleItems(rulesRequest.rebalance());
         List<Rules.RuleItem> stopLossItems = getRuleItems(rulesRequest.stopLoss());
         List<Rules.RuleItem> takeProfitItems = getRuleItems(rulesRequest.takeProfit());
+
+        return new Rules(
+                rulesRequest.memo(),
+                rebalanceItems,
+                stopLossItems,
+                takeProfitItems,
+                benchmarkCode
+        );
+    }
+
+    private Rules createRulesFromRequest(com.stockone19.backend.portfolio.dto.UpdatePortfolioRequest.RulesRequest rulesRequest, String benchmarkCode) {
+        List<Rules.RuleItem> rebalanceItems = getUpdateRuleItems(rulesRequest.rebalance());
+        List<Rules.RuleItem> stopLossItems = getUpdateRuleItems(rulesRequest.stopLoss());
+        List<Rules.RuleItem> takeProfitItems = getUpdateRuleItems(rulesRequest.takeProfit());
 
         return new Rules(
                 rulesRequest.memo(),
@@ -175,11 +269,46 @@ public class PortfolioCommandService {
                 .collect(Collectors.toList());
     }
 
+    private static List<Rules.RuleItem> getUpdateRuleItems(List<com.stockone19.backend.portfolio.dto.UpdatePortfolioRequest.RuleItemRequest> rulesRequest) {
+        if (rulesRequest == null) {
+            return List.of();
+        }
+        return rulesRequest.stream()
+                .map(item -> new Rules.RuleItem(item.category(), item.threshold(), item.description()))
+                .collect(Collectors.toList());
+    }
+
     /**
      * CreatePortfolioRequest의 Holdings를 Holding 도메인 객체로 변환
      * (벤치마크 분석을 위해 임시 생성)
      */
     private List<Holding> convertHoldingsFromRequest(List<CreatePortfolioRequest.HoldingRequest> holdingRequests) {
+        if (holdingRequests == null || holdingRequests.isEmpty()) {
+            return List.of();
+        }
+        
+        return holdingRequests.stream()
+                .map(holdingRequest -> new Holding(
+                        null, // temporary id
+                        null, // temporary portfolioId  
+                        holdingRequest.symbol(),
+                        holdingRequest.shares(),
+                        holdingRequest.currentPrice(),
+                        holdingRequest.totalValue(),
+                        holdingRequest.change(),
+                        holdingRequest.changePercent(),
+                        holdingRequest.weight(),
+                        null, // temporary createdAt
+                        null  // temporary updatedAt
+                ))
+                .toList();
+    }
+
+    /**
+     * UpdatePortfolioRequest의 Holdings를 Holding 도메인 객체로 변환
+     * (벤치마크 분석을 위해 임시 생성)
+     */
+    private List<Holding> convertUpdateHoldingsFromRequest(List<com.stockone19.backend.portfolio.dto.UpdatePortfolioRequest.HoldingRequest> holdingRequests) {
         if (holdingRequests == null || holdingRequests.isEmpty()) {
             return List.of();
         }

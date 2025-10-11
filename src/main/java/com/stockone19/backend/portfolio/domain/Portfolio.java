@@ -13,7 +13,8 @@ public record Portfolio(
         Long userId,
         PortfolioStatus status,
         String analysisResult,
-        String reportResult
+        String reportResult,
+        LocalDateTime deletedAt
 ) {
 
     public enum PortfolioStatus {
@@ -34,10 +35,11 @@ public record Portfolio(
             Long userId,
             PortfolioStatus status,
             String analysisResult,
-            String reportResult
+            String reportResult,
+            LocalDateTime deletedAt
     ) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
         );
     }
 
@@ -51,49 +53,65 @@ public record Portfolio(
         LocalDateTime now = LocalDateTime.now();
         return new Portfolio(
                 null, name, description, ruleId, isMain, now, now, userId, 
-                PortfolioStatus.PENDING, null, null
+                PortfolioStatus.PENDING, null, null, null
         );
     }
 
     public Portfolio withId(Long id) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
         );
     }
 
     public Portfolio withUpdatedAt(LocalDateTime updatedAt) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
         );
     }
 
     public Portfolio withStatus(PortfolioStatus status) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
         );
     }
 
     public Portfolio withAnalysisResult(String analysisResult) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
         );
     }
 
     public Portfolio withStatusAndResult(PortfolioStatus status, String analysisResult) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
         );
     }
 
     public Portfolio withReportResult(String reportResult) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
         );
     }
 
     public Portfolio withStatusAndReports(PortfolioStatus status, String analysisResult, String reportResult) {
         return new Portfolio(
-                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
         );
+    }
+
+    public Portfolio withDeletedAt(LocalDateTime deletedAt) {
+        return new Portfolio(
+                id, name, description, ruleId, isMain, createdAt, updatedAt, userId, status, analysisResult, reportResult, deletedAt
+        );
+    }
+
+    public Portfolio withNameAndDescription(String name, String description) {
+        return new Portfolio(
+                id, name, description, ruleId, isMain, createdAt, LocalDateTime.now(), userId, status, analysisResult, reportResult, deletedAt
+        );
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 }

@@ -2,6 +2,7 @@ package com.stockone19.backend.backtest.controller;
 import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.dto.CreateBacktestRequest;
 import com.stockone19.backend.backtest.dto.CreateBacktestResult;
+import com.stockone19.backend.backtest.dto.UpdateBacktestRequest;
 import com.stockone19.backend.backtest.dto.BacktestResponse;
 import com.stockone19.backend.backtest.dto.BacktestResponseMapper;
 import com.stockone19.backend.backtest.dto.BacktestDetailResponse;
@@ -200,6 +201,49 @@ public class BacktestController {
     }
     
     /**
+     * 백테스트 수정
+     * <ul>
+     *     <li>백테스트 기본 정보 (제목, 설명, 기간)</li>
+     *     <li>매매 규칙 (손절, 익절 전략) - 선택사항</li>
+     *     <li>벤치마크 지수</li>
+     * </ul>
+     */
+    @PutMapping("/{backtestId}/portfolio/{portfolioId}")
+    public ApiResponse<Void> updateBacktest(
+            @PathVariable Long backtestId,
+            @PathVariable Long portfolioId,
+            @Valid @RequestBody UpdateBacktestRequest request) {
+        
+        log.info("PUT /api/backtests/{}/portfolio/{} - title: {}", backtestId, portfolioId, request.title());
+        
+        // 시작일과 종료일 검증
+        if (!request.endAt().isAfter(request.startAt())) {
+            throw new IllegalArgumentException("종료일은 시작일보다 나중이어야 합니다.");
+        }
+        
+        backtestService.updateBacktest(backtestId, portfolioId, request);
+        return ApiResponse.success("백테스트가 수정되었습니다", null);
+    }
+
+    /**
+     * 백테스트 삭제 (Soft Delete)
+     * <ul>
+     *     <li>deleted_at 컬럼에 삭제 시간 기록</li>
+     * </ul>
+     */
+    @DeleteMapping("/{backtestId}/portfolio/{portfolioId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ApiResponse<Void> deleteBacktest(
+            @PathVariable Long backtestId,
+            @PathVariable Long portfolioId) {
+        
+        log.info("DELETE /api/backtests/{}/portfolio/{}", backtestId, portfolioId);
+        
+        backtestService.deleteBacktest(backtestId, portfolioId);
+        return ApiResponse.success("백테스트가 삭제되었습니다", null);
+    }
+
+    /**
      * 클라이언트 IP 추출
      */
     private String getClientIP(HttpServletRequest request) {
@@ -215,5 +259,5 @@ public class BacktestController {
         
         return request.getRemoteAddr();
     }
-    
+
 }

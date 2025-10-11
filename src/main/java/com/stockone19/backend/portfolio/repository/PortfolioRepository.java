@@ -16,7 +16,10 @@ public interface PortfolioRepository {
 
     Portfolio save(Portfolio portfolio);
 
+    void softDelete(Long portfolioId);
+
     Holding saveHolding(Holding holding);
     List<Holding> findHoldingsByPortfolioId(Long portfolioId);
     List<Holding> findHoldingsByUserId(Long userId);  // 배치 쿼리 추가
+    void deleteHoldingsByPortfolioId(Long portfolioId);
 }

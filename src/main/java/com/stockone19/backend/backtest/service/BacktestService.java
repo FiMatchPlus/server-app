@@ -130,6 +130,71 @@ public class BacktestService {
         log.info("Successfully updated backtest status to {} for backtestId: {}", status, backtestId);
     }
 
+    /**
+     * 백테스트 수정
+     *
+     * @param backtestId 수정할 백테스트 ID
+     * @param portfolioId 포트폴리오 ID (권한 확인용)
+     * @param request 수정 요청
+     */
+    @Transactional
+    public void updateBacktest(Long backtestId, Long portfolioId, UpdateBacktestRequest request) {
+        log.info("Updating backtest - backtestId: {}, portfolioId: {}, title: {}", backtestId, portfolioId, request.title());
+
+        // 1. 기존 백테스트 조회 및 권한 확인
+        Backtest backtest = backtestRepository.findById(backtestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Backtest not found with id: " + backtestId));
+        
+        if (!backtest.getPortfolioId().equals(portfolioId)) {
+            throw new ResourceNotFoundException("백테스트 수정 권한이 없습니다: " + backtestId);
+        }
+
+        // 2. 기본 정보 업데이트
+        backtest.updateBasicInfo(request.title(), request.description());
+        backtest.updatePeriod(request.startAt(), request.endAt());
+        backtest.setBenchmarkCode(request.benchmarkCode());
+
+        // 3. Rules 업데이트 (선택 사항)
+        if (request.rules() != null && hasUpdateRules(request.rules())) {
+            if (backtest.getRuleId() != null) {
+                // 기존 rule 업데이트
+                String ruleId = updateBacktestRules(backtest.getId(), backtest.getRuleId(), request.rules());
+                backtest.updateRuleId(ruleId);
+            } else {
+                // 새로운 rule 생성
+                String ruleId = saveUpdateBacktestRules(backtest.getId(), request.rules());
+                backtest.updateRuleId(ruleId);
+            }
+        }
+
+        backtestRepository.save(backtest);
+        log.info("Backtest updated successfully - backtestId: {}", backtestId);
+    }
+
+    /**
+     * 백테스트 삭제 (Soft Delete)
+     *
+     * @param backtestId 삭제할 백테스트 ID
+     * @param portfolioId 포트폴리오 ID (권한 확인용)
+     */
+    @Transactional
+    public void deleteBacktest(Long backtestId, Long portfolioId) {
+        log.info("Deleting backtest - backtestId: {}, portfolioId: {}", backtestId, portfolioId);
+
+        // 1. 기존 백테스트 조회 및 권한 확인
+        Backtest backtest = backtestRepository.findById(backtestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Backtest not found with id: " + backtestId));
+        
+        if (!backtest.getPortfolioId().equals(portfolioId)) {
+            throw new ResourceNotFoundException("백테스트 삭제 권한이 없습니다: " + backtestId);
+        }
+
+        // 2. Soft delete 수행
+        backtestRepository.softDelete(backtestId);
+
+        log.info("Backtest soft deleted successfully - backtestId: {}", backtestId);
+    }
+
     // ===== 규칙 관리 관련 private 메소드들 =====
 
     private boolean hasRules(CreateBacktestRequest.RulesRequest rules) {
@@ -156,6 +221,61 @@ public class BacktestService {
     }
 
     private List<BacktestRuleDocument.RuleItem> convertToRuleItems(List<CreateBacktestRequest.RuleItemRequest> items) {
+        if (items == null) {
+            return List.of();
+        }
+        
+        return items.stream()
+                .map(item -> new BacktestRuleDocument.RuleItem(
+                        item.category(),
+                        item.threshold(),
+                        item.description()
+                ))
+                .toList();
+    }
+
+    private boolean hasUpdateRules(UpdateBacktestRequest.RulesRequest rules) {
+        return (rules.stopLoss() != null && !rules.stopLoss().isEmpty()) ||
+               (rules.takeProfit() != null && !rules.takeProfit().isEmpty()) ||
+               (rules.memo() != null && !rules.memo().trim().isEmpty());
+    }
+
+    private String saveUpdateBacktestRules(Long backtestId, UpdateBacktestRequest.RulesRequest rulesRequest) {
+        List<BacktestRuleDocument.RuleItem> stopLossItems = convertUpdateToRuleItems(rulesRequest.stopLoss());
+        List<BacktestRuleDocument.RuleItem> takeProfitItems = convertUpdateToRuleItems(rulesRequest.takeProfit());
+
+        BacktestRuleDocument backtestRule = new BacktestRuleDocument(
+                backtestId,
+                rulesRequest.memo(),
+                stopLossItems,
+                takeProfitItems
+        );
+
+        BacktestRuleDocument savedRule = backtestRuleRepository.save(backtestRule);
+        log.info("Saved backtest rule to MongoDB with id: {}", savedRule.getId());
+        
+        return savedRule.getId();
+    }
+
+    private String updateBacktestRules(Long backtestId, String ruleId, UpdateBacktestRequest.RulesRequest rulesRequest) {
+        List<BacktestRuleDocument.RuleItem> stopLossItems = convertUpdateToRuleItems(rulesRequest.stopLoss());
+        List<BacktestRuleDocument.RuleItem> takeProfitItems = convertUpdateToRuleItems(rulesRequest.takeProfit());
+
+        BacktestRuleDocument backtestRule = new BacktestRuleDocument(
+                backtestId,
+                rulesRequest.memo(),
+                stopLossItems,
+                takeProfitItems
+        );
+        backtestRule.setId(ruleId); // 기존 ID 사용
+
+        BacktestRuleDocument savedRule = backtestRuleRepository.save(backtestRule);
+        log.info("Updated backtest rule in MongoDB with id: {}", savedRule.getId());
+        
+        return savedRule.getId();
+    }
+
+    private List<BacktestRuleDocument.RuleItem> convertUpdateToRuleItems(List<UpdateBacktestRequest.RuleItemRequest> items) {
         if (items == null) {
             return List.of();
         }
