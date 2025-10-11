@@ -139,6 +139,8 @@ public class PortfolioQueryService {
 
         return new PortfolioLongResponse(
                 data.portfolio().id(),
+                data.portfolio().name(),
+                data.portfolio().description(),
                 holdingDetails,
                 data.portfolio().ruleId(),
                 rulesDetail,
@@ -609,13 +611,7 @@ public class PortfolioQueryService {
                 strategy.weights()
         );
     }
-    
-    /**
-     * 포트폴리오 타입을 한국어 이름으로 변환
-     * user -> 내 포트폴리오
-     * min-variance -> 리스크 최소화
-     * max-sharpe -> 위험 대비 수익 최적화
-     */
+
     private String convertTypeName(String type) {
         if (type == null) {
             return null;
