@@ -62,7 +62,8 @@ public record PortfolioAnalysisResponse(
      */
     public record BenchmarkInfoResponse(
         String code,
-        Double return_,
+        @JsonProperty("return")
+        Double benchmarkReturn,
         Double volatility
     ) {}
     
@@ -142,6 +143,15 @@ public record PortfolioAnalysisResponse(
      * 벤치마크 비교 정보
      */
     public record BenchmarkComparisonResponse(
+        @JsonProperty("benchmark_code")
+        String benchmarkCode,
+        
+        @JsonProperty("benchmark_return")
+        Double benchmarkReturn,
+        
+        @JsonProperty("benchmark_volatility")
+        Double benchmarkVolatility,
+        
         @JsonProperty("excess_return")
         Double excessReturn,
         

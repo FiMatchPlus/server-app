@@ -2,6 +2,7 @@ package com.stockone19.backend.portfolio.controller;
 
 import com.stockone19.backend.common.dto.ApiResponse;
 import com.stockone19.backend.portfolio.dto.*;
+import com.stockone19.backend.portfolio.service.PortfolioAnalysisDetailService;
 import com.stockone19.backend.portfolio.service.PortfolioCommandService;
 import com.stockone19.backend.portfolio.service.PortfolioQueryService;
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ public class PortfolioController {
 
     private final PortfolioCommandService portfolioCommandService;
     private final PortfolioQueryService portfolioQueryService;
+    private final PortfolioAnalysisDetailService portfolioAnalysisDetailService;
 
     /**
      * 사용자 포트폴리오 통합 합계 정보 조회 (포트폴리오 페이지 헤더)
@@ -100,6 +102,25 @@ public class PortfolioController {
 
         PortfolioLongResponse.AnalysisDetail analysisDetail = portfolioQueryService.getPortfolioAnalysisDetail(portfolioId);
         return ApiResponse.success("포트폴리오 분석 결과를 조회합니다", analysisDetail);
+    }
+
+    /**
+     * 포트폴리오 분석 상세 정보 조회 (리포트 포함)
+     * <ul>
+     *     <li>분석 상태 (PENDING, RUNNING, COMPLETED, FAILED)</li>
+     *     <li>포트폴리오 이름</li>
+     *     <li>분석 날짜</li>
+     *     <li>분석 기간 (시작일, 종료일)</li>
+     *     <li>결과 (user, min-variance, max-sharpe)</li>
+     *     <li>각 포트폴리오별 위험도, 보유 비중, 성과지표, 강점, 약점</li>
+     * </ul>
+     * */
+    @GetMapping("/{portfolioId}/detail")
+    public ApiResponse<PortfolioAnalysisDetailResponse> getPortfolioAnalysisDetail(@PathVariable Long portfolioId) {
+        log.info("GET /api/portfolios/{}/detail", portfolioId);
+
+        PortfolioAnalysisDetailResponse response = portfolioAnalysisDetailService.getPortfolioAnalysisDetail(portfolioId);
+        return ApiResponse.success("포트폴리오 분석 상세 정보를 조회합니다", response);
     }
 
     /**
