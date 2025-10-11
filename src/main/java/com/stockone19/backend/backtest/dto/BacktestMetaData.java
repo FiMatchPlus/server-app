@@ -1,10 +1,10 @@
 package com.stockone19.backend.backtest.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.stockone19.backend.backtest.service.BacktestRuleDocument;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 백테스트 메타데이터 (설정 정보)
@@ -16,20 +16,17 @@ public record BacktestMetaData(
         Long portfolioId,
         String title,
         String description,
-        
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-        LocalDateTime startAt,
-        
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-        LocalDateTime endAt,
-        
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-        LocalDateTime createdAt,
-        
+        String startAt,        // "yyyy-MM-dd'T'HH:mm:ss" 형식
+        String endAt,          // "yyyy-MM-dd'T'HH:mm:ss" 형식
+        String period,         // "yyyy-MM-dd ~ yyyy-MM-dd" 형식
+        String createdAt,      // "yyyy-MM-dd'T'HH:mm:ss" 형식
         String benchmarkCode,
         BacktestStatus status,
         BacktestRuleDocument rules
 ) {
+    
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     
     /**
      * 백테스트 메타데이터 생성
@@ -46,14 +43,25 @@ public record BacktestMetaData(
             BacktestStatus status,
             BacktestRuleDocument rules
     ) {
+        // 날짜를 문자열로 변환
+        String startAtStr = startAt != null ? startAt.format(DATE_TIME_FORMATTER) : null;
+        String endAtStr = endAt != null ? endAt.format(DATE_TIME_FORMATTER) : null;
+        String createdAtStr = createdAt != null ? createdAt.format(DATE_TIME_FORMATTER) : null;
+        
+        // 기간 문자열 생성 (yyyy-MM-dd ~ yyyy-MM-dd 형식)
+        String period = (startAt != null && endAt != null) 
+            ? startAt.format(DATE_FORMATTER) + " ~ " + endAt.format(DATE_FORMATTER)
+            : null;
+        
         return new BacktestMetaData(
                 backtestId,
                 portfolioId,
                 title,
                 description,
-                startAt,
-                endAt,
-                createdAt,
+                startAtStr,
+                endAtStr,
+                period,
+                createdAtStr,
                 benchmarkCode,
                 status,
                 rules
