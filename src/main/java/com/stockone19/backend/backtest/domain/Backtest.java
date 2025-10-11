@@ -53,6 +53,9 @@ public class Backtest {
     @Column(name = "benchmark_code", length = 20)
     private String benchmarkCode;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
 
     public Backtest(Long portfolioId, String title, String description, 
                     LocalDateTime startAt, LocalDateTime endAt, String ruleId) {
@@ -99,5 +102,23 @@ public class Backtest {
 
     public void setBenchmarkCode(String benchmarkCode) {
         this.benchmarkCode = benchmarkCode;
+    }
+
+    public void updateBasicInfo(String title, String description) {
+        this.title = title;
+        this.description = description;
+    }
+
+    public void updatePeriod(LocalDateTime startAt, LocalDateTime endAt) {
+        this.startAt = startAt;
+        this.endAt = endAt;
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }
