@@ -164,8 +164,7 @@ public class PortfolioController {
     /**
      * 포트폴리오 삭제 (Soft Delete)
      * <ul>
-     *     <li>포트폴리오를 논리적으로 삭제합니다 (deleted_at 컬럼에 삭제 시간 기록)</li>
-     *     <li>실제 데이터는 DB에 남아있어 복구가 가능합니다</li>
+     *     <li>deleted_at 컬럼에 삭제 시간 기록</li>
      * </ul>
      * */
     @DeleteMapping("/{portfolioId}")
