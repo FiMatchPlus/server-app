@@ -8,7 +8,6 @@ import com.stockone19.backend.portfolio.service.PortfolioQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -170,7 +169,6 @@ public class PortfolioController {
      * </ul>
      * */
     @DeleteMapping("/{portfolioId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ApiResponse<Void> deletePortfolio(@PathVariable Long portfolioId) {
         log.info("DELETE /api/portfolios/{}", portfolioId);
         Long userId = 1L; // 고정된 userId 값
