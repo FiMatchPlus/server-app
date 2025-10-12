@@ -1,5 +1,6 @@
 package com.stockone19.backend.portfolio.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +24,7 @@ public record PortfolioAnalysisDetailResponse(
     ) {}
     
     /**
-     * 포트폴리오 결과 (내 포트폴리오, 리스크 최소화, 위험 대비 수익 최적화)
+     * 포트폴리오 결과 (내 포트폴리오, 하방위험 최소화, 소르티노 비율 최적화)
      */
     public record PortfolioResult(
             String type,
@@ -35,12 +36,15 @@ public record PortfolioAnalysisDetailResponse(
     ) {}
     
     /**
-     * 성과 지표
+     * 성과 지표 (PMPT 기반)
      */
     public record Metrics(
-            Double stdDeviation,
-            Double sharpeRatio,
-            Double expectedReturn
+            @JsonProperty("expectedReturn")
+            Double expectedReturn,
+            @JsonProperty("sortinoRatio")
+            Double sortinoRatio,
+            @JsonProperty("downsideStd")
+            Double downsideStd
     ) {}
     
     /**

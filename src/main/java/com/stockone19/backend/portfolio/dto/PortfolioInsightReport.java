@@ -97,8 +97,8 @@ public record PortfolioInsightReport(
             @JsonProperty("choose_user_portfolio_if")
             List<String> chooseUserPortfolioIf,
             
-            @JsonProperty("choose_min_variance_if")
-            List<String> chooseMinVarianceIf,
+            @JsonProperty("choose_min_downside_risk_if")
+            List<String> chooseMinDownsideRiskIf,
             
             @JsonProperty("choose_max_sortino_if")
             List<String> chooseMaxSortinoIf

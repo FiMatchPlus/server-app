@@ -619,7 +619,7 @@ public class PortfolioQueryService {
         
         return switch (type.toLowerCase()) {
             case "user" -> "내 포트폴리오";
-            case "min_variance" -> "리스크 최소화";
+            case "min_downside_risk" -> "하방위험 최소화";
             case "max_sortino" -> "소르티노 비율 최적화";
             default -> {
                 log.warn("Unknown portfolio type: {}", type);
