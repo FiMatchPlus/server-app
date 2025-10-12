@@ -17,7 +17,7 @@ public record PortfolioAnalysisResponse(
     // 벤치마크 정보
     BenchmarkInfoResponse benchmark,
     
-    // 3가지 포트폴리오 전략 (user, min_variance, max_sharpe)
+    // 3가지 포트폴리오 전략 (user, min_variance, max_sortino)
     List<PortfolioStrategyResponse> portfolios,
     
     // 종목별 상세 정보
@@ -68,7 +68,7 @@ public record PortfolioAnalysisResponse(
     ) {}
     
     /**
-     * 포트폴리오 전략 정보 (user, min_variance, max_sharpe 공통 구조)
+     * 포트폴리오 전략 정보 (user, min_variance, max_sortino 공통 구조)
      */
     public record PortfolioStrategyResponse(
         String type,
