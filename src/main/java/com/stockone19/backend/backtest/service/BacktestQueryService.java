@@ -103,7 +103,7 @@ public class BacktestQueryService {
         List<BacktestDetailResponse.HoldingData> holdings = createHoldingDataOptimized(latestHoldingSnapshots, stockCodeToNameMap);
 
         // Rule 정보 조회
-        BacktestRuleDocument rule = getBacktestRuleById(backtest.getRuleId());
+        BacktestRuleDocument rules = getBacktestRuleById(backtest.getRuleId());
 
         return BacktestDetailResponse.of(
                 latestSnapshot.id().toString(),  // history_id
@@ -117,7 +117,7 @@ public class BacktestQueryService {
                 benchmarkData,                   // benchmarkData
                 holdings,                        // holdings
                 latestSnapshot.reportContent(),  // report
-                rule                             // rule
+                rules                            // rules
         );
     }
 
