@@ -232,7 +232,6 @@ public class BacktestController {
      * </ul>
      */
     @DeleteMapping("/{backtestId}/portfolio/{portfolioId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ApiResponse<Void> deleteBacktest(
             @PathVariable Long backtestId,
             @PathVariable Long portfolioId) {
