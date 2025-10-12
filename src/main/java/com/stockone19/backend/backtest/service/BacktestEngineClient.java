@@ -8,9 +8,8 @@ import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.common.service.BacktestJobMappingService;
 import com.stockone19.backend.portfolio.domain.Holding;
-import com.stockone19.backend.portfolio.domain.Rules;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
-import com.stockone19.backend.portfolio.repository.RulesRepository;
+import com.stockone19.backend.backtest.repository.BacktestRuleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -35,7 +34,7 @@ public class BacktestEngineClient {
     private final BacktestRepository backtestRepository;
     private final BacktestJobMappingService jobMappingService;
     private final PortfolioRepository portfolioRepository;
-    private final RulesRepository rulesRepository;
+    private final BacktestRuleRepository backtestRuleRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
@@ -119,7 +118,7 @@ public class BacktestEngineClient {
     }
 
     /**
-     * MongoDB Rules를 백테스트 엔진 형식으로 변환
+     * MongoDB BacktestRuleDocument를 백테스트 엔진 형식으로 변환
      */
     private BacktestExecutionRequest.RulesRequest convertToEngineRules(String ruleId) {
         if (ruleId == null || ruleId.trim().isEmpty()) {
@@ -128,17 +127,17 @@ public class BacktestEngineClient {
         }
 
         try {
-            Rules mongoRules = rulesRepository.findById(ruleId).orElse(null);
-            if (mongoRules == null) {
-                log.warn("Rule not found for id: {}, returning null rules", ruleId);
+            BacktestRuleDocument backtestRules = backtestRuleRepository.findById(ruleId).orElse(null);
+            if (backtestRules == null) {
+                log.warn("Backtest rule not found for id: {}, returning null rules", ruleId);
                 return null;
             }
 
             // stopLoss 변환
-            List<BacktestExecutionRequest.RuleItem> stopLossItems = convertRuleItems(mongoRules.getStopLoss());
+            List<BacktestExecutionRequest.RuleItem> stopLossItems = convertRuleItems(backtestRules.getStopLoss());
             
             // takeProfit 변환
-            List<BacktestExecutionRequest.RuleItem> takeProfitItems = convertRuleItems(mongoRules.getTakeProfit());
+            List<BacktestExecutionRequest.RuleItem> takeProfitItems = convertRuleItems(backtestRules.getTakeProfit());
 
             return new BacktestExecutionRequest.RulesRequest(stopLossItems, takeProfitItems);
 
@@ -149,9 +148,10 @@ public class BacktestEngineClient {
     }
 
     /**
-     * MongoDB RuleItem을 백테스트 엔진 RuleItem으로 변환
+     * MongoDB BacktestRuleDocument.RuleItem을 백테스트 엔진 RuleItem으로 변환
+     * threshold는 이미 정규화된 비율(0~1) 값으로 저장되어 있음
      */
-    private List<BacktestExecutionRequest.RuleItem> convertRuleItems(List<Rules.RuleItem> mongoRuleItems) {
+    private List<BacktestExecutionRequest.RuleItem> convertRuleItems(List<BacktestRuleDocument.RuleItem> mongoRuleItems) {
         if (mongoRuleItems == null || mongoRuleItems.isEmpty()) {
             return List.of();
         }
@@ -160,7 +160,10 @@ public class BacktestEngineClient {
                 .map(item -> {
                     try {
                         // threshold 문자열을 Double로 변환
+                        // 이미 정규화된 비율 값(0~1)이므로 그대로 사용
                         Double value = Double.parseDouble(item.getThreshold());
+                        log.debug("Converting rule item: category={}, threshold={}, value={}", 
+                                 item.getCategory(), item.getThreshold(), value);
                         return new BacktestExecutionRequest.RuleItem(item.getCategory(), value);
                     } catch (NumberFormatException e) {
                         log.warn("Failed to parse threshold value: {} for category: {}", 
