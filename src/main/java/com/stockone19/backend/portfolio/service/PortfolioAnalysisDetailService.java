@@ -104,7 +104,7 @@ public class PortfolioAnalysisDetailService {
         Map<String, String> stockCodeToNameMap = buildStockNameMap(analysisResponse);
 
         // 포트폴리오 인사이트 리스트 생성
-        List<PortfolioAnalysisDetailResponse.PortfolioInsight> portfolioInsights = 
+        List<PortfolioAnalysisDetailResponse.PortfolioInsight> results = 
                 createPortfolioInsights(analysisResponse, insightMap, stockCodeToNameMap);
 
         // 비교 분석 추출
@@ -121,7 +121,7 @@ public class PortfolioAnalysisDetailService {
                 portfolio.name(),
                 analysisResponse.metadata().timestamp(),
                 analysisPeriod,
-                portfolioInsights,
+                results,
                 comparativeAnalysis,
                 personalizedRecommendation
         );

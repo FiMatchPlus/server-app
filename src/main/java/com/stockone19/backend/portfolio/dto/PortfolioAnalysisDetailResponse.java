@@ -11,8 +11,7 @@ public record PortfolioAnalysisDetailResponse(
         String portfolioName,
         String analysisDate,
         AnalysisPeriod analysisPeriod,
-        @JsonProperty("portfolio_insights")
-        List<PortfolioInsight> portfolioInsights,
+        List<PortfolioInsight> results,
         @JsonProperty("comparative_analysis")
         ComparativeAnalysis comparativeAnalysis,
         @JsonProperty("personalized_recommendation")
@@ -168,7 +167,7 @@ public record PortfolioAnalysisDetailResponse(
             String portfolioName,
             String analysisDate,
             AnalysisPeriod analysisPeriod,
-            List<PortfolioInsight> portfolioInsights,
+            List<PortfolioInsight> results,
             ComparativeAnalysis comparativeAnalysis,
             PersonalizedRecommendation personalizedRecommendation
     ) {
@@ -177,7 +176,7 @@ public record PortfolioAnalysisDetailResponse(
                 portfolioName,
                 analysisDate,
                 analysisPeriod,
-                portfolioInsights,
+                results,
                 comparativeAnalysis,
                 personalizedRecommendation
         );
