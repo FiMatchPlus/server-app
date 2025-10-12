@@ -4,6 +4,7 @@ import com.stockone19.backend.backtest.domain.Backtest;
 import com.stockone19.backend.backtest.dto.*;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.BacktestRuleRepository;
+import com.stockone19.backend.backtest.util.ThresholdValueNormalizer;
 import com.stockone19.backend.common.exception.ResourceNotFoundException;
 import com.stockone19.backend.portfolio.repository.PortfolioRepository;
 import lombok.RequiredArgsConstructor;
@@ -229,11 +230,22 @@ public class BacktestService {
         }
         
         return items.stream()
-                .map(item -> new BacktestRuleDocument.RuleItem(
+                .map(item -> {
+                    // threshold 값 정규화 (백분율 -> 비율 변환 및 유효성 검사)
+                    String normalizedThreshold = ThresholdValueNormalizer.normalize(
+                        item.category(), 
+                        item.threshold()
+                    );
+                    
+                    log.debug("Normalized threshold for category '{}': {} -> {}", 
+                             item.category(), item.threshold(), normalizedThreshold);
+                    
+                    return new BacktestRuleDocument.RuleItem(
                         item.category(),
-                        item.threshold(),
+                        normalizedThreshold,
                         item.description()
-                ))
+                    );
+                })
                 .toList();
     }
 
@@ -284,11 +296,22 @@ public class BacktestService {
         }
         
         return items.stream()
-                .map(item -> new BacktestRuleDocument.RuleItem(
+                .map(item -> {
+                    // threshold 값 정규화 (백분율 -> 비율 변환 및 유효성 검사)
+                    String normalizedThreshold = ThresholdValueNormalizer.normalize(
+                        item.category(), 
+                        item.threshold()
+                    );
+                    
+                    log.debug("Normalized threshold for category '{}': {} -> {}", 
+                             item.category(), item.threshold(), normalizedThreshold);
+                    
+                    return new BacktestRuleDocument.RuleItem(
                         item.category(),
-                        item.threshold(),
+                        normalizedThreshold,
                         item.description()
-                ))
+                    );
+                })
                 .toList();
     }
 }
