@@ -153,6 +153,9 @@ public class BacktestService {
         backtest.updateBasicInfo(request.title(), request.description());
         backtest.updatePeriod(request.startAt(), request.endAt());
         backtest.setBenchmarkCode(request.benchmarkCode());
+        
+        // 상태를 CREATED로 리셋 (수정 시 기존 실행 결과 무효화)
+        backtest.updateStatus(BacktestStatus.CREATED);
 
         // 3. Rules 업데이트 (선택 사항)
         if (request.rules() != null && hasUpdateRules(request.rules())) {

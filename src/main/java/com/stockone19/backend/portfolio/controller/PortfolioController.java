@@ -8,7 +8,6 @@ import com.stockone19.backend.portfolio.service.PortfolioQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -165,12 +164,10 @@ public class PortfolioController {
     /**
      * 포트폴리오 삭제 (Soft Delete)
      * <ul>
-     *     <li>포트폴리오를 논리적으로 삭제합니다 (deleted_at 컬럼에 삭제 시간 기록)</li>
-     *     <li>실제 데이터는 DB에 남아있어 복구가 가능합니다</li>
+     *     <li>deleted_at 컬럼에 삭제 시간 기록</li>
      * </ul>
      * */
     @DeleteMapping("/{portfolioId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ApiResponse<Void> deletePortfolio(@PathVariable Long portfolioId) {
         log.info("DELETE /api/portfolios/{}", portfolioId);
         Long userId = 1L; // 고정된 userId 값

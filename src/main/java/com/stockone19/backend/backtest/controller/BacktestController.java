@@ -204,7 +204,7 @@ public class BacktestController {
      * 백테스트 수정
      * <ul>
      *     <li>백테스트 기본 정보 (제목, 설명, 기간)</li>
-     *     <li>매매 규칙 (손절, 익절 전략) - 선택사항</li>
+     *     <li>매매 규칙 (손절, 익절 전략)</li>
      *     <li>벤치마크 지수</li>
      * </ul>
      */
@@ -232,7 +232,6 @@ public class BacktestController {
      * </ul>
      */
     @DeleteMapping("/{backtestId}/portfolio/{portfolioId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ApiResponse<Void> deleteBacktest(
             @PathVariable Long backtestId,
             @PathVariable Long portfolioId) {
