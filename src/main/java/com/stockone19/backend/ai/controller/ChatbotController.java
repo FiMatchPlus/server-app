@@ -39,6 +39,12 @@ public class ChatbotController {
             // 챗봇 응답 생성
             String response = categoryChatbotService.generateCategoryResponse(category, question);
             
+            // 응답 앞 부분 로깅 (처음 100자)
+            String responsePreview = response.length() > 100 
+                    ? response.substring(0, 100) + "..." 
+                    : response;
+            log.info("챗봇 응답 생성 완료 - 카테고리: {}, 응답 미리보기: {}", category, responsePreview);
+            
             // 응답 객체 생성
             ChatbotResponse chatbotResponse = ChatbotResponse.builder()
                     .category(category)
@@ -46,8 +52,6 @@ public class ChatbotController {
                     .question(question)
                     .answer(response)
                     .build();
-            
-            log.info("챗봇 응답 생성 완료 - 카테고리: {}", category);
             
             return ResponseEntity.ok(ApiResponse.success("챗봇 응답이 성공적으로 생성되었습니다.", chatbotResponse));
             
