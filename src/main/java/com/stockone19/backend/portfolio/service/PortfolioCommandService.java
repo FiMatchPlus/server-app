@@ -170,8 +170,10 @@ public class PortfolioCommandService {
             throw new ResourceNotFoundException("포트폴리오 수정 권한이 없습니다: " + portfolioId);
         }
 
-        // 2. 기본 정보 업데이트
-        Portfolio updatedPortfolio = portfolio.withNameAndDescription(request.name(), request.description());
+        // 2. 기본 정보 업데이트 및 분석 상태 초기화
+        Portfolio updatedPortfolio = portfolio
+                .withNameAndDescription(request.name(), request.description())
+                .withStatusAndReports(Portfolio.PortfolioStatus.PENDING, null, null);
         portfolioRepository.save(updatedPortfolio);
 
         // 3. 기존 holdings 삭제
@@ -207,6 +209,9 @@ public class PortfolioCommandService {
         }
 
         log.info("Portfolio updated successfully - portfolioId: {}", portfolioId);
+        
+        // 6. 포트폴리오 수정 완료 이벤트 발행 (트랜잭션 커밋 후 재분석 트리거)
+        applicationEventPublisher.publishEvent(new PortfolioCreatedEvent(portfolioId));
     }
 
     /**
