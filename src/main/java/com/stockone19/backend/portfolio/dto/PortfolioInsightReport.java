@@ -100,8 +100,8 @@ public record PortfolioInsightReport(
             @JsonProperty("choose_min_variance_if")
             List<String> chooseMinVarianceIf,
             
-            @JsonProperty("choose_max_sharpe_if")
-            List<String> chooseMaxSharpeIf
+            @JsonProperty("choose_max_sortino_if")
+            List<String> chooseMaxSortinoIf
     ) {}
     
     /**

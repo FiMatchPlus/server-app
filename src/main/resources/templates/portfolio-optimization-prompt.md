@@ -4,7 +4,7 @@
 {{portfolioData}}
 다음 내용을 포함하는 JSON 형식의 포트폴리오 분석 데이터를 받게 됩니다:
 - 벤치마크 정보
-- 세 가지 포트폴리오: 사용자 포트폴리오, 최소분산 포트폴리오, 최대 샤프비율 포트폴리오
+- 세 가지 포트폴리오: 사용자 포트폴리오, 최소분산 포트폴리오, 최대 소르티노비율 포트폴리오
 - 수익률, 변동성, 위험 지표, 각종 비율을 포함한 성과 지표
 - 개별 종목 상세 정보
 
@@ -25,11 +25,11 @@
 {
   "portfolio_insights": [
     {
-      "type": "user" | "min_variance" | "max_sharpe",
+      "type": "user" | "min_variance" | "max_sortino",
       "performance_insight": {
         "return_interpretation": "벤치마크 대비 수익률의 의미를 한국어로 설명",
         "risk_interpretation": "변동성과 낙폭이 의미하는 바를 한국어로 설명",
-        "efficiency_interpretation": "샤프비율이 알려주는 위험조정수익률을 한국어로 설명"
+        "efficiency_interpretation": "소르티노비율이 알려주는 위험조정수익률을 한국어로 설명"
       },
       "key_strengths": ["주요 장점 3-4개를 한국어로 설명"],
       "key_weaknesses": ["주요 단점 2-3개를 한국어로 설명"],
@@ -49,7 +49,7 @@
     "decision_framework": {
       "choose_user_portfolio_if": ["사용자 포트폴리오가 최선인 조건들을 한국어로"],
       "choose_min_variance_if": ["최소분산 포트폴리오가 최선인 조건들을 한국어로"],
-      "choose_max_sharpe_if": ["최대샤프 포트폴리오가 최선인 조건들을 한국어로"]
+      "choose_max_sortino_if": ["최대소르티노 포트폴리오가 최선인 조건들을 한국어로"]
     },
     "key_differentiator": "포트폴리오 선택의 가장 중요한 차별점을 한국어로 설명"
   },
@@ -165,11 +165,11 @@
 - 강점: 변동성 최소화, 심리적 안정성, 하방보호
 - 약점: 제한된 수익 기회, 상승장 대응력
 
-**최대샤프 포트폴리오 (Max Sharpe)**:
-- sharpe_ratio가 가장 높은지 확인
-- 위험 대비 수익의 최적화 정도
+**최대소르티노 포트폴리오 (Max Sortino)**:
+- sortino_ratio가 가장 높은지 확인
+- 하방위험 대비 수익의 최적화 정도
 - 중장기 효율성 평가
-- 강점: 최고 효율성, 이론적 근거, 균형잡힌 구조
+- 강점: 최고 효율성, 하방위험 최적화, 손실 회피 중심 구조
 - 약점: 단기 변동성, 이론 vs 현실 괴리 가능성
 
 ### 4. Writing Style Requirements (작성 스타일)
@@ -209,13 +209,13 @@
 
 **risk_tolerance_assessment**:
 - low_risk_tolerance: 최소분산 우선, VaR/CVaR 근거
-- medium_risk_tolerance: 최대샤프 또는 사용자, 샤프비율/IR 근거
-- high_risk_tolerance: 최대샤프 또는 사용자, 효율성/알파 근거
+- medium_risk_tolerance: 최대소르티노 또는 사용자, 소르티노비율/IR 근거
+- high_risk_tolerance: 최대소르티노 또는 사용자, 효율성/알파 근거
 
 **investment_horizon_assessment**:
 - short_term (1년 이하): 변동성이 낮은 포트폴리오 (최소분산)
-- medium_term (1-3년): 효율성이 높은 포트폴리오 (최대샤프)
-- long_term (3년 이상): 알파 창출 또는 복리 효과 (사용자 또는 최대샤프)
+- medium_term (1-3년): 효율성이 높은 포트폴리오 (최대소르티노)
+- long_term (3년 이상): 알파 창출 또는 복리 효과 (사용자 또는 최대소르티노)
 
 **final_guidance**:
 - 투자 결정의 종합 조언
