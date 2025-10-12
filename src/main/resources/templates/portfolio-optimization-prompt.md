@@ -4,7 +4,7 @@
 {{portfolioData}}
 다음 내용을 포함하는 JSON 형식의 포트폴리오 분석 데이터를 받게 됩니다:
 - 벤치마크 정보
-- 세 가지 포트폴리오: 사용자 포트폴리오, 최소분산 포트폴리오, 최대 소르티노비율 포트폴리오
+- 세 가지 포트폴리오: 사용자 포트폴리오, 최소 하방위험 포트폴리오, 최대 소르티노비율 포트폴리오
 - 수익률, 변동성, 위험 지표, 각종 비율을 포함한 성과 지표
 - 개별 종목 상세 정보
 
@@ -25,7 +25,7 @@
 {
   "portfolio_insights": [
     {
-      "type": "user" | "min_variance" | "max_sortino",
+      "type": "user" | "min_downside_risk" | "max_sortino",
       "performance_insight": {
         "return_interpretation": "벤치마크 대비 수익률의 의미를 한국어로 설명",
         "risk_interpretation": "변동성과 낙폭이 의미하는 바를 한국어로 설명",
@@ -48,7 +48,7 @@
     },
     "decision_framework": {
       "choose_user_portfolio_if": ["사용자 포트폴리오가 최선인 조건들을 한국어로"],
-      "choose_min_variance_if": ["최소분산 포트폴리오가 최선인 조건들을 한국어로"],
+      "choose_min_downside_risk_if": ["최소 하방위험 포트폴리오가 최선인 조건들을 한국어로"],
       "choose_max_sortino_if": ["최대소르티노 포트폴리오가 최선인 조건들을 한국어로"]
     },
     "key_differentiator": "포트폴리오 선택의 가장 중요한 차별점을 한국어로 설명"
@@ -158,11 +158,11 @@
 - 강점: 높은 IR, 우수한 종목 선택, 비대칭 베타
 - 약점: 재현 가능성, 과최적화 위험
 
-**최소분산 포트폴리오 (Min Variance)**:
-- std_deviation이 가장 낮은지 확인
-- downside_deviation과 max_drawdown 중점 평가
-- 안정성 vs 수익률 트레이드오프 분석
-- 강점: 변동성 최소화, 심리적 안정성, 하방보호
+**최소 하방위험 포트폴리오 (Min Downside Risk)**:
+- downside_deviation이 가장 낮은지 확인
+- 하방위험과 max_drawdown 중점 평가
+- 손실 회피 vs 수익률 트레이드오프 분석
+- 강점: 하방위험 최소화, 손실 보호, 심리적 안정성
 - 약점: 제한된 수익 기회, 상승장 대응력
 
 **최대소르티노 포트폴리오 (Max Sortino)**:
@@ -208,12 +208,12 @@
 ### 6. Personalized Recommendation (맞춤 추천)
 
 **risk_tolerance_assessment**:
-- low_risk_tolerance: 최소분산 우선, VaR/CVaR 근거
+- low_risk_tolerance: 최소 하방위험 우선, VaR/CVaR 근거
 - medium_risk_tolerance: 최대소르티노 또는 사용자, 소르티노비율/IR 근거
 - high_risk_tolerance: 최대소르티노 또는 사용자, 효율성/알파 근거
 
 **investment_horizon_assessment**:
-- short_term (1년 이하): 변동성이 낮은 포트폴리오 (최소분산)
+- short_term (1년 이하): 하방위험이 낮은 포트폴리오 (최소 하방위험)
 - medium_term (1-3년): 효율성이 높은 포트폴리오 (최대소르티노)
 - long_term (3년 이상): 알파 창출 또는 복리 효과 (사용자 또는 최대소르티노)
 

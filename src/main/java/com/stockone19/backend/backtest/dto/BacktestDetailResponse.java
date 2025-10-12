@@ -23,7 +23,7 @@ public record BacktestDetailResponse(
         List<BenchmarkData> benchmarkData,  // 벤치마크 일별 데이터
         List<HoldingData> holdings,         // 포트폴리오 보유 정보
         String report,         // 마크다운 형식의 전체 레포트
-        BacktestRuleDocument rule             // 매매 규칙 정보 (null일 수 있음)
+        BacktestRuleDocument rules             // 매매 규칙 정보 (null일 수 있음)
 ) {
     
     /**
@@ -68,11 +68,11 @@ public record BacktestDetailResponse(
             List<BenchmarkData> benchmarkData,
             List<HoldingData> holdings,
             String report,
-            BacktestRuleDocument rule
+            BacktestRuleDocument rules
     ) {
         return new BacktestDetailResponse(
                 historyId, name, period, executionTime, benchmarkCode, benchmarkName,
-                metrics, dailyEquity, benchmarkData, holdings, report, rule
+                metrics, dailyEquity, benchmarkData, holdings, report, rules
         );
     }
 }

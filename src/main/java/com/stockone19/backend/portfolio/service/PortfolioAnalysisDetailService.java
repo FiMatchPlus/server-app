@@ -126,12 +126,12 @@ public class PortfolioAnalysisDetailService {
                     weaknesses = insight.keyWeaknesses();
                 }
                 
-                // metrics 추출
+                // metrics 추출 (PMPT 기반)
                 PortfolioAnalysisDetailResponse.Metrics metrics = 
                         new PortfolioAnalysisDetailResponse.Metrics(
-                                portfolioStrategy.metrics().stdDeviation(),
-                                portfolioStrategy.metrics().sharpeRatio(),
-                                portfolioStrategy.metrics().expectedReturn()
+                                portfolioStrategy.metrics().expectedReturn(),
+                                portfolioStrategy.metrics().sortinoRatio(),
+                                portfolioStrategy.metrics().downsideDeviation()
                         );
                 
                 // 포트폴리오 결과 생성
@@ -205,7 +205,7 @@ public class PortfolioAnalysisDetailService {
         
         return switch (type.toLowerCase()) {
             case "user" -> "내 포트폴리오";
-            case "min_variance" -> "리스크 최소화";
+            case "min_downside_risk" -> "하방위험 최소화";
             case "max_sortino" -> "소르티노 비율 최적화";
             default -> {
                 log.warn("Unknown portfolio type: {}", type);
