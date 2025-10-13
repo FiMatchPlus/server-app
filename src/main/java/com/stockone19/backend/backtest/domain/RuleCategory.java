@@ -1,5 +1,7 @@
 package com.stockone19.backend.backtest.domain;
 
+import lombok.Getter;
+
 /**
  * 백테스트 매매 규칙 카테고리
  * 백테스트 엔진이 인식하는 손절/익절 규칙 유형
@@ -13,28 +15,28 @@ public enum RuleCategory {
      * - value: 양수 (절대값)
      * - 예시: 1.5 (포트폴리오 베타가 1.5 초과 시 손절)
      */
-    BETA("BETA", RuleType.STOP_LOSS, false, false),
+    BETA("BETA", "베타 일정값 초과", RuleType.STOP_LOSS, false, false),
     
     /**
      * 최대낙폭(Maximum Drawdown) 손절
      * - value: 양수 (비율, 0~1)
      * - 예시: 0.15 (MDD가 15% 초과 시 손절)
      */
-    MDD("MDD", RuleType.STOP_LOSS, true, false),
+    MDD("MDD", "MDD 초과", RuleType.STOP_LOSS, true, false),
     
     /**
      * VaR(Value at Risk) 기반 손절
      * - value: 양수 (비율, 0~1)
      * - 예시: 0.05 (95% VaR이 5% 초과 시 손절)
      */
-    VAR("VAR", RuleType.STOP_LOSS, true, false),
+    VAR("VAR", "VaR 초과", RuleType.STOP_LOSS, true, false),
     
     /**
      * 손실 한계선
      * - value: 음수 (비율, -1~0)
      * - 예시: -0.10 (총 손실률이 -10% 미만 시 손절)
      */
-    LOSS_LIMIT("LOSS_LIMIT", RuleType.STOP_LOSS, true, true),
+    LOSS_LIMIT("LOSS_LIMIT", "손실 한계선", RuleType.STOP_LOSS, true, true),
     
     // ===== 익절 규칙 (Take Profit) =====
     
@@ -43,28 +45,25 @@ public enum RuleCategory {
      * - value: 양수 (비율, 0~1)
      * - 예시: 0.30 (어떤 종목이든 30% 수익 시 익절)
      */
-    ONEPROFIT("ONEPROFIT", RuleType.TAKE_PROFIT, true, false);
+    ONEPROFIT("ONEPROFIT", "단일 종목 목표 수익률 달성", RuleType.TAKE_PROFIT, true, false);
     
+    @Getter
     private final String code;
+    @Getter
+    private final String name;
+    @Getter
     private final RuleType ruleType;
     private final boolean isRatio;      // 비율 기반인지 여부
     private final boolean allowNegative; // 음수 허용 여부
     
-    RuleCategory(String code, RuleType ruleType, boolean isRatio, boolean allowNegative) {
+    RuleCategory(String code, String name, RuleType ruleType, boolean isRatio, boolean allowNegative) {
         this.code = code;
+        this.name = name;
         this.ruleType = ruleType;
         this.isRatio = isRatio;
         this.allowNegative = allowNegative;
     }
-    
-    public String getCode() {
-        return code;
-    }
-    
-    public RuleType getRuleType() {
-        return ruleType;
-    }
-    
+
     public boolean isRatio() {
         return isRatio;
     }
@@ -74,15 +73,22 @@ public enum RuleCategory {
     }
     
     /**
-     * 코드로 RuleCategory 조회
+     * 코드 또는 이름으로 RuleCategory 조회
      */
-    public static RuleCategory fromCode(String code) {
-        if (code == null || code.trim().isEmpty()) {
+    public static RuleCategory fromCode(String input) {
+        if (input == null || input.trim().isEmpty()) {
             return null;
         }
         
+        String trimmedInput = input.trim();
+        
         for (RuleCategory category : values()) {
-            if (category.code.equalsIgnoreCase(code.trim())) {
+            // 영문 코드로 매칭
+            if (category.code.equalsIgnoreCase(trimmedInput)) {
+                return category;
+            }
+            // 이름으로 매칭
+            if (category.name.equals(trimmedInput)) {
                 return category;
             }
         }

@@ -61,7 +61,7 @@ public class PortfolioController {
      *     <li>총 자산</li>
      *     <li>보유 종목별 이름, 비중, 전일대비등락률</li>
      *     <li>전일대비등락금액 합계</li>
-     *     <li>전일대비등락률 (추가 필요)</li>
+     *     <li>전일대비등락률</li>
      * </ul>
      * */
     @GetMapping("/main")
@@ -146,7 +146,7 @@ public class PortfolioController {
      *     <li>포트폴리오 설명</li>
      *     <li>자산 합계</li>
      *     <li>전일대비등락금액 합계</li>
-     *     <li>전일대비등락률 (추가 필요)</li>
+     *     <li>전일대비등락률</li>
      *     <li>보유 종목별 ticker, 이름, 비중</li>
      * </ul>
      * */
