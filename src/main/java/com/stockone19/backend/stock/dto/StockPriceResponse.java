@@ -39,7 +39,6 @@ public record StockPriceResponse(
             double currentPrice,
             double dailyRate,
             double dailyChange,
-            double marketCap,
             PriceChangeSign sign
     ) {}
 }

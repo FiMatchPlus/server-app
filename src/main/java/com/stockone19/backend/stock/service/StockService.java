@@ -197,6 +197,20 @@ public class StockService {
     }
 
     /**
+     * 여러 티커로 주식 정보를 배치 조회 (트랜잭션 내)
+     *
+     * @param tickers 종목 티커 리스트
+     * @return Stock 객체 리스트
+     */
+    @Transactional(readOnly = true, timeout = 5)
+    public List<Stock> getStocksWithTransaction(List<String> tickers) {
+        if (tickers == null || tickers.isEmpty()) {
+            return List.of();
+        }
+        return stockRepository.findByTickerIn(tickers);
+    }
+
+    /**
      * 티커로 현재 가격을 조회합니다.
      *
      * @param ticker 종목 티커
@@ -211,6 +225,53 @@ public class StockService {
         return latestPrice.getClosePrice().doubleValue();
     }
 
+
+    /**
+     * 멀티 종목의 실시간 현재가를 KIS API로 조회
+     *
+     * @param tickers 종목 티커 목록
+     * @return StockPriceResponse 형태의 응답
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)  // 트랜잭션 없이 실행
+    public StockPriceResponse getRealtimeStockPrices(List<String> tickers) {
+        if (tickers == null || tickers.isEmpty()) {
+            return StockPriceResponse.success(List.of());
+        }
+
+        // 종목 정보 조회 (별도 트랜잭션)
+        List<Stock> stocks = getStocksWithTransaction(tickers);
+        Map<String, String> tickerNameMap = stocks.stream()
+                .collect(Collectors.toMap(Stock::getTicker, Stock::getName));
+
+        // KIS API로 실시간 가격 조회
+        Map<String, StockPriceInfo> priceMap = getMultiCurrentPrices(tickers);
+
+        // StockPriceData 리스트 생성
+        List<StockPriceResponse.StockPriceData> priceDataList = tickers.stream()
+                .map(ticker -> {
+                    String name = tickerNameMap.getOrDefault(ticker, "알 수 없음");
+                    StockPriceInfo priceInfo = priceMap.get(ticker);
+                    
+                    if (priceInfo == null) {
+                        return new StockPriceResponse.StockPriceData(
+                                ticker, name, 0.0, 0.0, 0.0, 0.0, PriceChangeSign.FLAT
+                        );
+                    }
+                    
+                    return new StockPriceResponse.StockPriceData(
+                            ticker,
+                            name,
+                            priceInfo.currentPrice(),
+                            priceInfo.dailyChangeRate(),
+                            priceInfo.dailyChangePrice(),
+                            0.0, // marketCap은 KIS 다중 조회에서 제공하지 않음
+                            priceInfo.sign()
+                    );
+                })
+                .collect(Collectors.toList());
+
+        return StockPriceResponse.success(priceDataList);
+    }
 
     /**
      * 여러 종목의 현재가와 전일종가를 KIS API로 조회합니다.

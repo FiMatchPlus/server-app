@@ -129,4 +129,20 @@ public class StockController {
         StockPriceResponse response = stockService.getCurrentPriceForSingle(code);
         return ApiResponse.success("단일 종목의 현재가를 조회합니다", response);
     }
+
+    /**
+     * 여러 종목의 실시간 현재가 조회
+     * <ul>
+     *     <li>KIS API를 통해 여러 종목의 실시간 현재가를 한 번에 조회</li>
+     *     <li>현재가, 전일 대비 변동률, 변동가격, 변동 부호 정보 포함</li>
+     * </ul>
+     */
+    @GetMapping("/multi")
+    public ApiResponse<StockPriceResponse> getRealtimeStockPrices(
+            @RequestParam("codes") List<String> codes
+    ) {
+        log.info("GET /api/stocks/multi - codes: {}", codes);
+        StockPriceResponse response = stockService.getRealtimeStockPrices(codes);
+        return ApiResponse.success("여러 종목의 실시간 현재가를 조회합니다", response);
+    }
 }
