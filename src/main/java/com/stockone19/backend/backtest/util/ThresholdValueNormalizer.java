@@ -84,9 +84,6 @@ public class ThresholdValueNormalizer {
                     String.format("'%s'의 기준값은 0보다 커야 합니다: %s", categoryCode, originalInput)
                 );
             }
-            if (value == 0.0) {
-                log.warn("'{}' 기준값이 0입니다: {}", categoryCode, originalInput);
-            }
             return value;
         }
         
