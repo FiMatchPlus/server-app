@@ -116,7 +116,7 @@ public class BacktestDataPersistenceService {
             convertMetricsToJson(callback.metrics(), callback.benchmarkMetrics()),
             parseDateTime(portfolioSnapshot.startAt()),
             parseDateTime(portfolioSnapshot.endAt()),
-            portfolioSnapshot.executionTime()
+            portfolioSnapshot.getExecutionTimeAsDouble()
         );
     }
 

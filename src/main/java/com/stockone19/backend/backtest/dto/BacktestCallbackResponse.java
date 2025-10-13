@@ -50,9 +50,26 @@ public record BacktestCallbackResponse(
         @JsonProperty("created_at")
         String createdAt,
         @JsonProperty("execution_time")
-        Double executionTime,
+        String executionTime,
         List<HoldingResponse> holdings
-    ) {}
+    ) {
+        /**
+         * execution_time을 Double로 변환
+         * "1.666s" → 1.666
+         */
+        public Double getExecutionTimeAsDouble() {
+            if (executionTime == null || executionTime.trim().isEmpty()) {
+                return null;
+            }
+            try {
+                // "s" 제거하고 숫자만 파싱
+                String numericValue = executionTime.replaceAll("[^0-9.]", "");
+                return Double.parseDouble(numericValue);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+    }
     
     public record HoldingResponse(
         Long id,
@@ -203,7 +220,7 @@ public record BacktestCallbackResponse(
                 parseToLocalDateTime(portfolioSnapshot.startAt()),
                 parseToLocalDateTime(portfolioSnapshot.endAt()),
                 parseToLocalDateTime(portfolioSnapshot.createdAt()),
-                portfolioSnapshot.executionTime(),
+                portfolioSnapshot.getExecutionTimeAsDouble(),
                 convertedHoldings
             );
         

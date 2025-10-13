@@ -19,6 +19,7 @@ public record PortfolioListResponse(
     public record HoldingStock(
             String ticker,
             String name,
+            int shares,
             double weight,
             double value,
             double dailyRate,

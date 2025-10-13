@@ -507,6 +507,7 @@ public class PortfolioQueryService {
                                 return new PortfolioListResponse.HoldingStock(
                                         "Unknown",
                                         "Unknown Stock",
+                                        holding.shares(),
                                         holding.weight(),
                                         holding.totalValue(),
                                         0.0,
@@ -521,6 +522,7 @@ public class PortfolioQueryService {
                                 return new PortfolioListResponse.HoldingStock(
                                         stock.getTicker(),
                                         stock.getName(),
+                                        holding.shares(),
                                         holding.weight(),
                                         holding.totalValue(),
                                         0.0,
@@ -538,6 +540,7 @@ public class PortfolioQueryService {
                             return new PortfolioListResponse.HoldingStock(
                                     stock.getTicker(),
                                     stock.getName(),
+                                    holding.shares(),
                                     holding.weight(),
                                     value,
                                     dailyRate,
@@ -548,6 +551,7 @@ public class PortfolioQueryService {
                             return new PortfolioListResponse.HoldingStock(
                                     "Unknown",
                                     "Unknown Stock",
+                                    holding.shares(),
                                     holding.weight(),
                                     holding.totalValue(),
                                     0.0,
