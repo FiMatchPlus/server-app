@@ -74,6 +74,22 @@ public class PortfolioController {
     }
 
     /**
+     * 포트폴리오 기본 정보 조회
+     * <ul>
+     *     <li>포트폴리오 식별자</li>
+     *     <li>포트폴리오 이름, 설명, 총 자산</li>
+     *     <li>보유 종목 상세 정보 (symbol, name, shares, currentPrice, totalValue, change, changePercent, weight)</li>
+     * </ul>
+     * */
+    @GetMapping("/{portfolioId}")
+    public ApiResponse<PortfolioDetailResponse> getPortfolioDetail(@PathVariable Long portfolioId) {
+        log.info("GET /api/portfolios/{}", portfolioId);
+
+        PortfolioDetailResponse response = portfolioQueryService.getPortfolioDetail(portfolioId);
+        return ApiResponse.success("포트폴리오 상세 정보를 조회합니다", response);
+    }
+
+    /**
      * 단일 포트폴리오 상세 정보 조회 (포트폴리오 페이지용)
      * <ul>
      *     <li>포트폴리오 식별자</li>

@@ -11,6 +11,8 @@ public record PortfolioAnalysisDetailResponse(
         String portfolioName,
         String analysisDate,
         AnalysisPeriod analysisPeriod,
+        @JsonProperty("execution_time")
+        Double executionTime,
         List<PortfolioInsight> results,
         @JsonProperty("comparative_analysis")
         ComparativeAnalysis comparativeAnalysis,
@@ -167,6 +169,7 @@ public record PortfolioAnalysisDetailResponse(
             String portfolioName,
             String analysisDate,
             AnalysisPeriod analysisPeriod,
+            Double executionTime,
             List<PortfolioInsight> results,
             ComparativeAnalysis comparativeAnalysis,
             PersonalizedRecommendation personalizedRecommendation
@@ -176,6 +179,7 @@ public record PortfolioAnalysisDetailResponse(
                 portfolioName,
                 analysisDate,
                 analysisPeriod,
+                executionTime,
                 results,
                 comparativeAnalysis,
                 personalizedRecommendation

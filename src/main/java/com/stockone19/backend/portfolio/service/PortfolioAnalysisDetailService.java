@@ -121,6 +121,7 @@ public class PortfolioAnalysisDetailService {
                 portfolio.name(),
                 analysisResponse.metadata().timestamp(),
                 analysisPeriod,
+                analysisResponse.metadata().executionTime(),
                 results,
                 comparativeAnalysis,
                 personalizedRecommendation
