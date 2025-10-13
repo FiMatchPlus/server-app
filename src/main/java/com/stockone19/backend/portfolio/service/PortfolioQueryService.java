@@ -237,6 +237,50 @@ public class PortfolioQueryService {
         }
     }
 
+    /**
+     * 포트폴리오 상세 정보 조회 (생성 폼과 동일한 구조 + portfolioId)
+     */
+    public PortfolioDetailResponse getPortfolioDetail(Long portfolioId) {
+        log.info("Getting portfolio detail for portfolioId: {}", portfolioId);
+
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
+
+        List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
+
+        // Stock 정보를 한 번에 조회
+        Map<String, Stock> stockMap = Map.of();
+        if (!holdings.isEmpty()) {
+            List<String> tickers = holdings.stream()
+                    .map(Holding::symbol)
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            stockMap = stockService.getStocksByTickers(tickers)
+                    .stream()
+                    .collect(Collectors.toMap(Stock::getTicker, stock -> stock));
+        }
+
+        // Holdings를 Response로 변환
+        Map<String, Stock> finalStockMap = stockMap;
+        List<PortfolioDetailResponse.HoldingResponse> holdingResponses = holdings.stream()
+                .map(holding -> convertHoldingToResponse(holding, finalStockMap))
+                .collect(Collectors.toList());
+
+        // 총 자산 계산
+        double totalValue = holdings.stream()
+                .mapToDouble(Holding::totalValue)
+                .sum();
+
+        return new PortfolioDetailResponse(
+                portfolio.id(),
+                portfolio.name(),
+                totalValue,
+                portfolio.description(),
+                holdingResponses
+        );
+    }
+
     // === Private Helper Methods ===
 
     @Transactional(readOnly = true, timeout = 5)
@@ -626,5 +670,25 @@ public class PortfolioQueryService {
                 yield type;
             }
         };
+    }
+
+    private PortfolioDetailResponse.HoldingResponse convertHoldingToResponse(Holding holding, Map<String, Stock> stockMap) {
+        // Stock 정보에서 이름 가져오기
+        String stockName = "Unknown Stock";
+        Stock stock = stockMap.get(holding.symbol());
+        if (stock != null) {
+            stockName = stock.getName();
+        }
+
+        return new PortfolioDetailResponse.HoldingResponse(
+                holding.symbol(),
+                stockName,
+                holding.shares(),
+                holding.currentPrice(),
+                holding.totalValue(),
+                holding.changeAmount(),
+                holding.changePercent(),
+                holding.weight()
+        );
     }
 }
