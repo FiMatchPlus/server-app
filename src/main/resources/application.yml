@@ -42,6 +42,9 @@ spring:
     redis:
       time-to-live: 3600000
       cache-null-values: false
+  jackson:
+    parser:
+      allow-non-numeric-numbers: true  # NaN, Infinity 등 비표준 숫자 허용
 
 server:
   port: 8081
