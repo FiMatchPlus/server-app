@@ -1,6 +1,7 @@
 package com.stockone19.backend.backtest.service;
 
 import com.stockone19.backend.backtest.domain.Backtest;
+import com.stockone19.backend.backtest.domain.RuleCategory;
 import com.stockone19.backend.backtest.dto.*;
 import com.stockone19.backend.backtest.repository.BacktestRepository;
 import com.stockone19.backend.backtest.repository.BacktestRuleRepository;
@@ -231,17 +232,28 @@ public class BacktestService {
         
         return items.stream()
                 .map(item -> {
+                    // category를 enum 코드로 변환 및 검증 (영문 코드 또는 이름 모두 가능)
+                    RuleCategory category = RuleCategory.fromCode(item.category());
+                    if (category == null) {
+                        throw new IllegalArgumentException(
+                            String.format("유효하지 않은 규칙 카테고리입니다: '%s'. " +
+                                "사용 가능한 카테고리: BETA(베타 일정값 초과), MDD(MDD 초과), VAR(VaR 초과), LOSS_LIMIT(손실 한계선), ONEPROFIT(단일 종목 목표 수익률 달성)", 
+                                item.category())
+                        );
+                    }
+                    String categoryCode = category.getCode();
+                    
                     // threshold 값 정규화 (백분율 -> 비율 변환 및 유효성 검사)
                     String normalizedThreshold = ThresholdValueNormalizer.normalize(
-                        item.category(), 
+                        categoryCode, 
                         item.threshold()
                     );
                     
-                    log.debug("Normalized threshold for category '{}': {} -> {}", 
-                             item.category(), item.threshold(), normalizedThreshold);
+                    log.debug("Normalized rule - category: {} -> {}, threshold: {} -> {}", 
+                             item.category(), categoryCode, item.threshold(), normalizedThreshold);
                     
                     return new BacktestRuleDocument.RuleItem(
-                        item.category(),
+                        categoryCode,
                         normalizedThreshold,
                         item.description()
                     );
@@ -297,17 +309,28 @@ public class BacktestService {
         
         return items.stream()
                 .map(item -> {
+                    // category를 enum 코드로 변환 및 검증 (영문 코드 또는 이름 모두 가능)
+                    RuleCategory category = RuleCategory.fromCode(item.category());
+                    if (category == null) {
+                        throw new IllegalArgumentException(
+                            String.format("유효하지 않은 규칙 카테고리입니다: '%s'. " +
+                                "사용 가능한 카테고리: BETA(베타 일정값 초과), MDD(MDD 초과), VAR(VaR 초과), LOSS_LIMIT(손실 한계선), ONEPROFIT(단일 종목 목표 수익률 달성)", 
+                                item.category())
+                        );
+                    }
+                    String categoryCode = category.getCode();
+                    
                     // threshold 값 정규화 (백분율 -> 비율 변환 및 유효성 검사)
                     String normalizedThreshold = ThresholdValueNormalizer.normalize(
-                        item.category(), 
+                        categoryCode, 
                         item.threshold()
                     );
                     
-                    log.debug("Normalized threshold for category '{}': {} -> {}", 
-                             item.category(), item.threshold(), normalizedThreshold);
+                    log.debug("Normalized rule - category: {} -> {}, threshold: {} -> {}", 
+                             item.category(), categoryCode, item.threshold(), normalizedThreshold);
                     
                     return new BacktestRuleDocument.RuleItem(
-                        item.category(),
+                        categoryCode,
                         normalizedThreshold,
                         item.description()
                     );
