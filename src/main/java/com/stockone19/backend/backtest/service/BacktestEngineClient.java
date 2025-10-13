@@ -56,10 +56,11 @@ public class BacktestEngineClient {
             // 백테스트 요청 생성
             BacktestExecutionRequest request = createBacktestEngineRequest(backtest);
 
-            // 요청 body 로그 출력
+            // 요청 body
             try {
-                String requestBody = objectMapper.writeValueAsString(request);
-                log.info("Sending backtest request to engine - backtestId: {}, requestBody: {}", 
+                String requestBody = objectMapper.writerWithDefaultPrettyPrinter()
+                        .writeValueAsString(request);
+                log.info("Sending backtest request to engine - backtestId: {}\nRequest Body:\n{}", 
                         backtestId, requestBody);
             } catch (Exception e) {
                 log.warn("Failed to serialize request body for logging: {}", e.getMessage());
