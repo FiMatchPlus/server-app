@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
 /**
- * KIS API의 prdy_vrss_sign (전일대비부호) 값을 나타내는 enum
+ * KIS API의 prdy_vrss_sign (전일대비부호)
  */
 public enum PriceChangeSign {
     UPPER_LIMIT("1", "상한"),
@@ -44,29 +44,4 @@ public enum PriceChangeSign {
         return FLAT; // 기본값
     }
 
-    /**
-     * 부호에 따른 multiplier 반환 (계산이 필요한 경우)
-     */
-    public double getMultiplier() {
-        return switch (this) {
-            case UPPER_LIMIT, RISE -> 1.0;
-            case LOWER_LIMIT, FALL -> -1.0;
-            case FLAT -> 0.0;
-        };
-    }
-
-    /**
-     * 상승/하락 여부 확인
-     */
-    public boolean isPositive() {
-        return this == UPPER_LIMIT || this == RISE;
-    }
-
-    public boolean isNegative() {
-        return this == LOWER_LIMIT || this == FALL;
-    }
-
-    public boolean isFlat() {
-        return this == FLAT;
-    }
 }
