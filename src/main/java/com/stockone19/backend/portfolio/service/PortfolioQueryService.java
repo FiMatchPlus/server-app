@@ -238,6 +238,19 @@ public class PortfolioQueryService {
     }
 
     /**
+     * 포트폴리오 분석 상태 조회
+     * 분석 진행 상태를 추적하기 위한 메서드
+     */
+    public PortfolioStatusResponse getPortfolioStatus(Long portfolioId) {
+        log.info("Getting portfolio status for portfolioId: {}", portfolioId);
+        
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
+        
+        return PortfolioStatusResponse.from(portfolio);
+    }
+
+    /**
      * 포트폴리오 상세 정보 조회 (생성 폼과 동일한 구조 + portfolioId)
      */
     public PortfolioDetailResponse getPortfolioDetail(Long portfolioId) {
