@@ -1,8 +1,10 @@
 package com.stockone19.backend.portfolio.controller;
 import com.stockone19.backend.portfolio.dto.PortfolioAnalysisResponse;
+import com.stockone19.backend.portfolio.dto.PortfolioStatusResponse;
 import com.stockone19.backend.portfolio.event.PortfolioAnalysisSuccessEvent;
 import com.stockone19.backend.portfolio.event.PortfolioAnalysisFailureEvent;
 import com.stockone19.backend.portfolio.service.PortfolioAnalysisService;
+import com.stockone19.backend.portfolio.service.PortfolioQueryService;
 import com.stockone19.backend.common.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class PortfolioAnalysisController {
 
     private final ApplicationEventPublisher applicationEventPublisher;
     private final PortfolioAnalysisService portfolioAnalysisService;
+    private final PortfolioQueryService portfolioQueryService;
 
     /**
      * 포트폴리오 분석 엔진에서 콜백 수신
@@ -71,7 +74,7 @@ public class PortfolioAnalysisController {
     }
     
     /**
-     * 포트폴리오 분석 수동 실행
+     * 포트폴리오 최적화 수동 실행
      * 포트폴리오 저장은 성공했지만 분석에 실패한 경우 수동으로 재실행
      */
     @PostMapping("/{portfolioId}/start")
@@ -113,6 +116,28 @@ public class PortfolioAnalysisController {
             log.error("Failed to generate portfolio analysis report for portfolioId: {}", portfolioId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("포트폴리오 분석 리포트 생성에 실패했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 포트폴리오 분석 상태 조회
+     * 최적화 분석 진행 상태를 추적
+     */
+    @GetMapping("/{portfolioId}/status")
+    public ResponseEntity<ApiResponse<PortfolioStatusResponse>> getPortfolioAnalysisStatus(@PathVariable Long portfolioId) {
+        log.info("GET /api/portfolio-analysis/{}/status - 분석 상태 조회", portfolioId);
+        
+        try {
+            PortfolioStatusResponse statusResponse = portfolioQueryService.getPortfolioStatus(portfolioId);
+            
+            return ResponseEntity.ok(ApiResponse.success(
+                    "포트폴리오 분석 상태 조회 완료",
+                    statusResponse
+            ));
+        } catch (Exception e) {
+            log.error("Failed to get portfolio analysis status for portfolioId: {}", portfolioId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("포트폴리오 분석 상태 조회에 실패했습니다."));
         }
     }
     

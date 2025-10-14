@@ -43,7 +43,8 @@ public class Product {
     @Column(name = "min_investment", nullable = false)
     private Long minInvestment;
 
-    @Column(nullable = false, columnDefinition = "TEXT[]")
+    @Column(nullable = false, columnDefinition = "TEXT")
+    @Convert(converter = StringArrayConverter.class)
     private String[] keywords;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
