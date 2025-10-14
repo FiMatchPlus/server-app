@@ -99,7 +99,7 @@ public class BenchmarkDeterminerService {
             if (market.equals("KOSPI") || market.equals("KQ")) {
                 kospiCount++;
                 log.debug("Stock {} classified as KOSPI", ticker);
-            } else if (market.equals("KOSDAQ") || market.contains("KOSDAQ")) {
+            } else if (market.contains("KOSDAQ")) {
                 kosdaqCount++;
                 log.debug("Stock {} classified as KOSDAQ", ticker);
             } else {
@@ -133,7 +133,7 @@ public class BenchmarkDeterminerService {
                 String.format("%.2f", kospiRatio * 100), 
                 String.format("%.2f", kosdaqRatio * 100));
         
-        // 결정 로직: 제공된 코드와 동일한 로직 적용
+        // 벤치마크 지수 결정 로직
         if (kospiRatio >= 0.6) {           // 코스피 60% 이상 → KOSPI
             return BenchmarkIndex.KOSPI;
         } else if (kosdaqRatio >= 0.6) {    // 코스닥 60% 이상 → KOSDAQ

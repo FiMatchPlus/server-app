@@ -103,8 +103,7 @@ public class ThresholdValueNormalizer {
             }
             
             if (value == 0.0) {
-                log.warn("'{}' 기준값이 0입니다. 이 규칙은 실질적으로 작동하지 않을 수 있습니다: {}", 
-                         categoryCode, originalInput);
+                log.warn("'{}' 기준값이 0입니다. 이 규칙은 실질적으로 작동하지 않을 수 있습니다: {}", categoryCode, originalInput);
             }
             
             return value;
@@ -125,16 +124,14 @@ public class ThresholdValueNormalizer {
                     );
                 } else {
                     throw new IllegalArgumentException(
-                        String.format("'%s'의 기준값은 1.0을 초과할 수 없습니다. " +
-                                    "백분율(%)로 입력하려면 '%s%%'와 같이 %%를 추가해주세요: %s", 
+                        String.format("'%s'의 기준값은 1.0을 초과할 수 없습니다. 백분율(%)로 입력하려면 '%s%%'와 같이 %%를 추가해주세요: %s",
                                     categoryCode, originalInput, originalInput)
                     );
                 }
             }
 
             if (value == 0.0) {
-                log.warn("'{}' 기준값이 0입니다. 이 규칙은 실질적으로 작동하지 않을 수 있습니다: {}", 
-                         categoryCode, originalInput);
+                log.warn("'{}' 기준값이 0입니다. 이 규칙은 실질적으로 작동하지 않을 수 있습니다: {}", categoryCode, originalInput);
             }
         }
         
