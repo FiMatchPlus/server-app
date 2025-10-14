@@ -123,46 +123,6 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     }
 
     @Override
-    public boolean existsPortfolioSnapshotByBacktestId(Long backtestId) {
-        String sql = """
-            SELECT COUNT(*) FROM portfolio_snapshots 
-            WHERE backtest_id = ?
-            """;
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, backtestId);
-        return count != null && count > 0;
-    }
-
-    @Override
-    public List<PortfolioSnapshot> findPortfolioSnapshotsByBacktestId(Long backtestId) {
-        String sql = """
-            SELECT id, backtest_id, base_value, current_value, created_at, 
-                   metrics, start_at, end_at, execution_time, report_content, report_created_at
-            FROM portfolio_snapshots
-            WHERE backtest_id = ?
-            ORDER BY created_at ASC
-            """;
-        
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
-            Double executionTime = rs.getObject("execution_time") != null ? 
-                rs.getDouble("execution_time") : null;
-            
-            return PortfolioSnapshot.of(
-                    rs.getLong("id"),
-                    rs.getLong("backtest_id"),
-                    rs.getDouble("base_value"),
-                    rs.getDouble("current_value"),
-                    rs.getTimestamp("created_at").toLocalDateTime(),
-                    rs.getString("metrics"),
-                    rs.getTimestamp("start_at") != null ? rs.getTimestamp("start_at").toLocalDateTime() : null,
-                    rs.getTimestamp("end_at") != null ? rs.getTimestamp("end_at").toLocalDateTime() : null,
-                    executionTime,
-                    rs.getString("report_content"),
-                    rs.getTimestamp("report_created_at") != null ? rs.getTimestamp("report_created_at").toLocalDateTime() : null
-            );
-        }, backtestId);
-    }
-
-    @Override
     public PortfolioSnapshot findLatestPortfolioSnapshotByBacktestId(Long backtestId) {
         String sql = """
             SELECT id, backtest_id, base_value, current_value, created_at, 
@@ -270,29 +230,6 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
     }
 
     @Override
-    public List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId) {
-        String sql = """
-            SELECT id, recorded_at, price, quantity, value, weight, portfolio_snapshot_id, stock_code, contribution, daily_ratio
-            FROM holding_snapshots
-            WHERE portfolio_snapshot_id = ?
-            ORDER BY weight DESC
-            """;
-        
-        return jdbcTemplate.query(sql, (rs, rowNum) -> HoldingSnapshot.of(
-                rs.getLong("id"),
-                rs.getTimestamp("recorded_at").toLocalDateTime(),
-                rs.getDouble("price"),
-                rs.getInt("quantity"),
-                rs.getDouble("value"),
-                rs.getDouble("weight"),
-                rs.getLong("portfolio_snapshot_id"),
-                rs.getString("stock_code"),
-                rs.getDouble("contribution"),
-                rs.getDouble("daily_ratio")
-        ), portfolioSnapshotId);
-    }
-
-    @Override
     public List<HoldingSnapshot> findHoldingSnapshotsByBacktestId(Long backtestId) {
         String sql = """
             SELECT hs.id, hs.recorded_at, hs.price, hs.quantity, hs.value, hs.weight, 
@@ -364,11 +301,6 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
         throw new IllegalStateException("Could not retrieve generated id from KeyHolder");
     }
 
-    @Override
-    public int deleteHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId) {
-        String sql = "DELETE FROM holding_snapshots WHERE portfolio_snapshot_id = ?";
-        return jdbcTemplate.update(sql, portfolioSnapshotId);
-    }
 
     @Override
     public int deletePortfolioSnapshotById(Long portfolioSnapshotId) {

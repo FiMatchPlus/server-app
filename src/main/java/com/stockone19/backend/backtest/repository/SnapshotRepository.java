@@ -12,18 +12,13 @@ public interface SnapshotRepository {
     
     // PortfolioSnapshot 관련 메서드들
     PortfolioSnapshot savePortfolioSnapshot(PortfolioSnapshot snapshot);
-    boolean existsPortfolioSnapshotByBacktestId(Long backtestId);
-    List<PortfolioSnapshot> findPortfolioSnapshotsByBacktestId(Long backtestId);
     PortfolioSnapshot findLatestPortfolioSnapshotByBacktestId(Long backtestId);
     PortfolioSnapshot findById(Long id);
     
     // HoldingSnapshot 관련 메서드들
     HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot);
     int saveHoldingSnapshotsBatch(List<HoldingSnapshot> holdingSnapshots);
-    List<HoldingSnapshot> findHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
     List<HoldingSnapshot> findHoldingSnapshotsByBacktestId(Long backtestId);
-    
-    // 삭제 메서드들
-    int deleteHoldingSnapshotsByPortfolioSnapshotId(Long portfolioSnapshotId);
+
     int deletePortfolioSnapshotById(Long portfolioSnapshotId);
 }

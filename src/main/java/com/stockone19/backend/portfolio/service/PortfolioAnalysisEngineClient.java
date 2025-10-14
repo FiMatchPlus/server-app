@@ -68,8 +68,7 @@ public class PortfolioAnalysisEngineClient {
                 .bodyToMono(PortfolioAnalysisStartResponse.class)
                 .block();
 
-            log.info("Portfolio analysis submitted to engine: portfolioId={}, status={}, message={}",
-                    portfolioId, response.status(), response.message());
+            log.info("Portfolio analysis submitted to engine: portfolioId={}, status={}, message={}", portfolioId, response.status(), response.message());
 
         } catch (Exception e) {
             log.error("Failed to submit portfolio analysis to engine: portfolioId={}", portfolioId, e);

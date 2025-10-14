@@ -32,8 +32,7 @@ public class AsyncConfig {
         
         executor.initialize();
         
-        log.info("Background task executor initialized with core={}, max={}, queue={}",
-                executor.getCorePoolSize(), executor.getMaxPoolSize(), executor.getQueueCapacity());
+        log.info("Background task executor initialized with core={}, max={}, queue={}", executor.getCorePoolSize(), executor.getMaxPoolSize(), executor.getQueueCapacity());
         
         return executor;
     }
