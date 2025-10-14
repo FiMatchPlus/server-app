@@ -347,16 +347,13 @@ public class PortfolioAnalysisDetailService {
             return null;
         }
         
-        PortfolioInsightReport.PersonalizedRecommendation srcRecommendation = 
-                insightReport.personalizedRecommendation();
+        PortfolioInsightReport.PersonalizedRecommendation srcRecommendation = insightReport.personalizedRecommendation();
         
         // risk_tolerance_assessment
-        PortfolioAnalysisDetailResponse.RiskToleranceAssessment riskToleranceAssessment = 
-                extractRiskToleranceAssessment(srcRecommendation);
+        PortfolioAnalysisDetailResponse.RiskToleranceAssessment riskToleranceAssessment = extractRiskToleranceAssessment(srcRecommendation);
         
         // investment_horizon_assessment
-        PortfolioAnalysisDetailResponse.InvestmentHorizonAssessment investmentHorizonAssessment = 
-                extractInvestmentHorizonAssessment(srcRecommendation);
+        PortfolioAnalysisDetailResponse.InvestmentHorizonAssessment investmentHorizonAssessment = extractInvestmentHorizonAssessment(srcRecommendation);
         
         return new PortfolioAnalysisDetailResponse.PersonalizedRecommendation(
                 srcRecommendation.finalGuidance(),

@@ -1,7 +1,6 @@
 package com.stockone19.backend.stock.repository;
 
 import com.stockone19.backend.stock.domain.Stock;
-import com.stockone19.backend.stock.domain.StockType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,12 +13,6 @@ public interface StockRepository extends JpaRepository<Stock, Long> {
     List<Stock> findByTickerIn(List<String> tickers);
 
     Optional<Stock> findByTicker(String ticker);
-
-    List<Stock> findByType(StockType type);
-
-    List<Stock> findByIndustryCode(Integer industryCode);
-
-    List<Stock> findByIsActiveTrue();
 
     /**
      * 종목 이름, 영문명 또는 티커로 검색 (기본 정보만)

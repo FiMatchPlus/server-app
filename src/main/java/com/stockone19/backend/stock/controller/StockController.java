@@ -134,7 +134,7 @@ public class StockController {
      * 여러 종목의 실시간 현재가 조회
      * <ul>
      *     <li>KIS API를 통해 여러 종목의 실시간 현재가를 한 번에 조회</li>
-     *     <li>현재가, 전일 대비 변동률, 변동가격, 변동 부호 정보 포함</li>
+     *     <li>모델 포트폴리오 보유 종목 현재가 조회</li>
      * </ul>
      */
     @GetMapping("/multi")
