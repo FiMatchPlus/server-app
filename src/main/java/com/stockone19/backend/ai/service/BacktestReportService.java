@@ -207,7 +207,7 @@ public class BacktestReportService {
     }
 
     /**
-     * 저장된 메트릭스 JSON에서 벤치마크 데이터 추출 (최적화 버전)
+     * metrics JSON에서 벤치마크 데이터 추출
      * 이미 조회된 PortfolioSnapshot을 매개변수로 받아 추가 DB 조회 방지
      */
     private String extractBenchmarkFromMetricsOptimized(PortfolioSnapshot latestSnapshot) {
@@ -265,7 +265,7 @@ public class BacktestReportService {
     
     
     /**
-     * JSON에서 Double 값 추출 (안전한 타입 변환)
+     * JSON에서 Double 값 추출
      */
     private Double getDoubleValue(Map<String, Object> map, String key) {
         Object value = map.get(key);
@@ -311,7 +311,7 @@ public class BacktestReportService {
 
     /**
      * 트렌드 변화점 기반 일별 평가액 포맷팅
-     * 상승/하락 전환점과 주요 변곡점, 지속된 경향성을 모두 분석
+     * 상승/하락 전환점, 주요 변곡점, 지속된 경향성 분석
      */
     private String formatDailyEquity(List<BacktestDetailResponse.DailyEquityData> dailyEquity) {
         if (dailyEquity.isEmpty()) {
@@ -535,15 +535,6 @@ public class BacktestReportService {
             log.error("Failed to save report to PortfolioSnapshot for backtestId: {}", backtestId, e);
             throw e;
         }
-    }
-
-    /**
-     * AI 분석을 위한 프롬프트 구축 (기존 메서드 - 호환성 유지)
-     * @deprecated PromptTemplateService 사용 권장
-     */
-    @Deprecated
-    private String buildAnalysisPrompt(String backtestData, String analysisFocus) {
-        return promptTemplateService.buildBacktestReportPrompt(backtestData, analysisFocus);
     }
     
     /**
