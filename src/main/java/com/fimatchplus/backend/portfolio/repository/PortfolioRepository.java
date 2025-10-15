@@ -12,8 +12,6 @@ public interface PortfolioRepository {
 
     Optional<Portfolio> findById(Long portfolioId);
 
-    Optional<Portfolio> findMainPortfolioByUserId(Long userId);
-
     Portfolio save(Portfolio portfolio);
 
     void softDelete(Long portfolioId);
