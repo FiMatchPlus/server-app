@@ -10,12 +10,10 @@ import java.util.List;
  */
 public interface SnapshotRepository {
     
-    // PortfolioSnapshot 관련 메서드들
     PortfolioSnapshot savePortfolioSnapshot(PortfolioSnapshot snapshot);
     PortfolioSnapshot findLatestPortfolioSnapshotByBacktestId(Long backtestId);
     PortfolioSnapshot findById(Long id);
     
-    // HoldingSnapshot 관련 메서드들
     HoldingSnapshot saveHoldingSnapshot(HoldingSnapshot holdingSnapshot);
     int saveHoldingSnapshotsBatch(List<HoldingSnapshot> holdingSnapshots);
     List<HoldingSnapshot> findHoldingSnapshotsByBacktestId(Long backtestId);

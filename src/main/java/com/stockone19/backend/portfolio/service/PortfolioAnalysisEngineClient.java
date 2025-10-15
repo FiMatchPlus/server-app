@@ -47,10 +47,8 @@ public class PortfolioAnalysisEngineClient {
             Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new RuntimeException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
 
-            // 포트폴리오 분석 요청 생성
             PortfolioAnalysisRequest request = createPortfolioAnalysisRequest(portfolio);
 
-            // 요청 body 로그 출력
             try {
                 String requestBody = objectMapper.writeValueAsString(request);
                 log.info("Sending portfolio analysis request to engine - portfolioId: {}, requestBody: {}", 
@@ -59,7 +57,6 @@ public class PortfolioAnalysisEngineClient {
                 log.warn("Failed to serialize request body for logging: {}", e.getMessage());
             }
 
-            // 포트폴리오 분석 엔진에 요청
             PortfolioAnalysisStartResponse response = portfolioAnalysisEngineWebClient
                 .post()
                 .uri("/analysis/start")
@@ -72,7 +69,6 @@ public class PortfolioAnalysisEngineClient {
 
         } catch (Exception e) {
             log.error("Failed to submit portfolio analysis to engine: portfolioId={}", portfolioId, e);
-            // 실패 이벤트 발행하여 상태 업데이트 트리거
             try {
                 eventPublisher.publishEvent(new PortfolioAnalysisFailureEvent(portfolioId,  e.getMessage()));
             } catch (Exception publishError) {
@@ -88,7 +84,6 @@ public class PortfolioAnalysisEngineClient {
      */
     public PortfolioAnalysisRequest createPortfolioAnalysisRequest(Portfolio portfolio) {
         try {
-            // 포트폴리오 보유 종목 조회
             List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolio.id());
             
             return PortfolioAnalysisRequest.of(

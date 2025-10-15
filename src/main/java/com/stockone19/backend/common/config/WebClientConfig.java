@@ -22,11 +22,11 @@ public class WebClientConfig {
             @Value("${kis.stock.base-url}") String baseUrl
     ) {
         HttpClient httpClient = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)  // 연결 타임아웃 5초
-                .responseTimeout(Duration.ofSeconds(10))             // 응답 타임아웃 10초
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                .responseTimeout(Duration.ofSeconds(10))
                 .doOnConnected(conn -> 
-                    conn.addHandlerLast(new ReadTimeoutHandler(10, TimeUnit.SECONDS))   // 읽기 타임아웃 10초
-                        .addHandlerLast(new WriteTimeoutHandler(5, TimeUnit.SECONDS))   // 쓰기 타임아웃 5초
+                    conn.addHandlerLast(new ReadTimeoutHandler(10, TimeUnit.SECONDS))
+                        .addHandlerLast(new WriteTimeoutHandler(5, TimeUnit.SECONDS))
                 );
 
         return builder
@@ -42,7 +42,7 @@ public class WebClientConfig {
     ) {
         return builder
                 .baseUrl(baseUrl)
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024)) // 10MB
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024))
                 .build();
     }
     
@@ -53,7 +53,7 @@ public class WebClientConfig {
     ) {
         return builder
                 .baseUrl(baseUrl)
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024)) // 10MB
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024))
                 .build();
     }
 }

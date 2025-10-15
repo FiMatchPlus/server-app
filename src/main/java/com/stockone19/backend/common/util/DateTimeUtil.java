@@ -10,7 +10,6 @@ public final class DateTimeUtil {
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
     private DateTimeUtil() {
-        // Utility class
     }
 
     public static String formatDateTime(LocalDateTime dateTime) {
@@ -26,7 +25,6 @@ public final class DateTimeUtil {
         int hour = now.getHour();
         int minute = now.getMinute();
 
-        // 한국 시간 기준 9:00 ~ 15:30 (장 시간)
         if (hour < 9 || hour > 15) {
             return false;
         }

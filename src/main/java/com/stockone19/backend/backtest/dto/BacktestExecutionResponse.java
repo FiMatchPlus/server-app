@@ -86,7 +86,7 @@ public record BacktestExecutionResponse(
             double portfolioWeight,
             @JsonProperty("portfolio_contribution")
             double portfolioContribution,
-            int quantity  // value 대신 quantity 직접 제공
+            int quantity
     ) {
         /**
          * 보유 가치 계산 (quantity × closePrice)

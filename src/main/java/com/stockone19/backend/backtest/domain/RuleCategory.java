@@ -8,7 +8,6 @@ import lombok.Getter;
  */
 public enum RuleCategory {
     
-    // ===== 손절 규칙 (Stop Loss) =====
     
     /**
      * 베타 기반 손절
@@ -38,7 +37,6 @@ public enum RuleCategory {
      */
     LOSS_LIMIT("LOSS_LIMIT", "손실 한계선", RuleType.STOP_LOSS, true, true),
     
-    // ===== 익절 규칙 (Take Profit) =====
     
     /**
      * 단일 종목 목표 수익률
@@ -53,8 +51,8 @@ public enum RuleCategory {
     private final String name;
     @Getter
     private final RuleType ruleType;
-    private final boolean isRatio;      // 비율 기반인지 여부
-    private final boolean allowNegative; // 음수 허용 여부
+    private final boolean isRatio;
+    private final boolean allowNegative;
     
     RuleCategory(String code, String name, RuleType ruleType, boolean isRatio, boolean allowNegative) {
         this.code = code;
@@ -83,11 +81,9 @@ public enum RuleCategory {
         String trimmedInput = input.trim();
         
         for (RuleCategory category : values()) {
-            // 영문 코드로 매칭
             if (category.code.equalsIgnoreCase(trimmedInput)) {
                 return category;
             }
-            // 이름으로 매칭
             if (category.name.equals(trimmedInput)) {
                 return category;
             }
@@ -120,8 +116,8 @@ public enum RuleCategory {
      * 규칙 타입
      */
     public enum RuleType {
-        STOP_LOSS,   // 손절
-        TAKE_PROFIT  // 익절
+        STOP_LOSS,
+        TAKE_PROFIT
     }
 }
 

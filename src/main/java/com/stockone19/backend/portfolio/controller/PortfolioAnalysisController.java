@@ -41,7 +41,6 @@ public class PortfolioAnalysisController {
         
         try {
             log.info("Portfolio analysis callback received - ip: {}, success: {}", clientIP, analysisResponse.success());
-            // 포트폴리오 ID 확인 (metadata에서 추출)
             Long portfolioId = analysisResponse.metadata() != null ? analysisResponse.metadata().portfolioId() : null;
             if (portfolioId == null) {
                 log.error("Missing portfolioId in callback");
@@ -49,7 +48,6 @@ public class PortfolioAnalysisController {
             }
             
             if (Boolean.TRUE.equals(analysisResponse.success())) {
-                // 성공 처리 - 이벤트 발행
                 PortfolioAnalysisSuccessEvent successEvent = new PortfolioAnalysisSuccessEvent(
                         portfolioId, analysisResponse);
                 applicationEventPublisher.publishEvent(successEvent);
@@ -57,7 +55,6 @@ public class PortfolioAnalysisController {
                 log.info("Portfolio analysis success event published - portfolioId: {}", 
                         portfolioId);
             } else {
-                // 실패 처리 - 이벤트 발행
                 PortfolioAnalysisFailureEvent failureEvent = new PortfolioAnalysisFailureEvent(
                         portfolioId, "Portfolio analysis failed");
                 applicationEventPublisher.publishEvent(failureEvent);
@@ -82,7 +79,6 @@ public class PortfolioAnalysisController {
         log.info("POST /api/portfolio-analysis/{}/start - 수동 분석 시작", portfolioId);
         
         try {
-            // 포트폴리오 분석 수동 실행
             portfolioAnalysisService.startPortfolioAnalysis(portfolioId);
             
             return ResponseEntity.ok(ApiResponse.success(
@@ -105,7 +101,6 @@ public class PortfolioAnalysisController {
         log.info("POST /api/portfolio-analysis/{}/report - 수동 리포트 생성", portfolioId);
         
         try {
-            // DB에서 분석 결과를 조회하여 LLM 리포트 생성
             String report = portfolioAnalysisService.generatePortfolioAnalysisReportFromDb(portfolioId);
             
             return ResponseEntity.ok(ApiResponse.success(

@@ -8,7 +8,7 @@ import java.util.Map;
  */
 public record DailyReturn(
         LocalDate date,
-        Map<String, Double> stockReturns  // 종목별 수익률 (종목명 -> 수익률)
+        Map<String, Double> stockReturns
 ) {
     
     public static DailyReturn of(LocalDate date, Map<String, Double> stockReturns) {

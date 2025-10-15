@@ -24,7 +24,6 @@ public class CategoryChatbotService {
      * @throws IllegalArgumentException 지원하지 않는 카테고리인 경우
      */
     public String generateCategoryResponse(String category, String userQuestion) {
-        // 카테고리 유효성 검증
         if (!isSupportedCategory(category)) {
             throw new IllegalArgumentException(
                 "지원하지 않는 카테고리입니다. 지원 카테고리: " + 
@@ -32,15 +31,12 @@ public class CategoryChatbotService {
             );
         }
         
-        // 사용자 질문 유효성 검증
         if (userQuestion == null || userQuestion.trim().isEmpty()) {
             throw new IllegalArgumentException("질문을 입력해주세요.");
         }
         
-        // 카테고리에 맞는 시스템 프롬프트 가져오기
         String systemPrompt = ChatbotPromptConstants.getPromptByCategory(category);
         
-        // 기존 ChatbotAIService를 활용하여 AI 응답 생성
         return chatbotAIService.generateResponse(systemPrompt, userQuestion);
     }
     

@@ -55,13 +55,10 @@ public class BacktestReportService {
         log.info("Generating backtest report for backtestId: {}", request.backtestId());
         
         try {
-            // 백테스트 데이터 조회 및 분석 데이터 준비
             String backtestData = getBacktestData(request.backtestId());
             
-            // 프롬프트 템플릿 서비스를 사용하여 분석 프롬프트 생성
             String analysisPrompt = promptTemplateService.buildBacktestReportPrompt(backtestData, request.analysisFocus());
             
-            // AI를 사용하여 레포트 생성
             String report = reportAIService.generateResponse(analysisPrompt);
             
             return BacktestReportResponse.of(request.backtestId(), report);
@@ -83,13 +80,10 @@ public class BacktestReportService {
         log.info("Generating and saving backtest report for backtestId: {}", backtestId);
         
         try {
-            // 프롬프트 템플릿 서비스를 사용하여 분석 프롬프트 생성
             String analysisPrompt = promptTemplateService.buildBacktestReportPrompt(backtestData, null);
             
-            // AI를 사용하여 레포트 생성
             String report = reportAIService.generateResponse(analysisPrompt);
             
-            // PortfolioSnapshot에 레포트 저장
             saveReportToSnapshot(backtestId, report);
             
             log.info("Successfully generated and saved report for backtestId: {}", backtestId);
@@ -107,14 +101,11 @@ public class BacktestReportService {
      */
     public String getBacktestData(Long backtestId) {
         try {
-            // 1. 한 번에 필요한 데이터 모두 로드 (N+1 문제 해결)
             BacktestDetailResponse backtestDetail = backtestQueryService.getBacktestDetail(backtestId);
             
-            // 2. 백테스트 엔티티에서 필요한 메타데이터 추출 (한 번만 조회)
             Backtest benchmarkInfoBacktest = backtestRepository.findById(backtestId)
                     .orElseThrow(() -> new ResourceNotFoundException("백테스트를 찾을 수 없습니다: " + backtestId));
             
-            // 3. 메트릭스에서 벤치마크 정보 추출 (한 번의 스냅샷 조회)
             PortfolioSnapshot latestSnapshotForMetrics = snapshotRepository.findLatestPortfolioSnapshotByBacktestId(backtestId);
             
             StringBuilder dataBuilder = new StringBuilder();
@@ -122,31 +113,26 @@ public class BacktestReportService {
             dataBuilder.append(String.format("실행기간: %s\n", backtestDetail.period()));
             dataBuilder.append(String.format("실행시간: %.2f초\n", backtestDetail.executionTime()));
             
-            // 실제 벤치마크 정보 추출 (매개변수로 필요한 데이터 전달하여 추가 DB 조회 방지)
             String benchmarkAnalysis = extractBenchmarkInfo(backtestId, benchmarkInfoBacktest, latestSnapshotForMetrics);
             if (!benchmarkAnalysis.trim().isEmpty()) {
                 dataBuilder.append(benchmarkAnalysis);
             }
             
-            // 백테스트 성과 지표
             if (backtestDetail.metrics() != null) {
                 dataBuilder.append("\n=== 성과 지표 ===\n");
                 dataBuilder.append(formatMetrics(backtestDetail.metrics()));
             }
             
-            // 포트폴리오 보유 현황
             if (!backtestDetail.holdings().isEmpty()) {
                 dataBuilder.append("\n=== 포트폴리오 보유 현황 ===\n");
                 dataBuilder.append(formatHoldings(backtestDetail.holdings()));
             }
             
-            // 트렌드 변화점 기반 일별 평가액 분석
             if (!backtestDetail.dailyEquity().isEmpty()) {
                 dataBuilder.append("\n=== 포트폴리오 평가액 트렌드 분석 ===\n");
                 dataBuilder.append(formatDailyEquity(backtestDetail.dailyEquity()));
             }
             
-            // 거래 기록 (ExecutionLog) 조회 및 포맷팅
             List<ExecutionLog> executionLogs = executionLogRepository.findByBacktestId(backtestId);
             if (!executionLogs.isEmpty()) {
                 dataBuilder.append("\n=== 거래 기록 ===\n");
@@ -176,7 +162,6 @@ public class BacktestReportService {
                 return benchmarkInfo.toString();
             }
             
-            // BenchmarkIndex enum에서 벤치마크 상세 정보 확인
             BenchmarkIndex benchmarkIndex = BenchmarkIndex.fromCode(benchmarkCode);
             String benchmarkName = benchmarkIndex != null ? benchmarkIndex.getName() : benchmarkCode;
             String benchmarkDescription = benchmarkIndex != null ? benchmarkIndex.getDescription() : "";
@@ -187,13 +172,11 @@ public class BacktestReportService {
                 benchmarkInfo.append(String.format("설명: %s\n", benchmarkDescription));
             }
             
-            // 저장된 메트릭스에서 벤치마크 데이터 추출 (이미 조회된 스냅샷 활용)
             String benchmarkAnalysis = extractBenchmarkFromMetricsOptimized(snapshotForMetrics);
             
             if (!benchmarkAnalysis.trim().isEmpty()) {
                 benchmarkInfo.append(benchmarkAnalysis);
             } else {
-                // 벤치마크 메트릭스가 없는 경우 기본 메시지
                 benchmarkInfo.append("※ 벤치마크 성과 데이터가 없습니다.\n\n");
             }
             
@@ -218,7 +201,6 @@ public class BacktestReportService {
                 return "";
             }
 
-            // 메트릭스 JSON 파싱
             @SuppressWarnings("unchecked")
             Map<String, Object> metricsMap = objectMapper.readValue(latestSnapshot.metrics(), Map.class);
             Object benchmarkObject = metricsMap.get("benchmark");
@@ -244,7 +226,6 @@ public class BacktestReportService {
                     analysis.append(String.format("벤치마크 일일평균: %.3f%%\n", benchmarkDailyAverage * 100));
                 }
                 
-                // Alpha 해석
                 if (alpha != null && alpha > 0) {
                     analysis.append("→ 포트폴리오가 벤치마크를 상회했습니다.\n");
                 } else if (alpha != null && alpha < 0) {
@@ -323,7 +304,6 @@ public class BacktestReportService {
         
         StringBuilder result = new StringBuilder();
         
-        // 기본 정보
         BacktestDetailResponse.DailyEquityData firstData = dailyEquity.get(0);
         BacktestDetailResponse.DailyEquityData lastData = dailyEquity.get(dailyEquity.size() - 1);
         double firstTotal = firstData.stocks().values().stream().mapToDouble(Double::doubleValue).sum();
@@ -334,7 +314,6 @@ public class BacktestReportService {
         result.append(String.format("종료일: %s, 포트폴리오 값: %,.0f원\n", lastData.date(), lastTotal));
         result.append(String.format("전체 수익률: %.2f%% (%d일간)\n\n", totalReturn, dailyEquity.size()));
         
-        // 지속된 경향성 분석 결과
         result.append(formatConsistencyAnalysis(consistency));
         
         if (trendChanges.isEmpty()) {
@@ -372,11 +351,9 @@ public class BacktestReportService {
             returns.add(dailyReturn);
         }
         
-        // 평균 일일 수익률
         double avgDailyReturn = returns.stream().mapToDouble(d -> d).average().orElse(0.0);
         double avgDailyReturnPercent = avgDailyReturn * 100;
         
-        // 변동성 (표준편차)
         double mean = returns.stream().mapToDouble(d -> d).average().orElse(0.0);
         double variance = returns.stream()
                 .mapToDouble(d -> Math.pow(d - mean, 2))
@@ -384,7 +361,6 @@ public class BacktestReportService {
                 .orElse(0.0);
         double volatility = Math.sqrt(variance);
         
-        // 일관성 판단 (변동성이 작고 일정한 방향)
         boolean isConsistent = volatility < 0.02 && Math.abs(avgDailyReturn) > 0.005;
         
         String patternType;
@@ -442,12 +418,10 @@ public class BacktestReportService {
             double dailyReturn = (currentTotal - previousTotal) / previousTotal;
             String trend = null;
             
-            // 트렌드 감지 조건 (1% 이상 변화시)
             if (Math.abs(dailyReturn) > 0.01) {
                 trend = dailyReturn > 0 ? "상승" : "하락";
             }
             
-            // 트렌드 변화 감지
             if (trend != null && !Objects.equals(currentTrend, trend)) {
                 
                 if (currentTrend != null) {
@@ -504,14 +478,12 @@ public class BacktestReportService {
      */
     private void saveReportToSnapshot(Long backtestId, String reportContent) {
         try {
-            // 최신 PortfolioSnapshot 조회
             PortfolioSnapshot latestSnapshot = snapshotRepository.findLatestPortfolioSnapshotByBacktestId(backtestId);
             if (latestSnapshot == null) {
                 log.error("PortfolioSnapshot not found for backtestId: {}", backtestId);
                 return;
             }
             
-            // 레포트가 포함된 새로운 PortfolioSnapshot 생성
             PortfolioSnapshot updatedSnapshot = new PortfolioSnapshot(
                 latestSnapshot.id(),
                 latestSnapshot.backtestId(),
@@ -526,7 +498,6 @@ public class BacktestReportService {
                 LocalDateTime.now()
             );
             
-            // DB 업데이트
             snapshotRepository.savePortfolioSnapshot(updatedSnapshot);
             
             log.info("Successfully saved report to PortfolioSnapshot for backtestId: {}", backtestId);

@@ -49,14 +49,14 @@ public enum BenchmarkIndex {
      */
     public static BenchmarkIndex selectBestBenachmart(String expectedMarket) {
         if (expectedMarket == null) {
-            return KOSPI; // defulat
+            return KOSPI;
         }
         
         String normalized = expectedMarket.trim().toUpperCase();
         return switch (normalized) {
             case "KOSPI" -> KOSPI;
             case "KOSDAQ" -> KOSDAQ;
-            default -> KOSPI; // default
+            default -> KOSPI;
         };
     }
 }

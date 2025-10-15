@@ -14,17 +14,14 @@ public record ProductDetailResponse(
         String description,
         RiskLevel riskLevel,
         
-        // 성과 지표
         BigDecimal volatilityIndex,
         BigDecimal oneYearReturn,
         BigDecimal mdd,
         BigDecimal sharpeRatio,
         
-        // 메타 정보
         List<String> keywords,
         Long minInvestment,
         
-        // 보유 종목 구성
         List<HoldingInfo> holdings
 ) {
     public static ProductDetailResponse from(Product product) {

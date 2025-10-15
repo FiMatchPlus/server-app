@@ -11,23 +11,21 @@ spring:
     console:
       enabled: true
 
-    # MongoDB 설정 (테스트용)
     data:
       mongodb:
         host: localhost
-        port: 0  # 0으로 설정하면 랜덤 포트 사용 (Embedded MongoDB)
+        port: 0  # 랜덤 포트 사용 (Embedded MongoDB)
         database: test_stockone
 
     mongodb:
       embedded:
-        version: 6.0.5  # MongoDB 버전 지정
+        version: 6.0.5
 
   jpa:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
 
-# AI 프롬프트 설정
 ai:
   prompts:
     backtest-report:

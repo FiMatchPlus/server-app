@@ -8,6 +8,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record BacktestStartResponse(
     @JsonProperty("job_id")
     String jobId,
-    String status, // "started"
-    String message // 백테스트 메시지 (선택사항)
+    String status,
+    String message
 ) {}

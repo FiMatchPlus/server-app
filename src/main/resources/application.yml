@@ -33,7 +33,6 @@ spring:
         batch-versioned-data: true          # 버전 데이터 배치 처리
         connection:
           provider-disables-autocommit: false  # JdbcTemplate 호환성 
-        # SQL 줄바꿈과 포맷팅을 위한 설정
         type:
           sql-trace: true
     show-sql: true

@@ -20,13 +20,12 @@ public class AsyncConfig {
     @Bean(name = "backgroundTaskExecutor")
     public Executor backgroundTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);           // 기본 스레드 수
-        executor.setMaxPoolSize(20);           // 최대 스레드 수
-        executor.setQueueCapacity(100);        // 대기열 크기
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(20);
+        executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("Background-");
-        executor.setKeepAliveSeconds(60);      // 유휴 스레드 유지 시간
+        executor.setKeepAliveSeconds(60);
         
-        // 애플리케이션 종료 시 진행 중인 작업 완료 대기
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         

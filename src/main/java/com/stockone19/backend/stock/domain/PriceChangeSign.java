@@ -41,7 +41,7 @@ public enum PriceChangeSign {
             }
         }
         
-        return FLAT; // 기본값
+        return FLAT;
     }
 
 }

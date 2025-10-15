@@ -82,42 +82,36 @@ public class BacktestQueryService {
         Double executionTime = latestSnapshot.executionTime();
         BacktestMetrics metrics = getBacktestMetrics(latestSnapshot);
         
-        // 백테스트 전체 기간의 홀딩 스냅샷 조회 (모든 날짜 포함)
         List<HoldingSnapshot> allHoldingSnapshots = snapshotRepository.findHoldingSnapshotsByBacktestId(backtestId);
         
-        // 주식 정보를 한 번에 조회 (N+1 문제 해결)
         Map<String, String> stockCodeToNameMap = getStockCodeToNameMap(allHoldingSnapshots);
         
-        // 일별 평가액 데이터 생성 (holding_snapshots의 recorded_at 기준으로 날짜별 그룹화)
         List<BacktestDetailResponse.DailyEquityData> dailyEquity = createDailyEquityDataOptimized(allHoldingSnapshots, stockCodeToNameMap);
         
-        // 벤치마크 데이터 조회
         String benchmarkCode = backtest.getBenchmarkCode();
         String benchmarkName = getBenchmarkName(benchmarkCode);
         List<BacktestDetailResponse.BenchmarkData> benchmarkData = getBenchmarkData(benchmarkCode, backtest.getStartAt(), backtest.getEndAt());
         
-        // 최신 보유 정보 조회
         List<HoldingSnapshot> latestHoldingSnapshots = allHoldingSnapshots.stream()
                 .filter(holding -> holding.portfolioSnapshotId().equals(latestSnapshot.id()))
                 .collect(Collectors.toList());
         List<BacktestDetailResponse.HoldingData> holdings = createHoldingDataOptimized(latestHoldingSnapshots, stockCodeToNameMap);
 
-        // Rule 정보 조회
         BacktestRuleDocument rules = getBacktestRuleById(backtest.getRuleId());
 
         return BacktestDetailResponse.of(
-                latestSnapshot.id().toString(),  // history_id
-                backtest.getTitle(),             // name
-                period,                          // period
-                executionTime,                   // executionTime
-                benchmarkCode,                   // benchmarkCode
-                benchmarkName,                   // benchmarkName
-                metrics,                         // metrics
-                dailyEquity,                     // dailyEquity
-                benchmarkData,                   // benchmarkData
-                holdings,                        // holdings
-                latestSnapshot.reportContent(),  // report
-                rules                            // rules
+                latestSnapshot.id().toString(),
+                backtest.getTitle(),
+                period,
+                executionTime,
+                benchmarkCode,
+                benchmarkName,
+                metrics,
+                dailyEquity,
+                benchmarkData,
+                holdings,
+                latestSnapshot.reportContent(),
+                rules
         );
     }
 
@@ -234,21 +228,17 @@ public class BacktestQueryService {
             List<HoldingSnapshot> allHoldingSnapshots,
             Map<String, String> stockCodeToNameMap) {
         
-        // holding_snapshots을 recorded_at 기준으로 날짜별 그룹화
         Map<String, List<HoldingSnapshot>> holdingsByDate = allHoldingSnapshots.stream()
                 .collect(Collectors.groupingBy(
                         holding -> holding.recordedAt().toLocalDate().toString()
                 ));
         
-        // 날짜순으로 정렬하여 반환
         return holdingsByDate.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey()) // 날짜순 정렬
+                .sorted(Map.Entry.comparingByKey())
                 .map(entry -> {
                     String date = entry.getKey();
                     List<HoldingSnapshot> holdings = entry.getValue();
                     
-                    // 주식별 평가액 맵 생성 (주식명 -> 평가액)
-                    // 같은 주식 코드가 여러 개 있을 경우 평가액을 합산
                     Map<String, Double> stockEquities = holdings.stream()
                             .collect(Collectors.groupingBy(
                                     holding -> stockCodeToNameMap.getOrDefault(holding.stockCode(), holding.stockCode()),
@@ -268,7 +258,6 @@ public class BacktestQueryService {
             List<HoldingSnapshot> holdingSnapshots,
             Map<String, String> stockCodeToNameMap) {
         
-        // 주식 코드별로 그룹화하여 첫 번째 보유 수량만 가져오기 (백테스트에서는 수량이 변하지 않음)
         Map<String, Integer> finalHoldings = holdingSnapshots.stream()
                 .collect(Collectors.groupingBy(
                         holding -> stockCodeToNameMap.getOrDefault(holding.stockCode(), holding.stockCode()),
@@ -278,7 +267,6 @@ public class BacktestQueryService {
                         )
                 ));
         
-        // 수량이 0보다 큰 보유 종목만 반환
         return finalHoldings.entrySet().stream()
                 .filter(entry -> entry.getValue() > 0)
                 .map(entry -> new BacktestDetailResponse.HoldingData(entry.getKey(), entry.getValue()))

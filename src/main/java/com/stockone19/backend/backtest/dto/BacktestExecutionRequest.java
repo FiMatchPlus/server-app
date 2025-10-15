@@ -16,12 +16,12 @@ public record BacktestExecutionRequest(
     LocalDateTime end,
     List<HoldingRequest> holdings,
     @JsonProperty("rebalance_frequency")
-    String rebalanceFrequency, // "daily"
+    String rebalanceFrequency,
     @JsonProperty("callback_url")
-    String callbackUrl, // 콜백 받을 URL
-    RulesRequest rules, // 매매 규칙
+    String callbackUrl,
+    RulesRequest rules,
     @JsonProperty("benchmark_code")
-    String benchmarkCode // 벤치마크 지수 코드
+    String benchmarkCode
 ) {
     public static BacktestExecutionRequest of(Long backtestId, LocalDateTime start, LocalDateTime end,
                                               List<Holding> holdings, String callbackUrl, RulesRequest rules, 

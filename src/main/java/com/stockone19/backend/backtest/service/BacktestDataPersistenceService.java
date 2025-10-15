@@ -40,7 +40,6 @@ public class BacktestDataPersistenceService {
         log.info("Saving JPA data for backtestId: {}", backtestId);
         
         try {
-            // 1. 포트폴리오 스냅샷 생성
             PortfolioSnapshot portfolioSnapshot = createPortfolioSnapshot(backtestId, callback);
             PortfolioSnapshot savedSnapshot = snapshotRepository.savePortfolioSnapshot(portfolioSnapshot);
             
@@ -61,14 +60,12 @@ public class BacktestDataPersistenceService {
         log.info("Saving JDBC batch data for portfolioSnapshotId: {}", portfolioSnapshotId);
         
         try {
-            // 1. ExecutionLog 배치 저장
             if (callback.executionLogs() != null && !callback.executionLogs().isEmpty()) {
                 List<ExecutionLog> executionLogs = createExecutionLogs(portfolioSnapshotId, callback.executionLogs());
                 int savedLogs = executionLogJdbcRepository.optimizedBatchInsert(executionLogs);
                 log.info("Successfully saved {} execution logs", savedLogs);
             }
             
-            // 2. HoldingSnapshot 배치 저장 (result_summary 기반: 일자별 × 종목별 스냅샷)
             if (callback.resultSummary() != null && !callback.resultSummary().isEmpty()) {
                 List<HoldingSnapshot> holdingSnapshots = createHoldingSnapshotsFromResultSummary(
                     portfolioSnapshotId,
@@ -92,7 +89,6 @@ public class BacktestDataPersistenceService {
         log.info("Rolling back JPA data for backtestId: {}, portfolioSnapshotId: {}", backtestId, portfolioSnapshotId);
         
         try {
-            // 포트폴리오 스냅샷 삭제
             snapshotRepository.deletePortfolioSnapshotById(portfolioSnapshotId);
             
             log.info("Successfully rolled back JPA data for backtestId: {}", backtestId);
@@ -128,7 +124,6 @@ public class BacktestDataPersistenceService {
         try {
             Map<String, Object> metricsMap = new HashMap<>();
             
-            // 포트폴리오 메트릭
             metricsMap.put("totalReturn", metricsResponse.totalReturn());
             metricsMap.put("annualizedReturn", metricsResponse.annualizedReturn());
             metricsMap.put("volatility", metricsResponse.volatility());
@@ -141,7 +136,6 @@ public class BacktestDataPersistenceService {
             metricsMap.put("winRate", metricsResponse.winRate());
             metricsMap.put("profitLossRatio", metricsResponse.profitLossRatio());
             
-            // 벤치마크 메트릭 추가
             if (benchmarkMetrics != null) {
                 Map<String, Object> benchmarkMap = new HashMap<>();
                 benchmarkMap.put("benchmark_total_return", benchmarkMetrics.benchmarkTotalReturn());

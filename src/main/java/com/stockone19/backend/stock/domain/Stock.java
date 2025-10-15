@@ -96,7 +96,7 @@ public class Stock {
         Stock stock = new Stock(ticker, name, engName, isin, region, currency,
                 majorCode, mediumCode, minorCode, exchange, isActive,
                 industryCode, industryName, type);
-        stock.id = id;  // ID는 직접 설정 (데이터베이스에서 조회시)
+        stock.id = id;
         return stock;
     }
 }

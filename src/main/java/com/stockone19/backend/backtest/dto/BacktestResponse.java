@@ -10,13 +10,13 @@ import java.time.LocalDateTime;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record BacktestResponse(
-        Long id,                    // 백테스트 고유 ID
-        String name,                // 백테스트 이름
-        String period,              // 백테스트 기간
-        Long executionTime,         // 실행 시간 (밀리초)
+        Long id,
+        String name,
+        String period,
+        Long executionTime,
         @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
-        LocalDateTime createdAt,    // 생성일시
-        BacktestStatus status       // 실행 상태
+        LocalDateTime createdAt,
+        BacktestStatus status
 ) {
     
     /**

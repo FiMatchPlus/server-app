@@ -54,7 +54,6 @@ public class BacktestController {
         
         log.info("POST /api/backtests/portfolio/{} - title: {}", portfolioId, request.title());
         
-        // 시작일과 종료일 검증
         if (!request.endAt().isAfter(request.startAt())) {
             throw new IllegalArgumentException("종료일은 시작일보다 나중이어야 합니다.");
         }
@@ -145,13 +144,9 @@ public class BacktestController {
     public ResponseEntity<ApiResponse<String>> executeBacktest(@PathVariable Long backtestId) {
         log.info("POST /api/backtests/{}/execute - 백그라운드 작업으로 시작", backtestId);
 
-        // todo: 회원 처리
-        // Long userId = 1L;
         
-        // 백테스트 실행 시작 (비동기)
         CompletableFuture<Void> future = backtestExecutionService.startBacktest(backtestId);
         
-        // 백그라운드에서 완료 처리 (선택사항)
         future.thenRun(() -> {
             log.info("Backtest execution completed for backtestId: {}", backtestId);
         }).exceptionally(throwable -> {
@@ -177,7 +172,6 @@ public class BacktestController {
         
         try {
             log.info("Backtest callback received - ip: {}, jobId: {}, success: {}", clientIP, callback.jobId(), callback.success());
-            // 콜백에서 직접 backtestId 사용
             Long backtestId = callback.backtestId();
             if (backtestId == null) {
                 log.error("No backtestId found in callback for jobId: {}", callback.jobId());
@@ -185,11 +179,9 @@ public class BacktestController {
             }
             
             if (Boolean.TRUE.equals(callback.success())) {
-                // 성공 처리 - 이벤트 발행
                 BacktestSuccessEvent successEvent = new BacktestSuccessEvent(backtestId, callback);
                 applicationEventPublisher.publishEvent(successEvent);
             } else {
-                // 실패 처리 - 이벤트 발행
                 BacktestFailureEvent failureEvent = new BacktestFailureEvent(backtestId, "Backtest failed");
                 applicationEventPublisher.publishEvent(failureEvent);
             }
@@ -216,7 +208,6 @@ public class BacktestController {
         
         log.info("PUT /api/backtests/{}/portfolio/{} - title: {}", backtestId, portfolioId, request.title());
         
-        // 시작일과 종료일 검증
         if (!request.endAt().isAfter(request.startAt())) {
             throw new IllegalArgumentException("종료일은 시작일보다 나중이어야 합니다.");
         }

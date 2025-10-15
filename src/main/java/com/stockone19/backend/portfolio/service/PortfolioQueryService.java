@@ -41,13 +41,11 @@ public class PortfolioQueryService {
     public PortfolioSummaryResponse getPortfolioSummary(Long userId) {
         log.info("Getting portfolio summary for userId: {}", userId);
 
-        // 1. DB 조회만 트랜잭션으로 처리 (빠르게 완료)
         List<Holding> allHoldings = getAllUserHoldingsWithTransaction(userId);
         if (allHoldings.isEmpty()) {
             return new PortfolioSummaryResponse(0.0, 0.0, 0.0);
         }
 
-        // 2. 외부 API 호출은 트랜잭션 밖에서 처리
         try {
             Map<String, StockService.StockPriceInfo> priceMap = getPriceMapForHoldings(allHoldings);
             PortfolioCalculator.PortfolioTotals totals = calculatePortfolioSummaryTotals(allHoldings, priceMap);
@@ -59,7 +57,6 @@ public class PortfolioQueryService {
             );
         } catch (Exception e) {
             log.error("KIS API 호출 실패, 기존 가격 데이터 사용: {}", e.getMessage());
-            // 외부 API 실패 시 기존 데이터로 폴백
             return getPortfolioSummaryFromStoredData(allHoldings);
         }
     }
@@ -114,7 +111,6 @@ public class PortfolioQueryService {
 
         PortfolioData data = getPortfolioData(portfolioId);
 
-        // Rules 정보 조회
         PortfolioLongResponse.RulesDetail rulesDetail = null;
         if (data.portfolio().ruleId() != null && !data.portfolio().ruleId().trim().isEmpty()) {
             try {
@@ -149,7 +145,6 @@ public class PortfolioQueryService {
     }
 
     private PortfolioLongResponse.AnalysisDetail getAnalysisDetail(Long portfolioId, PortfolioData data) {
-        // Analysis 정보 조회 및 변환
         PortfolioLongResponse.AnalysisDetail analysisDetail = null;
         if (data.portfolio().analysisResult() != null && !data.portfolio().analysisResult().trim().isEmpty()) {
             try {
@@ -176,7 +171,6 @@ public class PortfolioQueryService {
             return new PortfolioListResponse(List.of());
         }
 
-        // 모든 포트폴리오의 모든 종목을 수집
         List<Holding> allHoldings = portfolios.stream()
                 .flatMap(portfolio -> portfolioRepository.findHoldingsByPortfolioId(portfolio.id()).stream())
                 .toList();
@@ -195,13 +189,11 @@ public class PortfolioQueryService {
                     .collect(Collectors.toList()));
         }
 
-        // 모든 종목의 티커를 수집
         List<String> allTickers = allHoldings.stream()
                 .map(Holding::symbol)
                 .distinct()
                 .collect(Collectors.toList());
 
-        // KIS API로 한 번에 가격 정보 조회
         Map<String, StockService.StockPriceInfo> priceMap = stockService.getMultiCurrentPrices(allTickers);
 
         List<PortfolioListResponse.PortfolioListItem> portfolioItems = portfolios.stream()
@@ -221,7 +213,6 @@ public class PortfolioQueryService {
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
         
-        // 분석 결과가 없으면 상태만 반환
         if (portfolio.analysisResult() == null || portfolio.analysisResult().trim().isEmpty()) {
             return new PortfolioLongResponse.AnalysisDetail(
                     convertPortfolioStatusToAnalysisStatus(portfolio.status()),
@@ -261,7 +252,6 @@ public class PortfolioQueryService {
 
         List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(portfolioId);
 
-        // Stock 정보를 한 번에 조회
         Map<String, Stock> stockMap = Map.of();
         if (!holdings.isEmpty()) {
             List<String> tickers = holdings.stream()
@@ -274,13 +264,11 @@ public class PortfolioQueryService {
                     .collect(Collectors.toMap(Stock::getTicker, stock -> stock));
         }
 
-        // Holdings를 Response로 변환
         Map<String, Stock> finalStockMap = stockMap;
         List<PortfolioDetailResponse.HoldingResponse> holdingResponses = holdings.stream()
                 .map(holding -> convertHoldingToResponse(holding, finalStockMap))
                 .collect(Collectors.toList());
 
-        // 총 자산 계산
         double totalValue = holdings.stream()
                 .mapToDouble(Holding::totalValue)
                 .sum();
@@ -294,7 +282,6 @@ public class PortfolioQueryService {
         );
     }
 
-    // === Private Helper Methods ===
 
     @Transactional(readOnly = true, timeout = 5)
     public List<Holding> getAllUserHoldingsWithTransaction(Long userId) {
@@ -339,18 +326,15 @@ public class PortfolioQueryService {
             return new PortfolioData(portfolio, holdings, Map.of(), Map.of());
         }
 
-        // 모든 종목의 티커를 수집
         List<String> tickers = holdings.stream()
                 .map(Holding::symbol)
                 .distinct()
                 .collect(Collectors.toList());
 
-        // Stock 정보를 한 번에 조회 (N+1 문제 해결)
         Map<String, Stock> stockMap = stockService.getStocksByTickers(tickers)
                 .stream()
                 .collect(Collectors.toMap(Stock::getTicker, stock -> stock));
 
-        // KIS API로 한 번에 가격 정보 조회
         Map<String, StockService.StockPriceInfo> priceMap = stockService.getMultiCurrentPrices(tickers);
 
         return new PortfolioData(portfolio, holdings, stockMap, priceMap);
@@ -361,7 +345,6 @@ public class PortfolioQueryService {
             Map<String, Stock> stockMap,
             Map<String, StockService.StockPriceInfo> priceMap) {
         try {
-            // Stock 정보를 Map에서 조회 (DB 쿼리 없음)
             Stock stock = stockMap.get(holding.symbol());
             if (stock == null) {
                 log.warn("Stock not found for ticker: {}", holding.symbol());
@@ -382,7 +365,6 @@ public class PortfolioQueryService {
                 );
             }
 
-            // KIS API에서 가져온 일간 변동률 사용
             double dailyRate = priceInfo.dailyChangeRate();
 
             return new PortfolioShortResponse.HoldingSummary(
@@ -405,7 +387,6 @@ public class PortfolioQueryService {
             Map<String, Stock> stockMap,
             Map<String, StockService.StockPriceInfo> priceMap) {
         try {
-            // Stock 정보를 Map에서 조회 (DB 쿼리 없음)
             Stock stock = stockMap.get(holding.symbol());
             if (stock == null) {
                 log.warn("Stock not found for ticker: {}", holding.symbol());
@@ -430,11 +411,9 @@ public class PortfolioQueryService {
                 );
             }
 
-            // KIS API에서 가져온 현재가와 일간 변동률 사용
             double currentPrice = priceInfo.currentPrice();
             double dailyRate = priceInfo.dailyChangeRate();
 
-            // 현재 가치 계산 (수량 * 현재가)
             double currentValue = holding.shares() * currentPrice;
 
             return new PortfolioLongResponse.HoldingDetail(
@@ -473,13 +452,11 @@ public class PortfolioQueryService {
             );
         }
 
-        // KIS API 데이터를 사용하여 통합 자산 계산
         PortfolioCalculator.PortfolioTotals totals = portfolioCalculator.calculateTotals(holdings, priceMap);
         double totalAssets = totals.totalAssets();
         double dailyRate = totals.dailyReturnPercent();
         double dailyChange = totals.dailyChange();
 
-        // Holding stocks 정보 가져오기 (priceMap 사용)
         List<PortfolioListResponse.HoldingStock> holdingStocks = getHoldingStocksWithPriceMap(portfolio.id(), priceMap);
 
         return new PortfolioListResponse.PortfolioListItem(
@@ -501,7 +478,6 @@ public class PortfolioQueryService {
                 return List.of();
             }
 
-            // 모든 티커를 수집하여 한 번에 Stock 정보 조회
             List<String> tickers = holdings.stream()
                     .map(Holding::symbol)
                     .distinct()
@@ -543,11 +519,9 @@ public class PortfolioQueryService {
                                 );
                             }
 
-                            // 현재가와 일간 변동률을 사용하여 계산
                             double currentPrice = priceInfo.currentPrice();
                             double dailyRate = priceInfo.dailyChangeRate();
 
-                            // 현재 가치 계산 (수량 * 현재가)
                             double value = holding.shares() * currentPrice;
 
                             return new PortfolioListResponse.HoldingStock(
@@ -582,7 +556,6 @@ public class PortfolioQueryService {
     private PortfolioLongResponse.RulesDetail convertRulesToDetail(Rules rules) {
         PortfolioLongResponse.BenchmarkDetail benchmarkDetail = null;
 
-        // basicBenchmark가 있으면 BenchmarkIndex 정보도 포함
         if (rules.getBasicBenchmark() != null && !rules.getBasicBenchmark().trim().isEmpty()) {
             BenchmarkIndex benchmarkIndex = BenchmarkIndex.fromCode(rules.getBasicBenchmark());
             if (benchmarkIndex != null) {
@@ -690,7 +663,6 @@ public class PortfolioQueryService {
     }
 
     private PortfolioDetailResponse.HoldingResponse convertHoldingToResponse(Holding holding, Map<String, Stock> stockMap) {
-        // Stock 정보에서 이름 가져오기
         String stockName = "Unknown Stock";
         Stock stock = stockMap.get(holding.symbol());
         if (stock != null) {

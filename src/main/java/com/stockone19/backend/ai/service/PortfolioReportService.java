@@ -26,10 +26,8 @@ public class PortfolioReportService {
         log.info("Generating portfolio optimization insight from analysis data");
 
         try {
-            // 프롬프트 템플릿 서비스를 사용하여 최적화 프롬프트 생성
             String optimizationPrompt = promptTemplateService.buildPortfolioOptimizationPrompt(analysisData);
 
-            // AI 서비스를 사용하여 인사이트 리포트 생성
             String report = reportAIService.generateResponse(
                     """
                             당신은 포트폴리오 최적화 전문가이자 친절한 투자 상담사입니다.
@@ -42,7 +40,6 @@ public class PortfolioReportService {
                     optimizationPrompt
             );
 
-            // 마크다운 코드 블록 제거 및 순수 JSON 추출
             return extractJsonFromMarkdown(report);
 
         } catch (Exception e) {
@@ -62,15 +59,12 @@ public class PortfolioReportService {
         
         String trimmed = response.trim();
         
-        // 마크다운 코드 블록 패턴: ```json ... ``` 또는 ``` ... ```
         if (trimmed.startsWith("```")) {
-            // 첫 번째 줄 제거 (```json 또는 ```)
             int firstNewline = trimmed.indexOf('\n');
             if (firstNewline != -1) {
                 trimmed = trimmed.substring(firstNewline + 1);
             }
             
-            // 마지막 ``` 제거
             int lastBackticks = trimmed.lastIndexOf("```");
             if (lastBackticks != -1) {
                 trimmed = trimmed.substring(0, lastBackticks);

@@ -47,9 +47,8 @@ public class StockService {
         return StockPriceResponse.success(priceDataList);
     }
 
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)  // 트랜잭션 없이 실행
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public StockPriceResponse getCurrentPriceForSingle(String ticker) {
-        // DB 조회는 별도 트랜잭션으로 빠르게 처리
         Stock stock = getStockByTickerWithTransaction(ticker);
 
         KisQuoteResponse quote = kisPriceClient.fetchQuote(ticker);
@@ -134,8 +133,6 @@ public class StockService {
     }
 
     public void sendRealTimeStockPrice(String ticker, double price) {
-        // TODO: WebSocket을 통한 실시간 주가 전송 구현
-        // 현재는 로그만 출력
         System.out.println("Real-time price update - Ticker: " + ticker + ", Price: " + price);
     }
 
@@ -232,21 +229,18 @@ public class StockService {
      * @param tickers 종목 티커 목록
      * @return StockPriceResponse 형태의 응답
      */
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)  // 트랜잭션 없이 실행
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public StockPriceResponse getRealtimeStockPrices(List<String> tickers) {
         if (tickers == null || tickers.isEmpty()) {
             return StockPriceResponse.success(List.of());
         }
 
-        // 종목 정보 조회 (별도 트랜잭션)
         List<Stock> stocks = getStocksWithTransaction(tickers);
         Map<String, String> tickerNameMap = stocks.stream()
                 .collect(Collectors.toMap(Stock::getTicker, Stock::getName));
 
-        // KIS API로 실시간 가격 조회
         Map<String, StockPriceInfo> priceMap = getMultiCurrentPrices(tickers);
 
-        // StockPriceData 리스트 생성
         List<StockPriceResponse.StockPriceData> priceDataList = tickers.stream()
                 .map(ticker -> {
                     String name = tickerNameMap.getOrDefault(ticker, "알 수 없음");
@@ -264,7 +258,7 @@ public class StockService {
                             priceInfo.currentPrice(),
                             priceInfo.dailyChangeRate(),
                             priceInfo.dailyChangePrice(),
-                            0.0, // marketCap은 KIS 다중 조회에서 제공하지 않음
+                            0.0,
                             priceInfo.sign()
                     );
                 })
@@ -279,7 +273,7 @@ public class StockService {
      * @param tickers 종목 티커 목록
      * @return 종목별 현재가와 전일종가 정보
      */
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)  // 트랜잭션 없이 실행
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Map<String, StockPriceInfo> getMultiCurrentPrices(List<String> tickers) {
         if (tickers.isEmpty()) {
             return Map.of();
@@ -321,7 +315,6 @@ public class StockService {
      */
     public record StockPriceInfo(double currentPrice, double dailyChangeRate, double dailyChangePrice, PriceChangeSign sign) {}
 
-    // Private helper methods
 
     private List<Stock> findStocksByTickers(List<String> tickers) {
         return stockRepository.findByTickerIn(tickers);
@@ -369,7 +362,6 @@ public class StockService {
         double dailyChange = latestPrice.getChangeAmount().doubleValue();
         double dailyRate = latestPrice.getChangeRate().doubleValue();
         
-        // DB 데이터에서는 변동률 부호로 PriceChangeSign 추정
         PriceChangeSign sign = estimateSignFromRate(dailyRate);
 
         return new StockPriceResponse.StockPriceData(
@@ -442,7 +434,7 @@ public class StockService {
                 dailyRate,
                 latestPrice.getChangeAmount().doubleValue(),
                 latestPrice.getVolume(),
-                0.0, // marketCap은 별도 계산 필요
+                0.0,
                 sign
         );
     }

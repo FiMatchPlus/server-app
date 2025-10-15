@@ -16,10 +16,10 @@ public record BacktestMetaData(
         Long portfolioId,
         String title,
         String description,
-        String startAt,        // "yyyy-MM-dd'T'HH:mm:ss" 형식
-        String endAt,          // "yyyy-MM-dd'T'HH:mm:ss" 형식
-        String period,         // "yyyy-MM-dd ~ yyyy-MM-dd" 형식
-        String createdAt,      // "yyyy-MM-dd'T'HH:mm:ss" 형식
+        String startAt,
+        String endAt,
+        String period,
+        String createdAt,
         String benchmarkCode,
         BacktestStatus status,
         BacktestRuleDocument rules
@@ -43,12 +43,10 @@ public record BacktestMetaData(
             BacktestStatus status,
             BacktestRuleDocument rules
     ) {
-        // 날짜를 문자열로 변환
         String startAtStr = startAt != null ? startAt.format(DATE_TIME_FORMATTER) : null;
         String endAtStr = endAt != null ? endAt.format(DATE_TIME_FORMATTER) : null;
         String createdAtStr = createdAt != null ? createdAt.format(DATE_TIME_FORMATTER) : null;
         
-        // 기간 문자열 생성 (yyyy-MM-dd ~ yyyy-MM-dd 형식)
         String period = (startAt != null && endAt != null) 
             ? startAt.format(DATE_FORMATTER) + " ~ " + endAt.format(DATE_FORMATTER)
             : null;

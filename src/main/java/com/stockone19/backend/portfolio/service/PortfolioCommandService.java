@@ -40,10 +40,8 @@ public class PortfolioCommandService {
     public CreatePortfolioResult createPortfolio(Long userId, CreatePortfolioRequest request) {
         log.info("Creating portfolio for userId: {}, name: {}", userId, request.name());
 
-        // 1. Rules를 MongoDB에 저장 (선택 사항)
         String ruleId = null;
         if (request.rules() != null) {
-            // Holdings 분석하여 벤치마크 결정
             List<Holding> holdingsForAnalysis = convertHoldingsFromRequest(request.holdings());
             BenchmarkIndex determinedBenchmark = benchmarkDeterminerService.determineBenchmark(holdingsForAnalysis);
             
@@ -55,17 +53,15 @@ public class PortfolioCommandService {
             log.info("No rules provided. Skipping rules save.");
         }
 
-        // 2. Portfolio 생성 (MongoDB에서 받은 ruleId 사용)
         Portfolio portfolio = Portfolio.create(
                 request.name(),
                 request.description(),
-                ruleId, // MongoDB에서 받은 ruleId (없을 수 있음)
-                false, // 새로 생성하는 포트폴리오는 메인 포트폴리오가 아님
+                ruleId,
+                false,
                 userId
         );
         Portfolio savedPortfolio = portfolioRepository.save(portfolio);
 
-        // 3. holdings 테이블에 보유 종목 저장
         if (request.holdings() != null && !request.holdings().isEmpty()) {
             for (CreatePortfolioRequest.HoldingRequest holdingRequest : request.holdings()) {
                 Holding holding = Holding.create(
@@ -82,7 +78,6 @@ public class PortfolioCommandService {
             }
         }
 
-        // 4. 즉시 응답 데이터 생성
         CreatePortfolioResult result = new CreatePortfolioResult(
                 savedPortfolio.id(),
                 savedPortfolio.name(),
@@ -93,7 +88,6 @@ public class PortfolioCommandService {
                 savedPortfolio.status().name()
         );
 
-        // 5. 포트폴리오 생성 완료 이벤트 발행 (트랜잭션 커밋 후)
         applicationEventPublisher.publishEvent(new PortfolioCreatedEvent(savedPortfolio.id()));
 
         return result;
@@ -162,7 +156,6 @@ public class PortfolioCommandService {
     public void updatePortfolio(Long portfolioId, Long userId, com.stockone19.backend.portfolio.dto.UpdatePortfolioRequest request) {
         log.info("Updating portfolio - portfolioId: {}, userId: {}, name: {}", portfolioId, userId, request.name());
 
-        // 1. 기존 포트폴리오 조회 및 권한 확인
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
         
@@ -170,16 +163,13 @@ public class PortfolioCommandService {
             throw new ResourceNotFoundException("포트폴리오 수정 권한이 없습니다: " + portfolioId);
         }
 
-        // 2. 기본 정보 업데이트 및 분석 상태 초기화
         Portfolio updatedPortfolio = portfolio
                 .withNameAndDescription(request.name(), request.description())
                 .withStatusAndReports(Portfolio.PortfolioStatus.PENDING, null, null);
         portfolioRepository.save(updatedPortfolio);
 
-        // 3. 기존 holdings 삭제
         portfolioRepository.deleteHoldingsByPortfolioId(portfolioId);
 
-        // 4. 새로운 holdings 저장
         if (request.holdings() != null && !request.holdings().isEmpty()) {
             for (com.stockone19.backend.portfolio.dto.UpdatePortfolioRequest.HoldingRequest holdingRequest : request.holdings()) {
                 Holding holding = Holding.create(
@@ -196,21 +186,18 @@ public class PortfolioCommandService {
             }
         }
 
-        // 5. Rules 업데이트 (선택 사항)
         if (request.rules() != null && portfolio.ruleId() != null) {
-            // Holdings 분석하여 벤치마크 결정
             List<Holding> holdingsForAnalysis = convertUpdateHoldingsFromRequest(request.holdings());
             BenchmarkIndex determinedBenchmark = benchmarkDeterminerService.determineBenchmark(holdingsForAnalysis);
             
             Rules rules = createRulesFromRequest(request.rules(), determinedBenchmark.getCode());
-            rules.setId(portfolio.ruleId()); // 기존 ruleId 사용
+            rules.setId(portfolio.ruleId());
             rulesRepository.save(rules);
             log.info("Rules updated in MongoDB - ruleId: {}", portfolio.ruleId());
         }
 
         log.info("Portfolio updated successfully - portfolioId: {}", portfolioId);
         
-        // 6. 포트폴리오 수정 완료 이벤트 발행 (트랜잭션 커밋 후 재분석 트리거)
         applicationEventPublisher.publishEvent(new PortfolioCreatedEvent(portfolioId));
     }
 
@@ -223,7 +210,6 @@ public class PortfolioCommandService {
     public void deletePortfolio(Long portfolioId, Long userId) {
         log.info("Deleting portfolio - portfolioId: {}, userId: {}", portfolioId, userId);
 
-        // 1. 기존 포트폴리오 조회 및 권한 확인
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다: " + portfolioId));
         
@@ -231,7 +217,6 @@ public class PortfolioCommandService {
             throw new ResourceNotFoundException("포트폴리오 삭제 권한이 없습니다: " + portfolioId);
         }
 
-        // 2. Soft delete 수행
         portfolioRepository.softDelete(portfolioId);
 
         log.info("Portfolio soft deleted successfully - portfolioId: {}", portfolioId);
@@ -294,8 +279,8 @@ public class PortfolioCommandService {
         
         return holdingRequests.stream()
                 .map(holdingRequest -> new Holding(
-                        null, // temporary id
-                        null, // temporary portfolioId  
+                        null,
+                        null,
                         holdingRequest.symbol(),
                         holdingRequest.shares(),
                         holdingRequest.currentPrice(),
@@ -303,8 +288,8 @@ public class PortfolioCommandService {
                         holdingRequest.change(),
                         holdingRequest.changePercent(),
                         holdingRequest.weight(),
-                        null, // temporary createdAt
-                        null  // temporary updatedAt
+                        null,
+                        null
                 ))
                 .toList();
     }
@@ -320,8 +305,8 @@ public class PortfolioCommandService {
         
         return holdingRequests.stream()
                 .map(holdingRequest -> new Holding(
-                        null, // temporary id
-                        null, // temporary portfolioId  
+                        null,
+                        null,
                         holdingRequest.symbol(),
                         holdingRequest.shares(),
                         holdingRequest.currentPrice(),
@@ -329,8 +314,8 @@ public class PortfolioCommandService {
                         holdingRequest.change(),
                         holdingRequest.changePercent(),
                         holdingRequest.weight(),
-                        null, // temporary createdAt
-                        null  // temporary updatedAt
+                        null,
+                        null
                 ))
                 .toList();
     }

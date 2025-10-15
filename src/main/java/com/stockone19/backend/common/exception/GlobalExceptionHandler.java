@@ -53,11 +53,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AsyncRequestNotUsableException.class)
     public ResponseEntity<ApiResponse<Object>> handleAsyncRequestNotUsableException(AsyncRequestNotUsableException ex) {
-        // 클라이언트가 연결을 끊은 경우이므로 로그만 남기고 조용히 처리
         log.warn("Client disconnected before response could be sent: {}", ex.getMessage());
         
-        // 클라이언트가 이미 연결을 끊었으므로 응답을 보낼 수 없음
-        // 하지만 Spring의 요구사항을 만족시키기 위해 응답 객체는 반환
         return ResponseEntity.status(HttpStatus.OK).body(null);
     }
 

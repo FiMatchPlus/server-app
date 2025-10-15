@@ -24,7 +24,7 @@ public record UpdateBacktestRequest(
         RulesRequest rules,
         
         @NotNull(message = "벤치마크 지수는 필수입니다")
-        String benchmarkCode  // "KOSPI" 또는 "KOSDAQ"
+        String benchmarkCode
 ) {
 
     /**
@@ -32,8 +32,8 @@ public record UpdateBacktestRequest(
      */
     public record RulesRequest(
             String memo,
-            List<RuleItemRequest> stopLoss,    // 손절 규칙
-            List<RuleItemRequest> takeProfit   // 익절 규칙
+            List<RuleItemRequest> stopLoss,
+            List<RuleItemRequest> takeProfit
     ) {}
 
     /**

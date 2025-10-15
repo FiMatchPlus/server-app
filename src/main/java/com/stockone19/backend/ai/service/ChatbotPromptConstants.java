@@ -129,7 +129,7 @@ public class ChatbotPromptConstants {
             case "portfolio" -> PORTFOLIO_PROMPT;
             case "analysis" -> MARKET_ANALYSIS_PROMPT;
             case "education" -> EDUCATION_PROMPT;
-            default -> EDUCATION_PROMPT; // 기본값으로 교육용 프롬프트 사용
+            default -> EDUCATION_PROMPT;
         };
     }
     

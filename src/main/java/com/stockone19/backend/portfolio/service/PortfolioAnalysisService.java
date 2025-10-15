@@ -45,15 +45,12 @@ public class PortfolioAnalysisService {
         log.info("Starting portfolio analysis for portfolioId: {}", portfolioId);
 
         try {
-            // 포트폴리오 상태를 RUNNING으로 업데이트
             portfolioCommandService.updatePortfolioStatus(portfolioId, Portfolio.PortfolioStatus.RUNNING);
 
-            // 분석 엔진에 요청
             portfolioAnalysisEngineClient.submitToPortfolioAnalysisEngineAsync(portfolioId);
 
         } catch (Exception e) {
             log.error("Failed to start portfolio analysis for portfolioId: {}", portfolioId, e);
-            // 분석 시작 실패 시 상태를 FAILED로 업데이트
             portfolioCommandService.updatePortfolioStatus(portfolioId, Portfolio.PortfolioStatus.FAILED);
         }
     }
@@ -65,10 +62,8 @@ public class PortfolioAnalysisService {
     public void startPortfolioAnalysis(Long portfolioId) {
         log.info("Manually starting portfolio analysis for portfolioId: {}", portfolioId);
 
-        // 상태를 RUNNING으로 업데이트
         portfolioCommandService.updatePortfolioStatus(portfolioId, Portfolio.PortfolioStatus.RUNNING);
 
-        // 비동기로 분석 시작
         portfolioAnalysisEngineClient.submitToPortfolioAnalysisEngineAsync(portfolioId);
     }
 
@@ -85,17 +80,13 @@ public class PortfolioAnalysisService {
         try {
             PortfolioAnalysisResponse analysisResponse = event.getAnalysisResponse();
             
-            // 1. 분석 결과 로깅
             logAnalysisResult(analysisResponse);
             
-            // 2. 분석 결과를 JSON으로 변환하여 저장
             String analysisResultJson = objectMapper.writerWithDefaultPrettyPrinter()
                     .writeValueAsString(analysisResponse);
             
-            // 3. 포트폴리오 결과 저장 (현재 트랜잭션에서)
             savePortfolioAnalysisResult(event.getPortfolioId(), analysisResultJson);
             
-            // 4. LLM을 사용하여 분석 리포트 생성 (비동기)
             generatePortfolioAnalysisReport(event.getPortfolioId(), analysisResultJson);
             
             log.info("Portfolio analysis processing completed - portfolioId: {}", 
@@ -105,7 +96,6 @@ public class PortfolioAnalysisService {
             log.error("Failed to process portfolio analysis success - portfolioId: {}", 
                     event.getPortfolioId(), e);
             
-            // 분석 처리 실패 시 포트폴리오 상태를 FAILED로 업데이트
             try {
                 portfolioCommandService.updatePortfolioStatus(event.getPortfolioId(), 
                         Portfolio.PortfolioStatus.FAILED);
@@ -129,7 +119,6 @@ public class PortfolioAnalysisService {
                 event.getPortfolioId(), event.getErrorMessage());
         
         try {
-            // 포트폴리오 상태를 FAILED로 업데이트
             portfolioCommandService.updatePortfolioStatus(event.getPortfolioId(), 
                     Portfolio.PortfolioStatus.FAILED);
             
@@ -164,7 +153,7 @@ public class PortfolioAnalysisService {
             
         } catch (Exception e) {
             log.error("Failed to save portfolio analysis result - portfolioId: {}", portfolioId, e);
-            throw e; // 트랜잭션 롤백을 위해 예외 재발생
+            throw e;
         }
     }
 
@@ -177,10 +166,8 @@ public class PortfolioAnalysisService {
         log.info("Generating portfolio analysis report for portfolioId: {}", portfolioId);
         
         try {
-            // LLM을 사용하여 분석 리포트 생성
             String report = portfolioReportService.generateOptimizationInsightFromAnalysis(analysisResultJson);
             
-            // DB에 레포트 저장
             portfolioCommandService.savePortfolioReportResult(portfolioId, report);
             
             log.info("Portfolio analysis report generated and saved successfully - portfolioId: {}, report length: {}", 
@@ -202,17 +189,14 @@ public class PortfolioAnalysisService {
         log.info("Manually generating portfolio analysis report for portfolioId: {}", portfolioId);
         
         try {
-            // DB에서 포트폴리오 분석 결과 조회
             Portfolio portfolio = portfolioCommandService.getPortfolioById(portfolioId);
             
             if (portfolio.analysisResult() == null || portfolio.analysisResult().trim().isEmpty()) {
                 throw new RuntimeException("포트폴리오 분석 결과가 없습니다. 먼저 포트폴리오 분석을 실행해주세요.");
             }
             
-            // LLM을 사용하여 분석 리포트 생성
             String report = portfolioReportService.generateOptimizationInsightFromAnalysis(portfolio.analysisResult());
             
-            // DB에 레포트 저장
             portfolioCommandService.savePortfolioReportResult(portfolioId, report);
             
             log.info("Portfolio analysis report generated and saved successfully from DB - portfolioId: {}, report length: {}", 
@@ -234,11 +218,9 @@ public class PortfolioAnalysisService {
         log.info("Generating portfolio analysis report from direct data");
         
         try {
-            // 분석 결과를 JSON으로 변환
             String analysisResultJson = objectMapper.writerWithDefaultPrettyPrinter()
                     .writeValueAsString(analysisResponse);
             
-            // LLM을 사용하여 분석 리포트 생성
             String report = portfolioReportService.generateOptimizationInsightFromAnalysis(analysisResultJson);
             
             log.info("Portfolio analysis report generated successfully from direct data, report length: {}", 

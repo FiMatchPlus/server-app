@@ -32,7 +32,7 @@ public record BacktestCallbackResponse(
     BenchmarkMetricsResponse benchmarkMetrics,
     @JsonProperty("risk_free_rate_info")
     RiskFreeRateInfoResponse riskFreeRateInfo,
-    String timestamp  // ISO 문자열로 받아서 필요시 변환
+    String timestamp
 ) {
     
     public record PortfolioSnapshotResponse(
@@ -62,7 +62,6 @@ public record BacktestCallbackResponse(
                 return null;
             }
             try {
-                // "s" 제거하고 숫자만 파싱
                 String numericValue = executionTime.replaceAll("[^0-9.]", "");
                 return Double.parseDouble(numericValue);
             } catch (NumberFormatException e) {
@@ -191,7 +190,6 @@ public record BacktestCallbackResponse(
         String availableDateRange
     ) {}
     
-    // 편의 메서드들
     public String errorMessage() {
         return error != null ? error.message() : null;
     }
@@ -201,7 +199,6 @@ public record BacktestCallbackResponse(
             return null;
         }
         
-        // PortfolioSnapshotResponse 변환
         List<BacktestExecutionResponse.HoldingResponse> convertedHoldings = 
             portfolioSnapshot.holdings().stream()
                 .map(h -> new BacktestExecutionResponse.HoldingResponse(
@@ -232,7 +229,6 @@ public record BacktestCallbackResponse(
         );
     }
     
-    // 타임존 포함 ISO 문자열을 LocalDateTime으로 변환하는 유틸리티 메서드
     private static LocalDateTime parseToLocalDateTime(String isoString) {
         if (isoString == null) {
             return null;
@@ -240,7 +236,6 @@ public record BacktestCallbackResponse(
         try {
             return OffsetDateTime.parse(isoString).toLocalDateTime();
         } catch (Exception e) {
-            // 파싱 실패시 null 반환 (로깅은 상위에서 처리)
             return null;
         }
     }
