@@ -5,7 +5,7 @@ Spring Boot 기반의 투자 포트폴리오 관리 및 백테스트 서비스 �
 ## 프로젝트 구조
 
 ```
-src/main/java/com/stockone19/backend/
+src/main/java/com/fimatchplus/backend/
 ├── BackendApplication.java
 │
 ├── ai/                                    # AI 기반 분석 및 챗봇

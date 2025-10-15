@@ -6,7 +6,6 @@ import com.fimatchplus.backend.backtest.dto.BacktestExecutionRequest;
 import com.fimatchplus.backend.backtest.dto.BacktestStartResponse;
 import com.fimatchplus.backend.backtest.repository.BacktestRepository;
 import com.fimatchplus.backend.common.exception.ResourceNotFoundException;
-import com.fimatchplus.backend.common.service.BacktestJobMappingService;
 import com.fimatchplus.backend.portfolio.domain.Holding;
 import com.fimatchplus.backend.portfolio.repository.PortfolioRepository;
 import com.fimatchplus.backend.backtest.repository.BacktestRuleRepository;
@@ -32,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 public class BacktestEngineClient {
 
     private final BacktestRepository backtestRepository;
-    private final BacktestJobMappingService jobMappingService;
     private final PortfolioRepository portfolioRepository;
     private final BacktestRuleRepository backtestRuleRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -71,8 +69,6 @@ public class BacktestEngineClient {
                 .retrieve()
                 .bodyToMono(BacktestStartResponse.class)
                 .block();
-
-            jobMappingService.saveMapping(response.jobId(), backtestId);
 
             log.info("Backtest submitted to engine: backtestId={}, jobId={}", 
                     backtestId, response.jobId());
