@@ -46,7 +46,6 @@ public class PortfolioAnalysisService {
 
         try {
             portfolioCommandService.updatePortfolioStatus(portfolioId, Portfolio.PortfolioStatus.RUNNING);
-
             portfolioAnalysisEngineClient.submitToPortfolioAnalysisEngineAsync(portfolioId);
 
         } catch (Exception e) {
@@ -61,9 +60,7 @@ public class PortfolioAnalysisService {
     @Transactional
     public void startPortfolioAnalysis(Long portfolioId) {
         log.info("Manually starting portfolio analysis for portfolioId: {}", portfolioId);
-
         portfolioCommandService.updatePortfolioStatus(portfolioId, Portfolio.PortfolioStatus.RUNNING);
-
         portfolioAnalysisEngineClient.submitToPortfolioAnalysisEngineAsync(portfolioId);
     }
 
@@ -79,14 +76,11 @@ public class PortfolioAnalysisService {
         
         try {
             PortfolioAnalysisResponse analysisResponse = event.getAnalysisResponse();
-            
             logAnalysisResult(analysisResponse);
             
-            String analysisResultJson = objectMapper.writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(analysisResponse);
+            String analysisResultJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(analysisResponse);
             
             savePortfolioAnalysisResult(event.getPortfolioId(), analysisResultJson);
-            
             generatePortfolioAnalysisReport(event.getPortfolioId(), analysisResultJson);
             
             log.info("Portfolio analysis processing completed - portfolioId: {}", 
@@ -97,8 +91,7 @@ public class PortfolioAnalysisService {
                     event.getPortfolioId(), e);
             
             try {
-                portfolioCommandService.updatePortfolioStatus(event.getPortfolioId(), 
-                        Portfolio.PortfolioStatus.FAILED);
+                portfolioCommandService.updatePortfolioStatus(event.getPortfolioId(), Portfolio.PortfolioStatus.FAILED);
             } catch (Exception updateException) {
                 log.error("Failed to update portfolio status to FAILED - portfolioId: {}", 
                         event.getPortfolioId(), updateException);
@@ -159,7 +152,6 @@ public class PortfolioAnalysisService {
 
     /**
      * 포트폴리오 분석 리포트 생성 (비동기)
-     * 포트폴리오 생성 후 자동으로 호출되거나 수동으로 호출 가능
      */
     @Async("backgroundTaskExecutor")
     public CompletableFuture<String> generatePortfolioAnalysisReport(Long portfolioId, String analysisResultJson) {
@@ -190,13 +182,11 @@ public class PortfolioAnalysisService {
         
         try {
             Portfolio portfolio = portfolioCommandService.getPortfolioById(portfolioId);
-            
             if (portfolio.analysisResult() == null || portfolio.analysisResult().trim().isEmpty()) {
                 throw new RuntimeException("포트폴리오 분석 결과가 없습니다. 먼저 포트폴리오 분석을 실행해주세요.");
             }
             
             String report = portfolioReportService.generateOptimizationInsightFromAnalysis(portfolio.analysisResult());
-            
             portfolioCommandService.savePortfolioReportResult(portfolioId, report);
             
             log.info("Portfolio analysis report generated and saved successfully from DB - portfolioId: {}, report length: {}", 
@@ -206,30 +196,6 @@ public class PortfolioAnalysisService {
             
         } catch (Exception e) {
             log.error("Failed to generate portfolio analysis report from DB for portfolioId: {}", portfolioId, e);
-            throw new RuntimeException("포트폴리오 분석 리포트 생성에 실패했습니다.", e);
-        }
-    }
-
-    /**
-     * 포트폴리오 분석 결과를 직접 파라미터로 받아서 LLM 리포트 생성
-     * 포트폴리오 생성 후 바로 호출하는 경우 사용
-     */
-    public String generatePortfolioAnalysisReportFromData(PortfolioAnalysisResponse analysisResponse) {
-        log.info("Generating portfolio analysis report from direct data");
-        
-        try {
-            String analysisResultJson = objectMapper.writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(analysisResponse);
-            
-            String report = portfolioReportService.generateOptimizationInsightFromAnalysis(analysisResultJson);
-            
-            log.info("Portfolio analysis report generated successfully from direct data, report length: {}", 
-                    report.length());
-            
-            return report;
-            
-        } catch (Exception e) {
-            log.error("Failed to generate portfolio analysis report from direct data", e);
             throw new RuntimeException("포트폴리오 분석 리포트 생성에 실패했습니다.", e);
         }
     }

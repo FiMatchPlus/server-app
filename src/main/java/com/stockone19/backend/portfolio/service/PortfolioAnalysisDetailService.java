@@ -167,12 +167,11 @@ public class PortfolioAnalysisDetailService {
             List<PortfolioAnalysisDetailResponse.HoldingInfo> holdings = 
                     createHoldingInfoList(portfolioStrategy.weights(), stockCodeToNameMap);
                 
-                PortfolioAnalysisDetailResponse.Metrics metrics = 
-                        new PortfolioAnalysisDetailResponse.Metrics(
-                                portfolioStrategy.metrics().expectedReturn(),
-                            portfolioStrategy.metrics().downsideDeviation(),
-                            portfolioStrategy.metrics().sortinoRatio()
-                    );
+                PortfolioAnalysisDetailResponse.Metrics metrics = new PortfolioAnalysisDetailResponse.Metrics(
+                        portfolioStrategy.metrics().expectedReturn(),
+                        portfolioStrategy.metrics().downsideDeviation(),
+                        portfolioStrategy.metrics().sortinoRatio()
+                );
             
             PortfolioAnalysisDetailResponse.RiskProfile riskProfile = extractRiskProfile(insight);
             PortfolioAnalysisDetailResponse.PerformanceInsight performanceInsight = extractPerformanceInsight(insight);
@@ -180,17 +179,16 @@ public class PortfolioAnalysisDetailService {
             List<String> strengths = insight != null ? insight.keyStrengths() : null;
             List<String> weaknesses = insight != null ? insight.keyWeaknesses() : null;
             
-            PortfolioAnalysisDetailResponse.PortfolioInsight portfolioInsight = 
-                    new PortfolioAnalysisDetailResponse.PortfolioInsight(
-                            type,
-                                riskLevel,
-                            holdings,
-                                metrics,
-                            riskProfile,
-                                strengths,
-                            weaknesses,
-                            performanceInsight
-                    );
+            PortfolioAnalysisDetailResponse.PortfolioInsight portfolioInsight = new PortfolioAnalysisDetailResponse.PortfolioInsight(
+                    type,
+                    riskLevel,
+                    holdings,
+                    metrics,
+                    riskProfile,
+                    strengths,
+                    weaknesses,
+                    performanceInsight
+            );
             
             portfolioInsights.add(portfolioInsight);
         }
@@ -255,7 +253,6 @@ public class PortfolioAnalysisDetailService {
         if (insight == null || insight.riskProfile() == null) {
             return null;
         }
-        
         return convertRiskLevel(insight.riskProfile().riskLevel());
     }
     
@@ -270,12 +267,8 @@ public class PortfolioAnalysisDetailService {
         }
         
         PortfolioInsightReport.ComparativeAnalysis srcAnalysis = insightReport.comparativeAnalysis();
-        
-        PortfolioAnalysisDetailResponse.DecisionFramework decisionFramework = 
-                extractDecisionFramework(srcAnalysis);
-        
-        PortfolioAnalysisDetailResponse.ThreeWayComparison threeWayComparison = 
-                extractThreeWayComparison(srcAnalysis);
+        PortfolioAnalysisDetailResponse.DecisionFramework decisionFramework = extractDecisionFramework(srcAnalysis);
+        PortfolioAnalysisDetailResponse.ThreeWayComparison threeWayComparison = extractThreeWayComparison(srcAnalysis);
         
         return new PortfolioAnalysisDetailResponse.ComparativeAnalysis(
                 srcAnalysis.keyDifferentiator(),
@@ -329,9 +322,7 @@ public class PortfolioAnalysisDetailService {
         }
         
         PortfolioInsightReport.PersonalizedRecommendation srcRecommendation = insightReport.personalizedRecommendation();
-        
         PortfolioAnalysisDetailResponse.RiskToleranceAssessment riskToleranceAssessment = extractRiskToleranceAssessment(srcRecommendation);
-        
         PortfolioAnalysisDetailResponse.InvestmentHorizonAssessment investmentHorizonAssessment = extractInvestmentHorizonAssessment(srcRecommendation);
         
         return new PortfolioAnalysisDetailResponse.PersonalizedRecommendation(
@@ -398,7 +389,7 @@ public class PortfolioAnalysisDetailService {
     }
 
     /**
-     * 위험 수준 변환 (한국어 → 영어)
+     * 위험 수준 라벨 변환
      */
     private String convertRiskLevel(String koreanRiskLevel) {
         if (koreanRiskLevel == null) {
@@ -417,8 +408,7 @@ public class PortfolioAnalysisDetailService {
     }
 
     /**
-     * 날짜 문자열을 yyyy-MM-dd 형식으로 변환
-     * 입력 형식: "2022-04-25T16:13:47.046744" -> 출력: "2022-04-25"
+     * 일시 문자열 yyyy-MM-dd 형식
      */
     private String formatDate(String dateString) {
         if (dateString == null || dateString.trim().isEmpty()) {

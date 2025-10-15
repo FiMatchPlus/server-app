@@ -147,8 +147,8 @@ public class BacktestReportService {
     }
 
     /**
-     * 벤치마크 정보 추출 - 저장된 메트릭스 데이터에서 벤치마크 분석
-     * 매개변수로 필요한 데이터를 직접 전달하여 추가 DB 조회 방지
+     * 벤치마크 정보 추출
+     * 매개변수로 필요한 데이터 전달
      */
     private String extractBenchmarkInfo(Long backtestId, Backtest backtestFromQuery, PortfolioSnapshot snapshotForMetrics) {
         StringBuilder benchmarkInfo = new StringBuilder("\n=== 벤치마크 비교 분석 ===\n");

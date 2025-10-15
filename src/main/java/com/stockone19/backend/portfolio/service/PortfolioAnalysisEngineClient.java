@@ -20,8 +20,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * 포트폴리오 분석 엔진 통신 서비스
- * 포트폴리오 분석 엔진과의 모든 통신을 담당
+ * 포트폴리오 최적화 관련 엔진 통신 서비스
  */
 @Slf4j
 @Service
@@ -39,7 +38,7 @@ public class PortfolioAnalysisEngineClient {
     private String callbackBaseUrl;
 
     /**
-     * 포트폴리오 분석 엔진에 비동기 요청 제출
+     * 실행 엔진에 포트폴리오 최적화 비동기 요청 제출
      */
     @Async("backgroundTaskExecutor")
     public CompletableFuture<Void> submitToPortfolioAnalysisEngineAsync(Long portfolioId) {
@@ -80,7 +79,7 @@ public class PortfolioAnalysisEngineClient {
     }
 
     /**
-     * 포트폴리오 분석 엔진 요청 생성
+     *  포트폴리오 최적화 요청 생성
      */
     public PortfolioAnalysisRequest createPortfolioAnalysisRequest(Portfolio portfolio) {
         try {

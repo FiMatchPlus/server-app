@@ -56,7 +56,7 @@ public class PortfolioQueryService {
                     totals.dailyChange()
             );
         } catch (Exception e) {
-            log.error("KIS API 호출 실패, 기존 가격 데이터 사용: {}", e.getMessage());
+            log.error("KIS API 호출 실패, DB 가격 데이터 사용: {}", e.getMessage());
             return getPortfolioSummaryFromStoredData(allHoldings);
         }
     }
@@ -205,7 +205,6 @@ public class PortfolioQueryService {
 
     /**
      * 포트폴리오 분석 결과만 조회 (AnalysisDetail)
-     * 기존 convertAnalysisResultToDetail 메서드를 재활용
      */
     public PortfolioLongResponse.AnalysisDetail getPortfolioAnalysisDetail(Long portfolioId) {
         log.info("Getting portfolio analysis detail for portfolioId: {}", portfolioId);
@@ -242,7 +241,7 @@ public class PortfolioQueryService {
     }
 
     /**
-     * 포트폴리오 상세 정보 조회 (생성 폼과 동일한 구조 + portfolioId)
+     * 포트폴리오 상세 정보 조회
      */
     public PortfolioDetailResponse getPortfolioDetail(Long portfolioId) {
         log.info("Getting portfolio detail for portfolioId: {}", portfolioId);

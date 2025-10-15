@@ -48,8 +48,9 @@ public class PortfolioController {
     @PostMapping
     public ApiResponse<CreatePortfolioResult> createPortfolio(
             @Valid @RequestBody CreatePortfolioRequest request) {
-        log.info("POST /api/portfolios - name: {}", request.name());
         Long userId = 1L;
+        log.info("POST /api/portfolios - name: {}", request.name());
+
         CreatePortfolioResult data = portfolioCommandService.createPortfolio(userId, request);
         return ApiResponse.success("새로운 포트폴리오를 생성합니다", data);
     }
@@ -171,8 +172,9 @@ public class PortfolioController {
     public ApiResponse<Void> updatePortfolio(
             @PathVariable Long portfolioId,
             @Valid @RequestBody UpdatePortfolioRequest request) {
-        log.info("PUT /api/portfolios/{} - name: {}", portfolioId, request.name());
         Long userId = 1L;
+        log.info("PUT /api/portfolios/{} - name: {}", portfolioId, request.name());
+
         portfolioCommandService.updatePortfolio(portfolioId, userId, request);
         return ApiResponse.success("포트폴리오가 수정되었습니다", null);
     }
@@ -185,8 +187,9 @@ public class PortfolioController {
      * */
     @DeleteMapping("/{portfolioId}")
     public ApiResponse<Void> deletePortfolio(@PathVariable Long portfolioId) {
-        log.info("DELETE /api/portfolios/{}", portfolioId);
         Long userId = 1L;
+        log.info("DELETE /api/portfolios/{}", portfolioId);
+
         portfolioCommandService.deletePortfolio(portfolioId, userId);
         return ApiResponse.success("포트폴리오가 삭제되었습니다", null);
     }
