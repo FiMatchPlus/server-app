@@ -9,10 +9,10 @@ spring:
       maximum-pool-size: 20
       minimum-idle: 5 
       connection-timeout: 30000
-      idle-timeout: 600000         # 10분
-      max-lifetime: 1800000        # 30분
-      leak-detection-threshold: 120000  # 연결 누수 감지
-      validation-timeout: 5000     # 연결 검증 타임아웃
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 120000
+      validation-timeout: 5000
   data:
     mongodb:
       uri: ${mongodb.uri}
@@ -27,12 +27,12 @@ spring:
         format-sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
-          batch-size: 25                    # 배치 처리 크기
-        order-inserts: true                 # INSERT 순서 최적화
-        order-updates: true                 # UPDATE 순서 최적화
-        batch-versioned-data: true          # 버전 데이터 배치 처리
+          batch-size: 25
+        order-inserts: true
+        order-updates: true
+        batch-versioned-data: true
         connection:
-          provider-disables-autocommit: false  # JdbcTemplate 호환성 
+          provider-disables-autocommit: false
         type:
           sql-trace: true
     show-sql: true
@@ -72,10 +72,12 @@ logging:
         type:
           descriptor:
             sql:
-              BasicBinder: TRACE              # SQL 파라미터 바인딩 추적
-        SQL: DEBUG                           # SQL 로깅 활성화
+              BasicBinder: TRACE
+        SQL: DEBUG
       springframework:
-        web: DEBUG                           # 웹 레이어 디버깅
+        web: WARN
+        jdbc: WARN
+        cache: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     

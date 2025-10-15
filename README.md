@@ -223,7 +223,6 @@ src/main/java/com/fimatchplus/backend/
 - `POST /portfolios` - 포트폴리오 생성
 - `GET /portfolios` - 사용자 포트폴리오 목록 조회
 - `GET /portfolios/summary` - 포트폴리오 통합 합계 정보 조회
-- `GET /portfolios/main` - 대표 포트폴리오 요약 정보 조회
 - `GET /portfolios/{portfolioId}` - 포트폴리오 기본 정보 조회
 - `GET /portfolios/{portfolioId}/long` - 포트폴리오 상세 정보 조회
 - `GET /portfolios/{portfolioId}/analysis` - 포트폴리오 분석 결과 요약 조회

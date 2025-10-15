@@ -62,48 +62,6 @@ public class PortfolioQueryService {
     }
 
     /**
-     * 사용자의 메인 포트폴리오 요약 정보 조회
-     */
-    public PortfolioShortResponse getMainPortfolioShort(Long userId) {
-        log.info("Getting main portfolio short info for userId: {}", userId);
-
-        Portfolio mainPortfolio = portfolioRepository.findMainPortfolioByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Main Portfolio", "userId", userId));
-
-        return getPortfolioShort(mainPortfolio.id());
-    }
-
-    /**
-     * 포트폴리오 요약 정보 조회
-     */
-    public PortfolioShortResponse getPortfolioShort(Long portfolioId) {
-        log.info("Getting portfolio short info for portfolioId: {}", portfolioId);
-
-        PortfolioData data = getPortfolioData(portfolioId);
-
-        if (data.holdings().isEmpty()) {
-            return new PortfolioShortResponse(
-                    data.portfolio().name(),
-                    0.0,
-                    List.of(),
-                    0.0
-            );
-        }
-
-        List<PortfolioShortResponse.HoldingSummary> holdingSummaries = data.holdings().stream()
-                .map(holding -> createHoldingSummaryWithMaps(holding, data.stockMap(), data.priceMap()))
-                .collect(Collectors.toList());
-
-        PortfolioCalculator.PortfolioTotals totals = portfolioCalculator.calculateTotals(data.holdings(), data.priceMap());
-        return new PortfolioShortResponse(
-                data.portfolio().name(),
-                totals.totalAssets(),
-                holdingSummaries,
-                totals.dailyChange()
-        );
-    }
-
-    /**
      * 포트폴리오 상세 정보 조회
      */
     public PortfolioLongResponse getPortfolioLong(Long portfolioId) {
@@ -337,48 +295,6 @@ public class PortfolioQueryService {
         Map<String, StockService.StockPriceInfo> priceMap = stockService.getMultiCurrentPrices(tickers);
 
         return new PortfolioData(portfolio, holdings, stockMap, priceMap);
-    }
-
-    private PortfolioShortResponse.HoldingSummary createHoldingSummaryWithMaps(
-            Holding holding,
-            Map<String, Stock> stockMap,
-            Map<String, StockService.StockPriceInfo> priceMap) {
-        try {
-            Stock stock = stockMap.get(holding.symbol());
-            if (stock == null) {
-                log.warn("Stock not found for ticker: {}", holding.symbol());
-                return new PortfolioShortResponse.HoldingSummary(
-                        "Unknown Stock",
-                        holding.weight(),
-                        0.0
-                );
-            }
-
-            StockService.StockPriceInfo priceInfo = priceMap.get(holding.symbol());
-            if (priceInfo == null) {
-                log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
-                return new PortfolioShortResponse.HoldingSummary(
-                        stock.getName(),
-                        holding.weight(),
-                        0.0
-                );
-            }
-
-            double dailyRate = priceInfo.dailyChangeRate();
-
-            return new PortfolioShortResponse.HoldingSummary(
-                    stock.getName(),
-                    holding.weight(),
-                    dailyRate
-            );
-        } catch (Exception e) {
-            log.warn("Failed to get stock information for holding: {}, error: {}", holding.symbol(), e.getMessage());
-            return new PortfolioShortResponse.HoldingSummary(
-                    "Unknown Stock",
-                    holding.weight(),
-                    0.0
-            );
-        }
     }
 
     private PortfolioLongResponse.HoldingDetail createHoldingDetailWithMaps(

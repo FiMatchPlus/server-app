@@ -56,25 +56,6 @@ public class PortfolioController {
     }
 
     /**
-     * 단일 대표 포트폴리오 요약 정보 조회 (메인 페이지용)
-     * <ul>
-     *     <li>포트폴리오 이름</li>
-     *     <li>총 자산</li>
-     *     <li>보유 종목별 이름, 비중, 전일대비등락률</li>
-     *     <li>전일대비등락금액 합계</li>
-     *     <li>전일대비등락률</li>
-     * </ul>
-     * */
-    @GetMapping("/main")
-    public ApiResponse<PortfolioShortResponse> getPortfolioShort() {
-        Long userId = 1L;
-        log.info("GET /api/portfolios/main - userId: {}", userId);
-
-        PortfolioShortResponse response = portfolioQueryService.getMainPortfolioShort(userId);
-        return ApiResponse.success("대표 포트폴리오 조회", response);
-    }
-
-    /**
      * 포트폴리오 기본 정보 조회
      * <ul>
      *     <li>포트폴리오 식별자</li>
@@ -95,7 +76,6 @@ public class PortfolioController {
      * <ul>
      *     <li>포트폴리오 식별자</li>
      *     <li>보유 종목별 이름, 비중, 금액, 전일대비등락률</li>
-     *     <li>전략 문서 id</li>
      * </ul>
      * */
     @GetMapping("/{portfolioId}/long")

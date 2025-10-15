@@ -8,10 +8,3 @@ spring:
     show-sql: true
     hibernate:
       ddl-auto: none
-
-logging:
-  level:
-    com.stockone19: INFO
-    org.springframework.jdbc: WARN
-    org.springframework.cache: WARN
-    org.springframework.web: WARN

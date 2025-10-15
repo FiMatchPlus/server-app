@@ -85,18 +85,6 @@ public class PortfolioRepositoryImpl implements PortfolioRepository {
     }
 
     @Override
-    public Optional<Portfolio> findMainPortfolioByUserId(Long userId) {
-        String sql = """
-            SELECT id, name, description, rule_id, is_main, created_at, updated_at, user_id, status, analysis_result, report_result, deleted_at
-            FROM portfolios
-            WHERE user_id = ? AND is_main = 'Y' AND deleted_at IS NULL
-            """;
-
-        List<Portfolio> results = jdbcTemplate.query(sql, PORTFOLIO_ROW_MAPPER, userId);
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-    }
-
-    @Override
     public Portfolio save(Portfolio portfolio) {
         if (portfolio.id() == null) {
             return insert(portfolio);
