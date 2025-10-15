@@ -11,20 +11,15 @@ import java.util.Map;
 public record PortfolioAnalysisResponse(
     Boolean success,
     
-    // 분석 메타데이터
     MetadataResponse metadata,
     
-    // 벤치마크 정보
     BenchmarkInfoResponse benchmark,
     
-    // 3가지 포트폴리오 전략 (user, min_downside_risk, max_sortino)
     List<PortfolioStrategyResponse> portfolios,
     
-    // 종목별 상세 정보
     @JsonProperty("stock_details")
     Map<String, StockDetailResponse> stockDetails,
     
-    // 백테스트 관련 정보 (기존 콜백과의 호환성)
     @JsonProperty("job_id")
     String jobId
 ) {

@@ -8,7 +8,7 @@ import com.stockone19.backend.portfolio.domain.Portfolio;
  */
 public record PortfolioStatusResponse(
         Long portfolioId,
-        String status  // "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
+        String status
 ) {
     public static PortfolioStatusResponse from(Portfolio portfolio) {
         return new PortfolioStatusResponse(

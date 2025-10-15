@@ -44,7 +44,6 @@ public class PromptTemplateService {
             log.warn("프롬프트 템플릿 파일 로드 실패: {}", e.getMessage());
         }
         
-        // 기본 프롬프트 반환
         return getDefaultBacktestReportPrompt();
     }
     
@@ -101,7 +100,6 @@ public class PromptTemplateService {
             log.warn("포트폴리오 최적화 프롬프트 템플릿 파일 로드 실패: {}", e.getMessage());
         }
         
-        // 기본 프롬프트 반환
         return getDefaultPortfolioOptimizationPrompt();
     }
     

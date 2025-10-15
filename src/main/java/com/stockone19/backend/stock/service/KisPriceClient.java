@@ -64,7 +64,6 @@ public class KisPriceClient {
 
         String token = kisTokenService.getAccessToken();
         
-        // 최대 30개까지 처리 가능하므로 30개씩 나누어 처리
         if (tickers.size() > 30) {
             throw new IllegalArgumentException("한 번에 최대 30개 종목까지만 조회 가능합니다. 현재: " + tickers.size());
         }
@@ -73,7 +72,6 @@ public class KisPriceClient {
                 .uri(uriBuilderParam -> {
                     var builder = uriBuilderParam.path("/uapi/domestic-stock/v1/quotations/intstock-multprice");
                     
-                    // 각 종목에 대해 쿼리 파라미터 추가
                     for (int i = 0; i < tickers.size(); i++) {
                         builder.queryParam("FID_COND_MRKT_DIV_CODE_" + (i + 1), "J");
                         builder.queryParam("FID_INPUT_ISCD_" + (i + 1), tickers.get(i));

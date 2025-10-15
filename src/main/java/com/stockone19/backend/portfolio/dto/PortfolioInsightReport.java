@@ -56,7 +56,7 @@ public record PortfolioInsightReport(
      */
     public record RiskProfile(
             @JsonProperty("risk_level")
-            String riskLevel,  // "저위험", "중위험", "고위험"
+            String riskLevel,
             
             String interpretation,
             String suitability

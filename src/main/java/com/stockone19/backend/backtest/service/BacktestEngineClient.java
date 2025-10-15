@@ -53,10 +53,8 @@ public class BacktestEngineClient {
             Backtest backtest = backtestRepository.findById(backtestId)
                 .orElseThrow(() -> new ResourceNotFoundException("백테스트를 찾을 수 없습니다: " + backtestId));
 
-            // 백테스트 요청 생성
             BacktestExecutionRequest request = createBacktestEngineRequest(backtest);
 
-            // 요청 body
             try {
                 String requestBody = objectMapper.writerWithDefaultPrettyPrinter()
                         .writeValueAsString(request);
@@ -66,7 +64,6 @@ public class BacktestEngineClient {
                 log.warn("Failed to serialize request body for logging: {}", e.getMessage());
             }
 
-            // 백테스트 엔진에 요청
             BacktestStartResponse response = backtestEngineWebClient
                 .post()
                 .uri("/backtest/start")
@@ -75,7 +72,6 @@ public class BacktestEngineClient {
                 .bodyToMono(BacktestStartResponse.class)
                 .block();
 
-            // Redis에 매핑 저장
             jobMappingService.saveMapping(response.jobId(), backtestId);
 
             log.info("Backtest submitted to engine: backtestId={}, jobId={}", 
@@ -83,7 +79,6 @@ public class BacktestEngineClient {
 
         } catch (Exception e) {
             log.error("Failed to submit backtest to engine: backtestId={}", backtestId, e);
-            // 이벤트 발행으로 상태 업데이트 처리
             eventPublisher.publishEvent(new com.stockone19.backend.backtest.event.BacktestFailureEvent(backtestId, e.getMessage()));
         }
 
@@ -95,13 +90,10 @@ public class BacktestEngineClient {
      */
     public BacktestExecutionRequest createBacktestEngineRequest(Backtest backtest) {
         try {
-            // 포트폴리오 조회
             List<Holding> holdings = portfolioRepository.findHoldingsByPortfolioId(backtest.getPortfolioId());
             
-            // Rule 조회 및 변환
             BacktestExecutionRequest.RulesRequest rules = convertToEngineRules(backtest.getRuleId());
             
-            // BacktestExecutionRequest.of() 메서드 사용
             return BacktestExecutionRequest.of(
                 backtest.getId(),
                 backtest.getStartAt(),
@@ -134,10 +126,8 @@ public class BacktestEngineClient {
                 return null;
             }
 
-            // stopLoss 변환
             List<BacktestExecutionRequest.RuleItem> stopLossItems = convertRuleItems(backtestRules.getStopLoss());
             
-            // takeProfit 변환
             List<BacktestExecutionRequest.RuleItem> takeProfitItems = convertRuleItems(backtestRules.getTakeProfit());
 
             return new BacktestExecutionRequest.RulesRequest(stopLossItems, takeProfitItems);
@@ -150,7 +140,7 @@ public class BacktestEngineClient {
 
     /**
      * MongoDB BacktestRuleDocument.RuleItem을 백테스트 엔진 RuleItem으로 변환
-     * threshold는 이미 정규화된 비율(0~1) 값으로 저장되어 있음
+     * threshold는 비율(0~1 사이의 값)
      */
     private List<BacktestExecutionRequest.RuleItem> convertRuleItems(List<BacktestRuleDocument.RuleItem> mongoRuleItems) {
         if (mongoRuleItems == null || mongoRuleItems.isEmpty()) {
@@ -160,8 +150,6 @@ public class BacktestEngineClient {
         return mongoRuleItems.stream()
                 .map(item -> {
                     try {
-                        // threshold 문자열을 Double로 변환
-                        // 이미 정규화된 비율 값(0~1)이므로 그대로 사용
                         Double value = Double.parseDouble(item.getThreshold());
                         log.debug("Converting rule item: category={}, threshold={}, value={}", 
                                  item.getCategory(), item.getThreshold(), value);

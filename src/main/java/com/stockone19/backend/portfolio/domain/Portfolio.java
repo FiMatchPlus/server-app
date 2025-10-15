@@ -18,10 +18,10 @@ public record Portfolio(
 ) {
 
     public enum PortfolioStatus {
-        PENDING,    // 분석 대기 중
-        RUNNING,    // 분석 실행 중
-        COMPLETED,  // 분석 완료
-        FAILED      // 분석 실패
+        PENDING,
+        RUNNING,
+        COMPLETED,
+        FAILED
     }
 
     public static Portfolio of(

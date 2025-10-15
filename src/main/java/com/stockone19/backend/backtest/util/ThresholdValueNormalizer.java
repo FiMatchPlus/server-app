@@ -33,10 +33,9 @@ public class ThresholdValueNormalizer {
         RuleCategory category = RuleCategory.fromCode(categoryCode);
         if (category == null) {
             log.warn("Unknown category '{}', extracting number only", categoryCode);
-            return extractNumber(thresholdInput);
+            return extractNumber(thresholdInput            );
         }
 
-        // 숫자와 백분율 기호 추출
         Matcher matcher = NUMBER_PATTERN.matcher(thresholdInput.trim());
         if (!matcher.find()) {
             throw new IllegalArgumentException(
@@ -45,21 +44,18 @@ public class ThresholdValueNormalizer {
         }
 
         String numberStr = matcher.group(1);
-        boolean isPercentage = matcher.group(2) != null; // % 기호 존재 여부
+        boolean isPercentage = matcher.group(2) != null;
 
         try {
             double value = Double.parseDouble(numberStr);
             
-            // 비율 기반 카테고리인 경우 백분율을 비율로 변환
             if (category.isRatio() && isPercentage) {
                 value = value / 100.0;
                 log.debug("Converted percentage to ratio: {}% -> {}", numberStr, value);
             }
 
-            // 유효성 검사 및 카테고리별 자동 변환 (LOSS_LIMIT은 자동으로 음수 변환)
             value = validateValue(category, value, thresholdInput, isPercentage);
 
-            // 정규화된 값 반환 (소수점 6자리까지)
             return String.format("%.6f", value);
 
         } catch (NumberFormatException e) {
@@ -77,7 +73,6 @@ public class ThresholdValueNormalizer {
                                         String originalInput, boolean wasPercentage) {
         String categoryCode = category.getCode();
         
-        // BETA는 양수 절대값
         if (category == RuleCategory.BETA) {
             if (value <= 0) {
                 throw new IllegalArgumentException(
@@ -87,9 +82,7 @@ public class ThresholdValueNormalizer {
             return value;
         }
         
-        // LOSS_LIMIT은 음수 비율만 허용 (양수 입력 시 자동으로 음수 변환)
         if (category == RuleCategory.LOSS_LIMIT) {
-            // 양수로 입력된 경우 자동으로 음수로 변환
             if (value > 0) {
                 log.info("'{}' 카테고리는 음수 값이 필요합니다. 입력값 '{}' -> '{}'로 자동 변환", 
                         categoryCode, value, -value);
@@ -109,7 +102,6 @@ public class ThresholdValueNormalizer {
             return value;
         }
         
-        // 그 외 비율 기반 카테고리 (MDD, VAR, ONEPROFIT): 양수 비율
         if (category.isRatio()) {
             if (value < 0) {
                 throw new IllegalArgumentException(

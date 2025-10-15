@@ -5,7 +5,6 @@ import jakarta.persistence.Converter;
 
 /**
  * String 배열을 데이터베이스에 저장하기 위한 컨버터
- * H2와 PostgreSQL 모두 호환 가능
  */
 @Converter
 public class StringArrayConverter implements AttributeConverter<String[], String> {

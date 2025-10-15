@@ -24,17 +24,14 @@ public class BacktestResponseMapper {
      * Backtest 도메인 객체를 BacktestResponse로 변환
      */
     public BacktestResponse toResponse(Backtest backtest) {
-        // 백테스트 기간 문자열 생성
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String period = backtest.getStartAt().format(formatter) + " ~ " + backtest.getEndAt().format(formatter);
 
         long executionTime = 0L;
         
-        // 백테스트 상태는 엔티티에서 직접 가져옴
         BacktestStatus status = backtest.getStatus();
         
         if (status == BacktestStatus.COMPLETED) {
-            // 완료된 경우 실행 시간만 조회 (성능 최적화)
             PortfolioSnapshot latestSnapshot = snapshotRepository.findLatestPortfolioSnapshotByBacktestId(backtest.getId());
             if (latestSnapshot != null && latestSnapshot.executionTime() != null) {
                 executionTime = latestSnapshot.executionTime().longValue();
@@ -78,12 +75,10 @@ public class BacktestResponseMapper {
         
         BacktestServerErrorResponse serverError = exception.getErrorResponse();
         
-        // 주가 데이터 누락 에러인 경우
         if ("MISSING_STOCK_PRICE_DATA".equals(serverError.error().errorType())) {
             return createMissingStockDataErrorResponse(serverError);
         }
         
-        // 기타 에러인 경우
         return BacktestErrorResponse.createGeneralError(
                 serverError.error().errorType(),
                 createFriendlyErrorMessage(serverError.error()),

@@ -79,7 +79,7 @@ public class StockPrice {
         StockPrice stockPrice = new StockPrice(stockCode, datetime, intervalUnit,
                 openPrice, highPrice, lowPrice, closePrice, volume,
                 changeAmount, changeRate);
-        stockPrice.id = id;  // ID는 직접 설정 (데이터베이스에서 조회시)
+        stockPrice.id = id;
         return stockPrice;
     }
 }

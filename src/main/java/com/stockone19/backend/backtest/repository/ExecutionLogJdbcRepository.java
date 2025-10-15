@@ -76,7 +76,7 @@ public class ExecutionLogJdbcRepository {
             return 0;
         }
 
-        int batchSize = 1000; // 배치 크기
+        int batchSize = 1000;
         int totalInserted = 0;
 
         for (int i = 0; i < logs.size(); i += batchSize) {
@@ -114,7 +114,7 @@ public class ExecutionLogJdbcRepository {
             }, backtestId);
         } catch (Exception e) {
             log.error("Failed to find execution logs by backtestId: {}", backtestId, e);
-            return List.of(); // 빈 리스트 반환
+            return List.of();
         }
     }
 }

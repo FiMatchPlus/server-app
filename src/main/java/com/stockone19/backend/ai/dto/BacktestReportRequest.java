@@ -9,6 +9,6 @@ public record BacktestReportRequest(
         @NotNull(message = "백테스트 ID는 필수입니다")
         Long backtestId,
         
-        String analysisFocus  // 분석 초점 (예: "리스크 분석", "수익성 분석" 등)
+        String analysisFocus
 ) {
 }

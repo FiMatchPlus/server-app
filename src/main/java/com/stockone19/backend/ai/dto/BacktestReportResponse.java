@@ -5,7 +5,7 @@ package com.stockone19.backend.ai.dto;
  */
 public record BacktestReportResponse(
         Long backtestId,
-        String report  // AI가 생성한 분석 리포트 내용 (String)
+        String report
 ) {
     public static BacktestReportResponse of(Long backtestId, String report) {
         return new BacktestReportResponse(backtestId, report);

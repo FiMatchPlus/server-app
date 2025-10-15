@@ -72,7 +72,6 @@ public class StockController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(value = "limit", defaultValue = "100") int limit) {
 
-        // 기본값 설정 및 LocalDateTime 변환
         LocalDateTime endDateTime;
         LocalDateTime startDateTime;
         

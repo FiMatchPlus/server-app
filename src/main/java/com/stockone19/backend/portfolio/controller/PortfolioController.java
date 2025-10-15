@@ -30,7 +30,7 @@ public class PortfolioController {
      * */
     @GetMapping("/summary")
     public ApiResponse<PortfolioSummaryResponse> getPortfolioSummary() {
-        Long userId = 1L; // 고정된 userId 값 (나중에 인증/인가 로직 추가 예정)
+        Long userId = 1L;
         log.info("GET /api/portfolios/summary - userId: {}", userId);
 
         PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(userId);
@@ -49,7 +49,7 @@ public class PortfolioController {
     public ApiResponse<CreatePortfolioResult> createPortfolio(
             @Valid @RequestBody CreatePortfolioRequest request) {
         log.info("POST /api/portfolios - name: {}", request.name());
-        Long userId = 1L; // 고정된 userId 값
+        Long userId = 1L;
         CreatePortfolioResult data = portfolioCommandService.createPortfolio(userId, request);
         return ApiResponse.success("새로운 포트폴리오를 생성합니다", data);
     }
@@ -66,7 +66,7 @@ public class PortfolioController {
      * */
     @GetMapping("/main")
     public ApiResponse<PortfolioShortResponse> getPortfolioShort() {
-        Long userId = 1L; // 고정된 userId 값 (나중에 인증/인가 로직 추가 예정)
+        Long userId = 1L;
         log.info("GET /api/portfolios/main - userId: {}", userId);
 
         PortfolioShortResponse response = portfolioQueryService.getMainPortfolioShort(userId);
@@ -152,7 +152,7 @@ public class PortfolioController {
      * */
     @GetMapping
     public ApiResponse<PortfolioListResponse> getPortfolioList() {
-        Long userId = 1L; // 고정된 userId 값
+        Long userId = 1L;
         log.info("GET /api/portfolios - userId: {}", userId);
 
         PortfolioListResponse response = portfolioQueryService.getPortfolioList(userId);
@@ -172,7 +172,7 @@ public class PortfolioController {
             @PathVariable Long portfolioId,
             @Valid @RequestBody UpdatePortfolioRequest request) {
         log.info("PUT /api/portfolios/{} - name: {}", portfolioId, request.name());
-        Long userId = 1L; // 고정된 userId 값
+        Long userId = 1L;
         portfolioCommandService.updatePortfolio(portfolioId, userId, request);
         return ApiResponse.success("포트폴리오가 수정되었습니다", null);
     }
@@ -186,7 +186,7 @@ public class PortfolioController {
     @DeleteMapping("/{portfolioId}")
     public ApiResponse<Void> deletePortfolio(@PathVariable Long portfolioId) {
         log.info("DELETE /api/portfolios/{}", portfolioId);
-        Long userId = 1L; // 고정된 userId 값
+        Long userId = 1L;
         portfolioCommandService.deletePortfolio(portfolioId, userId);
         return ApiResponse.success("포트폴리오가 삭제되었습니다", null);
     }

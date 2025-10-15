@@ -37,11 +37,9 @@ public class BacktestService {
     public CreateBacktestResult createBacktest(Long portfolioId, CreateBacktestRequest request) {
         log.info("Creating backtest for portfolioId: {}, title: {}", portfolioId, request.title());
 
-        // 포트폴리오 존재 확인
         portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + portfolioId));
 
-        // 백테스트 생성 및 저장
         Backtest backtest = Backtest.create(
                 portfolioId,
                 request.title(),
@@ -52,16 +50,13 @@ public class BacktestService {
 
         Backtest savedBacktest = backtestRepository.save(backtest);
 
-        // 백테스트 규칙이 있는 경우 MongoDB에 저장하고 ruleId 업데이트
         if (request.rules() != null && hasRules(request.rules())) {
             String ruleId = saveBacktestRules(savedBacktest.getId(), request.rules());
             
-            // JPA 엔티티의 ruleId 업데이트
             savedBacktest.updateRuleId(ruleId);
             savedBacktest = backtestRepository.save(savedBacktest);
         }
 
-        // 벤치마크 지수 설정 (필수 필드)
         savedBacktest.setBenchmarkCode(request.benchmarkCode());
         savedBacktest = backtestRepository.save(savedBacktest);
         log.info("벤치마크 지수 설정 완료: {} for backtestId: {}", request.benchmarkCode(), savedBacktest.getId());
@@ -87,7 +82,6 @@ public class BacktestService {
     public List<Backtest> getBacktestsByPortfolioId(Long portfolioId) {
         log.info("Getting backtests for portfolioId: {}", portfolioId);
 
-        // 포트폴리오 존재 확인
         portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + portfolioId));
 
@@ -103,7 +97,6 @@ public class BacktestService {
     public Map<String, String> getBacktestStatusesByPortfolioId(Long portfolioId) {
         log.info("Getting backtest statuses for portfolioId: {}", portfolioId);
 
-        // 포트폴리오 존재 확인
         portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with id: " + portfolioId));
 
@@ -143,7 +136,6 @@ public class BacktestService {
     public void updateBacktest(Long backtestId, Long portfolioId, UpdateBacktestRequest request) {
         log.info("Updating backtest - backtestId: {}, portfolioId: {}, title: {}", backtestId, portfolioId, request.title());
 
-        // 1. 기존 백테스트 조회 및 권한 확인
         Backtest backtest = backtestRepository.findById(backtestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Backtest not found with id: " + backtestId));
         
@@ -151,22 +143,17 @@ public class BacktestService {
             throw new ResourceNotFoundException("백테스트 수정 권한이 없습니다: " + backtestId);
         }
 
-        // 2. 기본 정보 업데이트
         backtest.updateBasicInfo(request.title(), request.description());
         backtest.updatePeriod(request.startAt(), request.endAt());
         backtest.setBenchmarkCode(request.benchmarkCode());
         
-        // 상태를 CREATED로 리셋 (수정 시 기존 실행 결과 무효화)
         backtest.updateStatus(BacktestStatus.CREATED);
 
-        // 3. Rules 업데이트 (선택 사항)
         if (request.rules() != null && hasUpdateRules(request.rules())) {
             if (backtest.getRuleId() != null) {
-                // 기존 rule 업데이트
                 String ruleId = updateBacktestRules(backtest.getId(), backtest.getRuleId(), request.rules());
                 backtest.updateRuleId(ruleId);
             } else {
-                // 새로운 rule 생성
                 String ruleId = saveUpdateBacktestRules(backtest.getId(), request.rules());
                 backtest.updateRuleId(ruleId);
             }
@@ -186,7 +173,6 @@ public class BacktestService {
     public void deleteBacktest(Long backtestId, Long portfolioId) {
         log.info("Deleting backtest - backtestId: {}, portfolioId: {}", backtestId, portfolioId);
 
-        // 1. 기존 백테스트 조회 및 권한 확인
         Backtest backtest = backtestRepository.findById(backtestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Backtest not found with id: " + backtestId));
         
@@ -194,13 +180,11 @@ public class BacktestService {
             throw new ResourceNotFoundException("백테스트 삭제 권한이 없습니다: " + backtestId);
         }
 
-        // 2. Soft delete 수행
         backtestRepository.softDelete(backtestId);
 
         log.info("Backtest soft deleted successfully - backtestId: {}", backtestId);
     }
 
-    // ===== 규칙 관리 관련 private 메소드들 =====
 
     private boolean hasRules(CreateBacktestRequest.RulesRequest rules) {
         return (rules.stopLoss() != null && !rules.stopLoss().isEmpty()) ||
@@ -232,7 +216,6 @@ public class BacktestService {
         
         return items.stream()
                 .map(item -> {
-                    // category를 enum 코드로 변환 및 검증 (영문 코드 또는 이름 모두 가능)
                     RuleCategory category = RuleCategory.fromCode(item.category());
                     if (category == null) {
                         throw new IllegalArgumentException(
@@ -243,7 +226,6 @@ public class BacktestService {
                     }
                     String categoryCode = category.getCode();
                     
-                    // threshold 값 정규화 (백분율 -> 비율 변환 및 유효성 검사)
                     String normalizedThreshold = ThresholdValueNormalizer.normalize(
                         categoryCode, 
                         item.threshold()
@@ -294,7 +276,7 @@ public class BacktestService {
                 stopLossItems,
                 takeProfitItems
         );
-        backtestRule.setId(ruleId); // 기존 ID 사용
+        backtestRule.setId(ruleId);
 
         BacktestRuleDocument savedRule = backtestRuleRepository.save(backtestRule);
         log.info("Updated backtest rule in MongoDB with id: {}", savedRule.getId());
@@ -309,7 +291,6 @@ public class BacktestService {
         
         return items.stream()
                 .map(item -> {
-                    // category를 enum 코드로 변환 및 검증 (영문 코드 또는 이름 모두 가능)
                     RuleCategory category = RuleCategory.fromCode(item.category());
                     if (category == null) {
                         throw new IllegalArgumentException(
@@ -320,7 +301,6 @@ public class BacktestService {
                     }
                     String categoryCode = category.getCode();
                     
-                    // threshold 값 정규화 (백분율 -> 비율 변환 및 유효성 검사)
                     String normalizedThreshold = ThresholdValueNormalizer.normalize(
                         categoryCode, 
                         item.threshold()

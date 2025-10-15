@@ -44,11 +44,9 @@ public class PortfolioAnalysisDetailService {
     public PortfolioAnalysisDetailResponse getPortfolioAnalysisDetail(Long portfolioId) {
         log.info("Getting portfolio analysis detail for portfolioId: {}", portfolioId);
 
-        // 1. Portfolio 조회
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Portfolio", "id", portfolioId));
 
-        // 2. analysis_result 파싱
         if (portfolio.analysisResult() == null || portfolio.analysisResult().trim().isEmpty()) {
             throw new RuntimeException("포트폴리오 분석 결과가 없습니다. 분석이 완료되지 않았을 수 있습니다.");
         }
@@ -64,7 +62,6 @@ public class PortfolioAnalysisDetailService {
             throw new RuntimeException("포트폴리오 분석 결과 파싱에 실패했습니다.", e);
         }
 
-        // 3. report_result 파싱 (null 가능)
         PortfolioInsightReport insightReport = null;
         if (portfolio.reportResult() != null && !portfolio.reportResult().trim().isEmpty()) {
             try {
@@ -74,11 +71,9 @@ public class PortfolioAnalysisDetailService {
                 );
             } catch (Exception e) {
                 log.warn("Failed to parse report_result for portfolioId: {}, will use null", portfolioId, e);
-                // report_result 파싱 실패 시 null로 처리 (선택적 데이터)
             }
         }
 
-        // 4. 응답 생성
         return buildDetailResponse(portfolio, analysisResponse, insightReport);
     }
 
@@ -90,32 +85,25 @@ public class PortfolioAnalysisDetailService {
             PortfolioAnalysisResponse analysisResponse,
             PortfolioInsightReport insightReport
     ) {
-        // 분석 기간 추출
         PortfolioAnalysisDetailResponse.AnalysisPeriod analysisPeriod = 
                 new PortfolioAnalysisDetailResponse.AnalysisPeriod(
                         formatDate(analysisResponse.metadata().period().start()),
                         formatDate(analysisResponse.metadata().period().end())
                 );
 
-        // 인사이트를 type별로 매핑
         Map<String, PortfolioInsightReport.PortfolioInsight> insightMap = buildInsightMap(insightReport);
         
-        // 종목 정보 일괄 조회
         Map<String, String> stockCodeToNameMap = buildStockNameMap(analysisResponse);
 
-        // 포트폴리오 인사이트 리스트 생성
         List<PortfolioAnalysisDetailResponse.PortfolioInsight> results = 
                 createPortfolioInsights(analysisResponse, insightMap, stockCodeToNameMap);
 
-        // 비교 분석 추출
         PortfolioAnalysisDetailResponse.ComparativeAnalysis comparativeAnalysis = 
                 createComparativeAnalysis(insightReport);
 
-        // 맞춤형 추천 추출
         PortfolioAnalysisDetailResponse.PersonalizedRecommendation personalizedRecommendation = 
                 createPersonalizedRecommendation(insightReport);
 
-        // 최종 응답 생성
         return PortfolioAnalysisDetailResponse.of(
                 portfolio.status().name(),
                 portfolio.name(),
@@ -150,7 +138,6 @@ public class PortfolioAnalysisDetailService {
      * 종목 코드 -> 종목명 맵 생성
      */
     private Map<String, String> buildStockNameMap(PortfolioAnalysisResponse analysisResponse) {
-        // 모든 종목 코드 수집 (중복 제거)
         List<String> allStockCodes = analysisResponse.portfolios().stream()
                 .flatMap(p -> p.weights().keySet().stream())
                 .distinct()
@@ -177,11 +164,9 @@ public class PortfolioAnalysisDetailService {
                 String type = portfolioStrategy.type();
                 PortfolioInsightReport.PortfolioInsight insight = insightMap.get(type);
 
-            // holdings 정보 생성 (종목 코드 + 종목명 + 비중)
             List<PortfolioAnalysisDetailResponse.HoldingInfo> holdings = 
                     createHoldingInfoList(portfolioStrategy.weights(), stockCodeToNameMap);
                 
-                // metrics 추출 (PMPT 기반)
                 PortfolioAnalysisDetailResponse.Metrics metrics = 
                         new PortfolioAnalysisDetailResponse.Metrics(
                                 portfolioStrategy.metrics().expectedReturn(),
@@ -189,14 +174,12 @@ public class PortfolioAnalysisDetailService {
                             portfolioStrategy.metrics().sortinoRatio()
                     );
             
-            // 인사이트 정보 추출
             PortfolioAnalysisDetailResponse.RiskProfile riskProfile = extractRiskProfile(insight);
             PortfolioAnalysisDetailResponse.PerformanceInsight performanceInsight = extractPerformanceInsight(insight);
             String riskLevel = extractRiskLevel(insight);
             List<String> strengths = insight != null ? insight.keyStrengths() : null;
             List<String> weaknesses = insight != null ? insight.keyWeaknesses() : null;
             
-            // 포트폴리오 인사이트 생성
             PortfolioAnalysisDetailResponse.PortfolioInsight portfolioInsight = 
                     new PortfolioAnalysisDetailResponse.PortfolioInsight(
                             type,
@@ -224,9 +207,9 @@ public class PortfolioAnalysisDetailService {
     ) {
         return weights.entrySet().stream()
                 .map(entry -> new PortfolioAnalysisDetailResponse.HoldingInfo(
-                        entry.getKey(),  // code
-                        stockCodeToNameMap.getOrDefault(entry.getKey(), entry.getKey()),  // name
-                        entry.getValue()  // weight
+                        entry.getKey(),
+                        stockCodeToNameMap.getOrDefault(entry.getKey(), entry.getKey()),
+                        entry.getValue()
                 ))
                 .collect(Collectors.toList());
     }
@@ -288,11 +271,9 @@ public class PortfolioAnalysisDetailService {
         
         PortfolioInsightReport.ComparativeAnalysis srcAnalysis = insightReport.comparativeAnalysis();
         
-        // decision_framework
         PortfolioAnalysisDetailResponse.DecisionFramework decisionFramework = 
                 extractDecisionFramework(srcAnalysis);
         
-        // three_way_comparison
         PortfolioAnalysisDetailResponse.ThreeWayComparison threeWayComparison = 
                 extractThreeWayComparison(srcAnalysis);
         
@@ -349,10 +330,8 @@ public class PortfolioAnalysisDetailService {
         
         PortfolioInsightReport.PersonalizedRecommendation srcRecommendation = insightReport.personalizedRecommendation();
         
-        // risk_tolerance_assessment
         PortfolioAnalysisDetailResponse.RiskToleranceAssessment riskToleranceAssessment = extractRiskToleranceAssessment(srcRecommendation);
         
-        // investment_horizon_assessment
         PortfolioAnalysisDetailResponse.InvestmentHorizonAssessment investmentHorizonAssessment = extractInvestmentHorizonAssessment(srcRecommendation);
         
         return new PortfolioAnalysisDetailResponse.PersonalizedRecommendation(
@@ -410,7 +389,7 @@ public class PortfolioAnalysisDetailService {
                     .collect(Collectors.toMap(
                             Stock::getTicker,
                             Stock::getName,
-                            (existing, replacement) -> existing  // 중복 시 기존 값 유지
+                            (existing, replacement) -> existing
                     ));
         } catch (Exception e) {
             log.warn("Failed to fetch stock names for codes: {}", stockCodes, e);
@@ -446,7 +425,6 @@ public class PortfolioAnalysisDetailService {
             return dateString;
         }
         
-        // "2022-04-25T16:13:47.046744" 형식에서 'T' 앞부분만 추출
         if (dateString.contains("T")) {
             return dateString.substring(0, 10);
         }

@@ -17,7 +17,7 @@ public class BacktestJobMappingService {
     
     private final StringRedisTemplate redisTemplate;
     private static final String KEY_PREFIX = "backtest:job:";
-    private static final Duration TTL = Duration.ofHours(24); // 24시간 후 자동 삭제
+    private static final Duration TTL = Duration.ofHours(24);
     
     /**
      * jobId와 backtestId 매핑 저장

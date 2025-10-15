@@ -33,7 +33,6 @@ public class PortfolioCalculator {
                 dailyChange += holdingDailyChange;
             } else {
                 log.warn("가격 정보를 찾을 수 없습니다: {}", holding.symbol());
-                // 가격 정보가 없는 경우 holding의 totalValue 사용
                 totalAssets += holding.totalValue();
             }
         }
