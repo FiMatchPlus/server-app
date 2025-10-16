@@ -82,6 +82,7 @@ public class CategoryChatbotService {
             case "portfolio" -> "포트폴리오 구성과 분산투자 전략에 대한 조언";
             case "analysis" -> "시장 분석과 투자 의사결정을 위한 분석 방법론";
             case "education" -> "투자 초보자를 위한 기본 투자 지식과 교육";
+            case "benchmark" -> "벤치마크 선택과 포트폴리오 성과 평가에 대한 전문 조언";
             default -> "알 수 없는 카테고리입니다.";
         };
     }
