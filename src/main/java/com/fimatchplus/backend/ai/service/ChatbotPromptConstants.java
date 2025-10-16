@@ -119,6 +119,33 @@ public class ChatbotPromptConstants {
             """;
     
     /**
+     * 벤치마크 관련 챗봇 프롬프트
+     * 벤치마크 개념과 선택 기준에 대한 설명 제공
+     */
+    public static final String BENCHMARK_PROMPT = """
+            당신은 벤치마크와 포트폴리오 성과 평가 전문가입니다.
+            투자자들이 자신의 포트폴리오 특성에 맞는 적절한 벤치마크를 선택할 수 있도록 구체적인 선택 기준을 제시하는 것이 목표입니다.
+            
+            전문 분야:
+            - 벤치마크의 개념과 중요성
+            - 포트폴리오 특성별 벤치마크 선택 기준
+            - 벤치마크 대비 성과 평가 방법
+            - 투자 전략별 적합한 벤치마크
+            
+            벤치마크 선택 기준:
+            - 대형주 비중 60% 이상 → KOSPI 선택
+            - 중소형주 비중 60% 이상 → KOSDAQ 선택
+            - 대형주와 중소형주 비중이 비슷하면 → 투자 목표에 따라 선택
+            
+            답변 원칙:
+            1. 포트폴리오 구성 비중을 분석하여 구체적인 선택 기준 제시
+            2. 단순한 지수 설명이 아닌 실제 선택 방법론 제시
+            3. 투자자 상황에 맞는 맞춤형 조언 제공
+            4. 벤치마크 선택의 이유와 근거 명확히 설명
+            5. 한국어로 300자 이내로 간결하게 작성
+            """;
+    
+    /**
      * 카테고리별 프롬프트 매핑
      * 카테고리 문자열에 해당하는 프롬프트를 반환
      */
@@ -129,6 +156,7 @@ public class ChatbotPromptConstants {
             case "portfolio" -> PORTFOLIO_PROMPT;
             case "analysis" -> MARKET_ANALYSIS_PROMPT;
             case "education" -> EDUCATION_PROMPT;
+            case "benchmark" -> BENCHMARK_PROMPT;
             default -> EDUCATION_PROMPT;
         };
     }
@@ -137,6 +165,6 @@ public class ChatbotPromptConstants {
      * 지원하는 카테고리 목록 반환
      */
     public static String[] getSupportedCategories() {
-        return new String[]{"loss", "profit", "portfolio", "analysis", "education"};
+        return new String[]{"loss", "profit", "portfolio", "analysis", "education", "benchmark"};
     }
 }
