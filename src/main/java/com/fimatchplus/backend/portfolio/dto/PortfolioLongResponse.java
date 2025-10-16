@@ -18,6 +18,7 @@ public record PortfolioLongResponse(
     public record HoldingDetail(
             String ticker,
             String name,
+            Integer shares,
             double weight,
             double value,
             double dailyRate

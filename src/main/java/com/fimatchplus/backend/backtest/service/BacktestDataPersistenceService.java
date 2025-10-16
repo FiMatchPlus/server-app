@@ -175,16 +175,25 @@ public class BacktestDataPersistenceService {
      */
     private List<ExecutionLog> createExecutionLogs(Long backtestId, List<BacktestCallbackResponse.ExecutionLogResponse> logResponses) {
         return logResponses.stream()
-            .map(logResponse -> ExecutionLog.builder()
-                .backtestId(backtestId)
-                .logDate(logResponse.date())
-                .actionType(convertActionType(logResponse.action()))
-                .category(logResponse.category())
-                .triggerValue(logResponse.triggerValue())
-                .thresholdValue(logResponse.thresholdValue())
-                .reason(logResponse.reason())
-                .portfolioValue(logResponse.portfolioValue())
-                .build())
+            .map(logResponse -> {
+                LocalDateTime logDate = logResponse.date();
+                if (logDate == null) {
+                    logDate = LocalDateTime.now();
+                    log.warn("ExecutionLog date is null for backtestId: {}, action: {}, using current time: {}", 
+                        backtestId, logResponse.action(), logDate);
+                }
+                
+                return ExecutionLog.builder()
+                    .backtestId(backtestId)
+                    .logDate(logDate)
+                    .actionType(convertActionType(logResponse.action()))
+                    .category(logResponse.category())
+                    .triggerValue(logResponse.triggerValue())
+                    .thresholdValue(logResponse.thresholdValue())
+                    .reason(logResponse.reason())
+                    .portfolioValue(logResponse.portfolioValue())
+                    .build();
+            })
             .toList();
     }
 
