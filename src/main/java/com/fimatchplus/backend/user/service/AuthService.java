@@ -7,6 +7,7 @@ import com.fimatchplus.backend.user.repository.UserRepository;
 import com.fimatchplus.backend.user.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,9 @@ public class AuthService {
     private final RedisTemplate<String, String> redisTemplate;
 
     private static final String JWT_PREFIX = "jwt:";
-    private static final long JWT_EXPIRATION_DAYS = 3;
+    
+    @Value("${jwt.expiration}")
+    private long jwtExpirationMs;
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
@@ -40,12 +43,12 @@ public class AuthService {
         String accessToken = jwtUtil.generateToken(user.getId(), user.getEmail());
 
         String redisKey = JWT_PREFIX + user.getId();
-        redisTemplate.opsForValue().set(redisKey, accessToken, JWT_EXPIRATION_DAYS, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(redisKey, accessToken, jwtExpirationMs, TimeUnit.MILLISECONDS);
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .tokenType("Bearer")
-                .expiresIn(JWT_EXPIRATION_DAYS * 24 * 60 * 60) // 초 단위
+                .expiresIn(jwtExpirationMs / 1000)
                 .userInfo(LoginResponse.UserInfo.builder()
                         .id(user.getId())
                         .name(user.getName())
