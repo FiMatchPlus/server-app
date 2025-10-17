@@ -42,17 +42,17 @@ public class PortfolioCalculator {
     }
 
     /**
-     * downside_deviation을 기반으로 risk level 계산
-     * 10% 미만: LOW, 15% 이상: HIGH, 그 중간: MEDIUM
+     * downside_deviation로 risk level 결정
+     * 0.10 미만: LOW, 0.15 이상: HIGH, 0.10 이상 0.15 미만: MEDIUM
      */
     public String calculateRiskLevel(Double downsideDeviation) {
         if (downsideDeviation == null) {
             return "UNKNOWN";
         }
         
-        if (downsideDeviation < 10.0) {
+        if (downsideDeviation < 0.10) {
             return "LOW";
-        } else if (downsideDeviation >= 15.0) {
+        } else if (downsideDeviation >= 0.15) {
             return "HIGH";
         } else {
             return "MEDIUM";
