@@ -1,10 +1,12 @@
 package com.fimatchplus.backend.portfolio.controller;
 
 import com.fimatchplus.backend.common.dto.ApiResponse;
+import com.fimatchplus.backend.common.util.AuthUtil;
 import com.fimatchplus.backend.portfolio.dto.*;
 import com.fimatchplus.backend.portfolio.service.PortfolioAnalysisDetailService;
 import com.fimatchplus.backend.portfolio.service.PortfolioCommandService;
 import com.fimatchplus.backend.portfolio.service.PortfolioQueryService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,7 @@ public class PortfolioController {
     private final PortfolioCommandService portfolioCommandService;
     private final PortfolioQueryService portfolioQueryService;
     private final PortfolioAnalysisDetailService portfolioAnalysisDetailService;
+    private final AuthUtil authUtil;
 
     /**
      * 사용자 포트폴리오 통합 합계 정보 조회 (포트폴리오 페이지 헤더)
@@ -29,8 +32,8 @@ public class PortfolioController {
      * </ul>
      * */
     @GetMapping("/summary")
-    public ApiResponse<PortfolioSummaryResponse> getPortfolioSummary() {
-        Long userId = 1L;
+    public ApiResponse<PortfolioSummaryResponse> getPortfolioSummary(HttpServletRequest request) {
+        Long userId = authUtil.getUserIdFromRequest(request);
         log.info("GET /api/portfolios/summary - userId: {}", userId);
 
         PortfolioSummaryResponse response = portfolioQueryService.getPortfolioSummary(userId);
@@ -47,9 +50,10 @@ public class PortfolioController {
      * */
     @PostMapping
     public ApiResponse<CreatePortfolioResult> createPortfolio(
-            @Valid @RequestBody CreatePortfolioRequest request) {
-        Long userId = 1L;
-        log.info("POST /api/portfolios - name: {}", request.name());
+            @Valid @RequestBody CreatePortfolioRequest request,
+            HttpServletRequest httpRequest) {
+        Long userId = authUtil.getUserIdFromRequest(httpRequest);
+        log.info("POST /api/portfolios - userId: {}, name: {}", userId, request.name());
 
         CreatePortfolioResult data = portfolioCommandService.createPortfolio(userId, request);
         return ApiResponse.success("새로운 포트폴리오를 생성합니다", data);
@@ -132,8 +136,8 @@ public class PortfolioController {
      * </ul>
      * */
     @GetMapping
-    public ApiResponse<PortfolioListResponse> getPortfolioList() {
-        Long userId = 1L;
+    public ApiResponse<PortfolioListResponse> getPortfolioList(HttpServletRequest request) {
+        Long userId = authUtil.getUserIdFromRequest(request);
         log.info("GET /api/portfolios - userId: {}", userId);
 
         PortfolioListResponse response = portfolioQueryService.getPortfolioList(userId);
@@ -151,9 +155,10 @@ public class PortfolioController {
     @PutMapping("/{portfolioId}")
     public ApiResponse<Void> updatePortfolio(
             @PathVariable Long portfolioId,
-            @Valid @RequestBody UpdatePortfolioRequest request) {
-        Long userId = 1L;
-        log.info("PUT /api/portfolios/{} - name: {}", portfolioId, request.name());
+            @Valid @RequestBody UpdatePortfolioRequest request,
+            HttpServletRequest httpRequest) {
+        Long userId = authUtil.getUserIdFromRequest(httpRequest);
+        log.info("PUT /api/portfolios/{} - userId: {}, name: {}", portfolioId, userId, request.name());
 
         portfolioCommandService.updatePortfolio(portfolioId, userId, request);
         return ApiResponse.success("포트폴리오가 수정되었습니다", null);
@@ -166,9 +171,9 @@ public class PortfolioController {
      * </ul>
      * */
     @DeleteMapping("/{portfolioId}")
-    public ApiResponse<Void> deletePortfolio(@PathVariable Long portfolioId) {
-        Long userId = 1L;
-        log.info("DELETE /api/portfolios/{}", portfolioId);
+    public ApiResponse<Void> deletePortfolio(@PathVariable Long portfolioId, HttpServletRequest request) {
+        Long userId = authUtil.getUserIdFromRequest(request);
+        log.info("DELETE /api/portfolios/{} - userId: {}", portfolioId, userId);
 
         portfolioCommandService.deletePortfolio(portfolioId, userId);
         return ApiResponse.success("포트폴리오가 삭제되었습니다", null);

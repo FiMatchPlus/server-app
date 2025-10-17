@@ -128,11 +128,39 @@ public class PortfolioAnalysisService {
      */
     private void logAnalysisResult(PortfolioAnalysisResponse analysisResponse) {
         try {
+            validateRiskMetrics(analysisResponse);
+            
             String analysisJson = objectMapper.writerWithDefaultPrettyPrinter()
                     .writeValueAsString(analysisResponse);
             log.info("Portfolio analysis result: {}", analysisJson);
         } catch (JsonProcessingException e) {
             log.warn("Failed to serialize analysis result for logging: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * 위험 지표 값 검증
+     */
+    private void validateRiskMetrics(PortfolioAnalysisResponse analysisResponse) {
+        if (analysisResponse.portfolios() != null) {
+            for (PortfolioAnalysisResponse.PortfolioStrategyResponse portfolio : analysisResponse.portfolios()) {
+                if (portfolio.metrics() != null) {
+                    Double varValue = portfolio.metrics().varValue();
+                    Double cvarValue = portfolio.metrics().cvarValue();
+                    
+                    if (varValue == null || varValue == 0.0) {
+                        log.warn("VaR value is null or zero for portfolio type: {}", portfolio.type());
+                    }
+                    
+                    if (cvarValue == null || cvarValue == 0.0) {
+                        log.warn("CVaR value is null or zero for portfolio type: {}", portfolio.type());
+                    }
+
+                    log.info("Risk metrics for {}: VaR={}, CVaR={}, Volatility={}, MaxDrawdown={}", 
+                            portfolio.type(), varValue, cvarValue, 
+                            portfolio.metrics().stdDeviation(), portfolio.metrics().maxDrawdown());
+                }
+            }
         }
     }
 

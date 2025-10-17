@@ -32,20 +32,23 @@ public class User {
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private Channel channel;
-
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public User(String name, String email, String password, Channel channel) {
+    public User(String name, String email, String password) {
         this.name = name;
         this.email = email;
         this.password = password;
-        this.channel = channel;
         this.createdAt = LocalDateTime.now();
+    }
+
+    public void updateMobile(String mobile) {
+        this.mobile = mobile;
+    }
+
+    public void updateGender(Gender gender) {
+        this.gender = gender;
     }
 
 }
