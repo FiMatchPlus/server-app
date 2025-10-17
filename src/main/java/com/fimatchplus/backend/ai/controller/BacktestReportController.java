@@ -43,8 +43,7 @@ public class BacktestReportController {
     /**
      * 백테스트 레포트 재생성
      * <ul>
-     *     <li>기존 레포트를 새로운 분석으로 업데이트</li>
-     *     <li>다른 분석 관점이나 더 상세한 내용 제공</li>
+     *     <li>기존 레포트를 새로운 레포트로 업데이트</li>
      * </ul>
      */
     @PostMapping("/{backtestId}/regenerate")

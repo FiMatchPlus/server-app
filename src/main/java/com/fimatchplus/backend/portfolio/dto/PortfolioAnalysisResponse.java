@@ -57,7 +57,7 @@ public record PortfolioAnalysisResponse(
      */
     public record BenchmarkInfoResponse(
         String code,
-        @JsonProperty("return")
+        @JsonProperty("benchmark_return")
         Double benchmarkReturn,
         Double volatility
     ) {}
@@ -90,9 +90,6 @@ public record PortfolioAnalysisResponse(
         Double stdDeviation,
         
         Double alpha,
-        
-        @JsonProperty("jensen_alpha")
-        Double jensenAlpha,
         
         @JsonProperty("tracking_error")
         Double trackingError,

@@ -43,5 +43,13 @@ public class User {
         this.createdAt = LocalDateTime.now();
     }
 
+    public void updateMobile(String mobile) {
+        this.mobile = mobile;
+    }
+
+    public void updateGender(Gender gender) {
+        this.gender = gender;
+    }
+
 }
 
