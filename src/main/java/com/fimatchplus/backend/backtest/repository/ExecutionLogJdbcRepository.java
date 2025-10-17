@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -43,16 +44,31 @@ public class ExecutionLogJdbcRepository {
             int[] batchResult = jdbcTemplate.batchUpdate(INSERT_SQL, new BatchPreparedStatementSetter() {
                 @Override
                 public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    ExecutionLog log = logs.get(i);
-                    ps.setLong(1, log.getBacktestId());
-                    ps.setTimestamp(2, Timestamp.valueOf(log.getLogDate()));
-                    ps.setString(3, log.getActionType().name());
-                    ps.setString(4, log.getCategory());
-                    ps.setDouble(5, log.getTriggerValue() != null ? log.getTriggerValue() : 0.0);
-                    ps.setDouble(6, log.getThresholdValue() != null ? log.getThresholdValue() : 0.0);
-                    ps.setString(7, log.getReason());
-                    ps.setDouble(8, log.getPortfolioValue() != null ? log.getPortfolioValue() : 0.0);
-                    ps.setTimestamp(9, Timestamp.valueOf(log.getCreatedAt()));
+                    ExecutionLog executionLog = logs.get(i);
+                    ps.setLong(1, executionLog.getBacktestId());
+                    
+                    // logDate null 체크
+                    if (executionLog.getLogDate() != null) {
+                        ps.setTimestamp(2, Timestamp.valueOf(executionLog.getLogDate()));
+                    } else {
+                        log.warn("logDate is null for execution log at index {}, using current time", i);
+                        ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
+                    }
+                    
+                    ps.setString(3, executionLog.getActionType().name());
+                    ps.setString(4, executionLog.getCategory());
+                    ps.setDouble(5, executionLog.getTriggerValue() != null ? executionLog.getTriggerValue() : 0.0);
+                    ps.setDouble(6, executionLog.getThresholdValue() != null ? executionLog.getThresholdValue() : 0.0);
+                    ps.setString(7, executionLog.getReason());
+                    ps.setDouble(8, executionLog.getPortfolioValue() != null ? executionLog.getPortfolioValue() : 0.0);
+                    
+                    // createdAt null 체크
+                    if (executionLog.getCreatedAt() != null) {
+                        ps.setTimestamp(9, Timestamp.valueOf(executionLog.getCreatedAt()));
+                    } else {
+                        log.warn("createdAt is null for execution log at index {}, using current time", i);
+                        ps.setTimestamp(9, Timestamp.valueOf(LocalDateTime.now()));
+                    }
                 }
 
                 @Override

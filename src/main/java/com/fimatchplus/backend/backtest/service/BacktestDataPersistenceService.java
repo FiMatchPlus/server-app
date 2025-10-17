@@ -192,6 +192,7 @@ public class BacktestDataPersistenceService {
                     .thresholdValue(logResponse.thresholdValue())
                     .reason(logResponse.reason())
                     .portfolioValue(logResponse.portfolioValue())
+                    .createdAt(LocalDateTime.now()) // createdAt 값 명시적 설정
                     .build();
             })
             .toList();

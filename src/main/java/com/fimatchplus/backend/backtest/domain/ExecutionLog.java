@@ -56,7 +56,7 @@ public class ExecutionLog {
 
     @Builder
     public ExecutionLog(Long backtestId, LocalDateTime logDate, ActionType actionType, String category,
-                       Double triggerValue, Double thresholdValue, String reason, Double portfolioValue) {
+                       Double triggerValue, Double thresholdValue, String reason, Double portfolioValue, LocalDateTime createdAt) {
         this.backtestId = backtestId;
         this.logDate = logDate;
         this.actionType = actionType;
@@ -65,5 +65,6 @@ public class ExecutionLog {
         this.thresholdValue = thresholdValue;
         this.reason = reason;
         this.portfolioValue = portfolioValue;
+        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
     }
 }

@@ -49,17 +49,21 @@ public class BacktestExecutionService {
     @Async("backgroundTaskExecutor")
     @Transactional(propagation = REQUIRES_NEW)
     public void handleBacktestSuccessEvent(BacktestSuccessEvent event) {
-        log.info("Handling backtest success event for backtestId: {}", event.backtestId());
+        log.info("=== Backtest Success Event Processing Started ===");
+        log.info("Backtest ID: {}, Job ID: {}", event.backtestId(), event.callback().jobId());
+        log.info("Callback received at: {}", event.callback().timestamp());
         
         try {
             handleBacktestSuccess(event.backtestId(), event.callback());
             
             generateReportSync(event.backtestId());
             
+            log.info("=== Backtest Success Event Processing Completed ===");
             log.info("Backtest completed successfully: backtestId={}, jobId={}", 
                     event.backtestId(), event.callback().jobId());
                     
         } catch (Exception e) {
+            log.error("=== Backtest Success Event Processing Failed ===");
             log.error("Failed to process backtest success event: backtestId={}, jobId={}", 
                     event.backtestId(), event.callback().jobId(), e);
             
@@ -72,13 +76,36 @@ public class BacktestExecutionService {
      * 백테스트 성공 처리 로직
      */
     private void handleBacktestSuccess(Long backtestId, BacktestCallbackResponse callback) {
+        log.info("Starting backtest success processing for backtestId: {}", backtestId);
+        
+        // 콜백 데이터 요약 로그
+        if (callback.portfolioSnapshot() != null) {
+            var snapshot = callback.portfolioSnapshot();
+            log.info("Portfolio snapshot - Base: {}, Current: {}, Holdings: {}", 
+                    snapshot.baseValue(), snapshot.currentValue(), 
+                    snapshot.holdings() != null ? snapshot.holdings().size() : 0);
+        }
+        
+        if (callback.executionLogs() != null) {
+            log.info("Execution logs count: {}", callback.executionLogs().size());
+        }
+        
+        if (callback.resultSummary() != null) {
+            log.info("Result summary days: {}", callback.resultSummary().size());
+        }
+        
         Long portfolioSnapshotId = null;
         
         try {
+            log.info("Saving JPA data for backtestId: {}", backtestId);
             portfolioSnapshotId = dataPersistenceService.saveJpaDataInTransaction(backtestId, callback);
+            log.info("JPA data saved successfully, portfolioSnapshotId: {}", portfolioSnapshotId);
             
+            log.info("Saving JDBC batch data for portfolioSnapshotId: {}", portfolioSnapshotId);
             dataPersistenceService.saveJdbcDataInTransaction(portfolioSnapshotId, callback);
+            log.info("JDBC batch data saved successfully");
             
+            log.info("Updating backtest status to COMPLETED for backtestId: {}", backtestId);
             backtestStatusManager.setBacktestStatusToCompleted(backtestId);
             
             log.info("Successfully processed backtest completion for backtestId: {}", backtestId);
@@ -88,12 +115,16 @@ public class BacktestExecutionService {
             
             if (portfolioSnapshotId != null) {
                 try {
+                    log.info("Attempting to rollback JPA data for backtestId: {}, portfolioSnapshotId: {}", 
+                            backtestId, portfolioSnapshotId);
                     dataPersistenceService.rollbackJpaData(backtestId, portfolioSnapshotId);
+                    log.info("JPA data rollback completed");
                 } catch (Exception rollbackException) {
                     log.error("Failed to rollback JPA data for backtestId: {}", backtestId, rollbackException);
                 }
             }
             
+            log.info("Setting backtest status to FAILED for backtestId: {}", backtestId);
             backtestStatusManager.setBacktestStatusToFailed(backtestId);
             
             throw new RuntimeException("Failed to process backtest completion", e);

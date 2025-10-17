@@ -171,7 +171,13 @@ public class BacktestController {
         String clientIP = getClientIP(request);
         
         try {
-            log.info("Backtest callback received - ip: {}, jobId: {}, success: {}", clientIP, callback.jobId(), callback.success());
+            // 기본 콜백 정보 로그
+            log.info("=== Backtest Callback Received ===");
+            log.info("Client IP: {}, Job ID: {}, Success: {}, Backtest ID: {}", 
+                    clientIP, callback.jobId(), callback.success(), callback.backtestId());
+            log.info("Timestamp: {}, Result Status: {}", callback.timestamp(), callback.resultStatus());
+            log.info("Execution Time: {} seconds", callback.executionTime());
+            
             Long backtestId = callback.backtestId();
             if (backtestId == null) {
                 log.error("No backtestId found in callback for jobId: {}", callback.jobId());
@@ -179,16 +185,97 @@ public class BacktestController {
             }
             
             if (Boolean.TRUE.equals(callback.success())) {
+                // 성공한 백테스트의 상세 정보 로그
+                log.info("=== Backtest Success Details ===");
+                logBacktestSuccessDetails(callback);
+                
                 BacktestSuccessEvent successEvent = new BacktestSuccessEvent(backtestId, callback);
                 applicationEventPublisher.publishEvent(successEvent);
+                
+                log.info("Backtest success event published for backtestId: {}", backtestId);
             } else {
-                BacktestFailureEvent failureEvent = new BacktestFailureEvent(backtestId, "Backtest failed");
+                // 실패한 백테스트의 에러 정보 로그
+                log.info("=== Backtest Failure Details ===");
+                logBacktestFailureDetails(callback);
+                
+                BacktestFailureEvent failureEvent = new BacktestFailureEvent(backtestId, callback.errorMessage());
                 applicationEventPublisher.publishEvent(failureEvent);
+                
+                log.info("Backtest failure event published for backtestId: {}", backtestId);
             }
+            
+            log.info("=== Backtest Callback Processing Complete ===");
             return ResponseEntity.ok().build();
         } catch (Exception error) {
             log.error("Error processing backtest callback for jobId: {}", callback.jobId(), error);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+    
+    /**
+     * 백테스트 성공 상세 정보 로그
+     */
+    private void logBacktestSuccessDetails(BacktestCallbackResponse callback) {
+        if (callback.portfolioSnapshot() != null) {
+            var snapshot = callback.portfolioSnapshot();
+            log.info("Portfolio Snapshot - ID: {}, Portfolio ID: {}", snapshot.id(), snapshot.portfolioId());
+            log.info("Base Value: {}, Current Value: {}", snapshot.baseValue(), snapshot.currentValue());
+            log.info("Start: {}, End: {}", snapshot.startAt(), snapshot.endAt());
+            log.info("Holdings Count: {}", snapshot.holdings() != null ? snapshot.holdings().size() : 0);
+        }
+        
+        if (callback.metrics() != null) {
+            var metrics = callback.metrics();
+            log.info("Performance Metrics - Total Return: {}%, Sharpe Ratio: {}", 
+                    metrics.totalReturn(), metrics.sharpeRatio());
+            log.info("Volatility: {}%, Max Drawdown: {}%", metrics.volatility(), metrics.maxDrawdown());
+            log.info("Win Rate: {}%, Profit/Loss Ratio: {}", metrics.winRate(), metrics.profitLossRatio());
+        }
+        
+        if (callback.executionLogs() != null && !callback.executionLogs().isEmpty()) {
+            log.info("Execution Logs Count: {}", callback.executionLogs().size());
+            // 처음 5개 로그만 상세 출력
+            callback.executionLogs().stream()
+                    .limit(5)
+                    .forEach(execLog -> log.info("  - {}: {} ({})", 
+                            execLog.date(), execLog.action(), execLog.reason()));
+            if (callback.executionLogs().size() > 5) {
+                log.info("  ... and {} more logs", callback.executionLogs().size() - 5);
+            }
+        }
+        
+        if (callback.resultSummary() != null && !callback.resultSummary().isEmpty()) {
+            log.info("Result Summary Days: {}", callback.resultSummary().size());
+        }
+        
+        if (callback.benchmarkMetrics() != null) {
+            var benchmark = callback.benchmarkMetrics();
+            log.info("Benchmark - Total Return: {}%, Alpha: {}", 
+                    benchmark.benchmarkTotalReturn(), benchmark.alpha());
+        }
+    }
+    
+    /**
+     * 백테스트 실패 상세 정보 로그
+     */
+    private void logBacktestFailureDetails(BacktestCallbackResponse callback) {
+        if (callback.error() != null) {
+            var error = callback.error();
+            log.info("Error Type: {}, Message: {}", error.errorType(), error.message());
+            log.info("Requested Period: {}, Total Stocks: {}", 
+                    error.requestedPeriod(), error.totalStocks());
+            
+            if (error.missingData() != null && !error.missingData().isEmpty()) {
+                log.info("Missing Data Count: {}", error.missingData().size());
+                // 처음 3개만 상세 출력
+                error.missingData().stream()
+                        .limit(3)
+                        .forEach(missing -> log.info("  - {}: {} to {}", 
+                                missing.stockCode(), missing.startDate(), missing.endDate()));
+                if (error.missingData().size() > 3) {
+                    log.info("  ... and {} more missing data entries", error.missingData().size() - 3);
+                }
+            }
         }
     }
     
