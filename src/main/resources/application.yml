@@ -63,6 +63,11 @@ ai:
     portfolio-optimization:
       template-file: "classpath:templates/portfolio-optimization-prompt.md"
 
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:mySecretKey}
+  expiration: 259200000 # 3일 (밀리초)
+
 logging:
   level:
     com:
