@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/register").permitAll()
                 .requestMatchers("/auth/login").permitAll()
                 .requestMatchers("/auth/validate").permitAll()
-                .requestMatchers("/**/callback").permitAll()
+                .requestMatchers("/backtests/callback", "/portfolio-analysis/callback").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )

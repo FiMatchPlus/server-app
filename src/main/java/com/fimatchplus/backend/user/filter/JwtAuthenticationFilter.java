@@ -42,13 +42,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, 
                                   FilterChain filterChain) throws ServletException, IOException {
-        
-        String requestURI = request.getRequestURI();
-
-        if (isPublicPath(requestURI)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
 
         try {
             String token = extractTokenFromRequest(request);
@@ -86,15 +79,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 
-    private boolean isPublicPath(String requestURI) {
-        return requestURI.startsWith("/api/auth/register") ||
-               requestURI.startsWith("/api/auth/login") ||
-               requestURI.startsWith("/api/auth/validate") ||
-               requestURI.startsWith("/actuator") ||
-               requestURI.startsWith("/swagger") ||
-               requestURI.startsWith("/v3/api-docs") ||
-               requestURI.equals("/favicon.ico");
-    }
     
     private boolean isTokenValidInRedis(String token) {
         try {
