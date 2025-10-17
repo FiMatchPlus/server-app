@@ -1,7 +1,5 @@
 # FiMatchPlus Backend
 
-Spring Boot 기반의 투자 포트폴리오 관리 및 백테스트 서비스 백엔드 API
-
 ## 프로젝트 구조
 
 ```
@@ -181,29 +179,52 @@ src/main/java/com/fimatchplus/backend/
 │       └── StockService.java
 │
 └── user/                                  # 사용자 관리
+    ├── controller/
+    │   └── AuthController.java
     ├── domain/
     │   ├── Channel.java
     │   ├── Gender.java
     │   └── User.java
-    └── repository/
-        └── UserRepository.java
+    ├── dto/
+    │   ├── LoginRequest.java
+    │   ├── LoginResponse.java
+    │   ├── RegisterRequest.java
+    │   └── RegisterResponse.java
+    ├── filter/
+    │   └── JwtAuthenticationFilter.java
+    ├── repository/
+    │   └── UserRepository.java
+    ├── service/
+    │   └── AuthService.java
+    └── util/
+        └── AuthUtil.java
 ```
 
 ## API 엔드포인트
 
-### 1. AI 분석 및 챗봇
+### 1. 사용자 인증 (`/auth`)
+
+- `POST /auth/register` - 사용자 회원가입
+- `POST /auth/login` - 사용자 로그인
+- `POST /auth/logout` - 사용자 로그아웃
+- `GET /auth/validate` - 토큰 유효성 검증
+- `GET /auth/me` - 현재 사용자 정보 조회
+
+---
+
+### 2. AI 분석 및 챗봇 (`/reports`, `/chat`)
 
 #### 백테스트 리포트
 - `POST /reports/backtest` - 백테스트 결과 기반 AI 분석 레포트 생성
 - `POST /reports/backtest/{backtestId}/regenerate` - 백테스트 레포트 재생성
 
 #### 챗봇
-- `GET /chat/{category}` - 카테고리별 챗봇 질문 (손절/익절/포트폴리오)
+- `GET /chat/{category}` - 카테고리별 챗봇 질문 (손절/익절/포트폴리오/벤치마크)
 - `GET /chat/categories` - 지원하는 카테고리 목록 조회
 
 ---
 
-### 2. 백테스트
+### 3. 백테스트 (`/backtests`)
 
 - `POST /backtests/portfolio/{portfolioId}` - 백테스트 생성
 - `GET /backtests/portfolio/{portfolioId}` - 포트폴리오별 백테스트 조회
@@ -217,7 +238,7 @@ src/main/java/com/fimatchplus/backend/
 
 ---
 
-### 3. 포트폴리오
+### 4. 포트폴리오 (`/portfolios`)
 
 #### 포트폴리오 관리
 - `POST /portfolios` - 포트폴리오 생성
@@ -230,7 +251,7 @@ src/main/java/com/fimatchplus/backend/
 - `PUT /portfolios/{portfolioId}` - 포트폴리오 수정
 - `DELETE /portfolios/{portfolioId}` - 포트폴리오 삭제
 
-#### 포트폴리오 분석
+#### 포트폴리오 분석 (`/portfolio-analysis`)
 - `POST /portfolio-analysis/callback` - 포트폴리오 분석 엔진 콜백 수신
 - `POST /portfolio-analysis/{portfolioId}/start` - 포트폴리오 최적화 수동 실행
 - `POST /portfolio-analysis/{portfolioId}/report` - 포트폴리오 분석 리포트 수동 생성
@@ -238,14 +259,14 @@ src/main/java/com/fimatchplus/backend/
 
 ---
 
-### 4. 투자 상품
+### 5. 샘플 포트폴리오 (`/products`)
 
-- `GET /products` - 상품 목록 조회
-- `GET /products/{productId}` - 상품 상세 조회
+- `GET /products` - 샘플 목록 조회
+- `GET /products/{productId}` - 샘플 포트폴리오 상세 조회
 
 ---
 
-### 5. 주식
+### 6. 주식 (`/stocks`)
 
 - `GET /stocks` - 여러 종목의 현재가 정보 조회
 - `GET /stocks/detail` - 단일 종목의 상세 정보 조회
@@ -254,13 +275,13 @@ src/main/java/com/fimatchplus/backend/
 - `GET /stocks/now` - 단일 종목 현재가 조회
 - `GET /stocks/multi` - 여러 종목의 실시간 현재가 조회
 
----
-
 ## 기술 스택
 
-- **Framework**: Spring Boot
+- **Framework**: Spring Boot 3.5.5
 - **Build Tool**: Gradle
-- **AI Integration**: Spring AI (OpenAI)
-- **Database**: MySQL, MongoDB
+- **Java Version**: Java 17
+- **AI Integration**: Spring AI 1.0.1 (OpenAI)
+- **Database**: PostgreSQL, MongoDB, Redis
+- **Security**: Spring Security + JWT
 - **External APIs**: KIS (한국투자증권) API
-
+- **Containerization**: Docker
