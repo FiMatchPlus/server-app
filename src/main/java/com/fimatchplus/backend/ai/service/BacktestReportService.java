@@ -733,6 +733,9 @@ public class BacktestReportService {
                 return;
             }
             
+            // 리포트 내용을 JSON 형태로 검증하고 필요시 포장
+            String validatedReportContent = validateAndFormatReportContent(reportContent);
+            
             PortfolioSnapshot updatedSnapshot = new PortfolioSnapshot(
                 latestSnapshot.id(),
                 latestSnapshot.backtestId(),
@@ -743,7 +746,7 @@ public class BacktestReportService {
                 latestSnapshot.startAt(),
                 latestSnapshot.endAt(),
                 latestSnapshot.executionTime(),
-                reportContent,
+                validatedReportContent,
                 LocalDateTime.now()
             );
             
@@ -754,6 +757,31 @@ public class BacktestReportService {
         } catch (Exception e) {
             log.error("Failed to save report to PortfolioSnapshot for backtestId: {}", backtestId, e);
             throw e;
+        }
+    }
+
+    /**
+     * 리포트 내용이 유효한 JSON인지 검증하고, 그렇지 않다면 JSON으로 포장
+     */
+    private String validateAndFormatReportContent(String reportContent) {
+        if (reportContent == null || reportContent.trim().isEmpty()) {
+            return "{}";
+        }
+        
+        try {
+            // 이미 JSON인지 확인
+            objectMapper.readTree(reportContent);
+            return reportContent; // 유효한 JSON이면 그대로 반환
+        } catch (Exception e) {
+            // JSON이 아니면 텍스트로 포장해서 JSON으로 만들기
+            try {
+                Object reportWrapper = Map.of("content", reportContent);
+                return objectMapper.writeValueAsString(reportWrapper);
+            } catch (Exception wrapperException) {
+                log.error("Failed to wrap report content as JSON", wrapperException);
+                // 최후의 수단: 기본 JSON 반환
+                return "{\"content\":\"Report generation failed\"}";
+            }
         }
     }
     
