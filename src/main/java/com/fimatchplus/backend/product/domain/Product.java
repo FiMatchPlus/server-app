@@ -48,7 +48,7 @@ public class Product {
     private String[] keywords;
 
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @OrderBy("displayOrder ASC")
+    @OrderBy("id ASC")
     private List<ProductHolding> holdings = new ArrayList<>();
 
     public Product(String name, String description, RiskLevel riskLevel,
