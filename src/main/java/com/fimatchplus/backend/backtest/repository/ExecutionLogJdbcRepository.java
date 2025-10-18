@@ -29,7 +29,7 @@ public class ExecutionLogJdbcRepository {
     private static final String INSERT_SQL = """
         INSERT INTO execution_logs 
         (backtest_id, log_date, action_type, category, trigger_value, threshold_value, reason, portfolio_value, sold_stocks, cash_generated, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::json, ?, ?)
         """;
 
     /**
