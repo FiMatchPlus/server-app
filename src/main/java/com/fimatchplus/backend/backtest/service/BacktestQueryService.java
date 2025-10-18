@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Slf4j
 @Service
@@ -99,6 +100,9 @@ public class BacktestQueryService {
 
         BacktestRuleDocument rules = getBacktestRuleById(backtest.getRuleId());
 
+        // 리포트 내용을 JSON으로 파싱
+        JsonNode reportJson = parseReportContent(latestSnapshot.reportContent());
+
         return BacktestDetailResponse.of(
                 latestSnapshot.id().toString(),
                 backtest.getTitle(),
@@ -110,7 +114,7 @@ public class BacktestQueryService {
                 dailyEquity,
                 benchmarkData,
                 holdings,
-                latestSnapshot.reportContent(),
+                reportJson,
                 rules
         );
     }
@@ -208,8 +212,13 @@ public class BacktestQueryService {
      */
     private Map<String, String> getStockCodeToNameMap(List<HoldingSnapshot> holdingSnapshots) {
         Set<String> stockCodes = holdingSnapshots.stream()
+                .filter(holding -> !"PORTFOLIO_DAILY".equals(holding.stockCode()))  // 포트폴리오 레벨 데이터 제외
                 .map(HoldingSnapshot::stockCode)
                 .collect(Collectors.toSet());
+        
+        if (stockCodes.isEmpty()) {
+            return new HashMap<>();
+        }
         
         List<Stock> stocks = stockRepository.findByTickerIn(new ArrayList<>(stockCodes));
         
@@ -239,11 +248,29 @@ public class BacktestQueryService {
                     String date = entry.getKey();
                     List<HoldingSnapshot> holdings = entry.getValue();
                     
-                    Map<String, Double> stockEquities = holdings.stream()
+                    // 포트폴리오 레벨 데이터와 개별 주식 데이터를 분리
+                    Optional<HoldingSnapshot> portfolioData = holdings.stream()
+                            .filter(holding -> "PORTFOLIO_DAILY".equals(holding.stockCode()))
+                            .findFirst();
+                    
+                    // 개별 주식 데이터만 필터링
+                    List<HoldingSnapshot> stockHoldings = holdings.stream()
+                            .filter(holding -> !"PORTFOLIO_DAILY".equals(holding.stockCode()))
+                            .toList();
+                    
+                    Map<String, Double> stockEquities = stockHoldings.stream()
                             .collect(Collectors.groupingBy(
                                     holding -> stockCodeToNameMap.getOrDefault(holding.stockCode(), holding.stockCode()),
                                     Collectors.summingDouble(HoldingSnapshot::value)
                             ));
+                    
+                    // 포트폴리오 레벨 데이터가 있으면 추가 정보 포함
+                    if (portfolioData.isPresent()) {
+                        HoldingSnapshot portfolio = portfolioData.get();
+                        stockEquities.put("포트폴리오 총액", portfolio.value());           // portfolio_value
+                        stockEquities.put("주식 평가액", portfolio.contribution());        // stock_value
+                        stockEquities.put("현금 잔고", portfolio.dailyRatio());           // cash_balance
+                    }
                     
                     return new BacktestDetailResponse.DailyEquityData(date, stockEquities);
                 })
@@ -258,7 +285,9 @@ public class BacktestQueryService {
             List<HoldingSnapshot> holdingSnapshots,
             Map<String, String> stockCodeToNameMap) {
         
+        // PORTFOLIO_DAILY 레코드 제외하고 실제 주식 데이터만 처리
         Map<String, Integer> finalHoldings = holdingSnapshots.stream()
+                .filter(holding -> !"PORTFOLIO_DAILY".equals(holding.stockCode()))
                 .collect(Collectors.groupingBy(
                         holding -> stockCodeToNameMap.getOrDefault(holding.stockCode(), holding.stockCode()),
                         Collectors.collectingAndThen(
@@ -302,6 +331,22 @@ public class BacktestQueryService {
         } catch (Exception e) {
             log.error("Failed to fetch benchmark data for code: {}", benchmarkCode, e);
             return List.of();
+        }
+    }
+
+    /**
+     * 리포트 내용을 JSON으로 파싱
+     */
+    private JsonNode parseReportContent(String reportContent) {
+        if (reportContent == null || reportContent.trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            return objectMapper.readTree(reportContent);
+        } catch (Exception e) {
+            log.warn("Failed to parse report content as JSON, returning null. Content: {}", reportContent, e);
+            return null;
         }
     }
 }

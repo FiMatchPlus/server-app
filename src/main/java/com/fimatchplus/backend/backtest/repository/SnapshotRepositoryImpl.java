@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.postgresql.util.PGobject;
 
 @Repository
 @RequiredArgsConstructor
@@ -37,7 +36,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
         String sql = """
             INSERT INTO portfolio_snapshots (backtest_id, base_value, current_value, created_at, 
                                            metrics, start_at, end_at, execution_time, report_content, report_created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?::jsonb, ?)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -47,14 +46,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             ps.setDouble(2, snapshot.baseValue());
             ps.setDouble(3, snapshot.currentValue());
             ps.setTimestamp(4, Timestamp.valueOf(snapshot.createdAt()));
-            if (snapshot.metrics() != null) {
-                PGobject jsonbObject = new PGobject();
-                jsonbObject.setType("jsonb");
-                jsonbObject.setValue(snapshot.metrics());
-                ps.setObject(5, jsonbObject);
-            } else {
-                ps.setNull(5, Types.OTHER);
-            }
+            ps.setString(5, snapshot.metrics());
             ps.setTimestamp(6, snapshot.startAt() != null ? Timestamp.valueOf(snapshot.startAt()) : null);
             ps.setTimestamp(7, snapshot.endAt() != null ? Timestamp.valueOf(snapshot.endAt()) : null);
             if (snapshot.executionTime() != null) {
@@ -83,8 +75,8 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
         String sql = """
             UPDATE portfolio_snapshots
             SET backtest_id = ?, base_value = ?, current_value = ?, created_at = ?,
-                metrics = ?, start_at = ?, end_at = ?, execution_time = ?, 
-                report_content = ?, report_created_at = ?
+                metrics = ?::jsonb, start_at = ?, end_at = ?, execution_time = ?, 
+                report_content = ?::jsonb, report_created_at = ?
             WHERE id = ?
             """;
 
@@ -94,14 +86,7 @@ public class SnapshotRepositoryImpl implements SnapshotRepository {
             ps.setDouble(2, snapshot.baseValue());
             ps.setDouble(3, snapshot.currentValue());
             ps.setTimestamp(4, Timestamp.valueOf(snapshot.createdAt()));
-            if (snapshot.metrics() != null) {
-                PGobject jsonbObject = new PGobject();
-                jsonbObject.setType("jsonb");
-                jsonbObject.setValue(snapshot.metrics());
-                ps.setObject(5, jsonbObject);
-            } else {
-                ps.setNull(5, Types.OTHER);
-            }
+            ps.setString(5, snapshot.metrics());
             ps.setTimestamp(6, snapshot.startAt() != null ? Timestamp.valueOf(snapshot.startAt()) : null);
             ps.setTimestamp(7, snapshot.endAt() != null ? Timestamp.valueOf(snapshot.endAt()) : null);
             if (snapshot.executionTime() != null) {

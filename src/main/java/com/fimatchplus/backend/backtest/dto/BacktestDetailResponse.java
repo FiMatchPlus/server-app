@@ -3,6 +3,7 @@ package com.fimatchplus.backend.backtest.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fimatchplus.backend.backtest.service.BacktestRuleDocument;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,7 @@ public record BacktestDetailResponse(
         List<DailyEquityData> dailyEquity,
         List<BenchmarkData> benchmarkData,
         List<HoldingData> holdings,
-        String report,
+        JsonNode report,
         BacktestRuleDocument rules
 ) {
     
@@ -67,7 +68,7 @@ public record BacktestDetailResponse(
             List<DailyEquityData> dailyEquity,
             List<BenchmarkData> benchmarkData,
             List<HoldingData> holdings,
-            String report,
+            JsonNode report,
             BacktestRuleDocument rules
     ) {
         return new BacktestDetailResponse(
