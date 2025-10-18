@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 백테스트 엔진에서 콜백으로 받을 응답 DTO
@@ -87,7 +88,11 @@ public record BacktestCallbackResponse(
         Double thresholdValue,
         String reason,
         @JsonProperty("portfolio_value")
-        Double portfolioValue
+        Double portfolioValue,
+        @JsonProperty("sold_stocks")
+        Map<String, Integer> soldStocks,
+        @JsonProperty("cash_generated")
+        Double cashGenerated
     ) {}
     
     public record BenchmarkInfoResponse(

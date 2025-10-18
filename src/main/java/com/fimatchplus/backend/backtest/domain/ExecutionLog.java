@@ -50,13 +50,20 @@ public class ExecutionLog {
     @Column(name = "portfolio_value")
     private Double portfolioValue;
 
+    @Column(name = "sold_stocks", columnDefinition = "JSON")
+    private String soldStocks;
+
+    @Column(name = "cash_generated")
+    private Double cashGenerated;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
     public ExecutionLog(Long backtestId, LocalDateTime logDate, ActionType actionType, String category,
-                       Double triggerValue, Double thresholdValue, String reason, Double portfolioValue, LocalDateTime createdAt) {
+                       Double triggerValue, Double thresholdValue, String reason, Double portfolioValue,
+                       String soldStocks, Double cashGenerated, LocalDateTime createdAt) {
         this.backtestId = backtestId;
         this.logDate = logDate;
         this.actionType = actionType;
@@ -65,6 +72,8 @@ public class ExecutionLog {
         this.thresholdValue = thresholdValue;
         this.reason = reason;
         this.portfolioValue = portfolioValue;
+        this.soldStocks = soldStocks;
+        this.cashGenerated = cashGenerated;
         this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
     }
 }

@@ -28,8 +28,8 @@ public class ExecutionLogJdbcRepository {
 
     private static final String INSERT_SQL = """
         INSERT INTO execution_logs 
-        (backtest_id, log_date, action_type, category, trigger_value, threshold_value, reason, portfolio_value, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (backtest_id, log_date, action_type, category, trigger_value, threshold_value, reason, portfolio_value, sold_stocks, cash_generated, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
     /**
@@ -61,13 +61,15 @@ public class ExecutionLogJdbcRepository {
                     ps.setDouble(6, executionLog.getThresholdValue() != null ? executionLog.getThresholdValue() : 0.0);
                     ps.setString(7, executionLog.getReason());
                     ps.setDouble(8, executionLog.getPortfolioValue() != null ? executionLog.getPortfolioValue() : 0.0);
+                    ps.setString(9, executionLog.getSoldStocks());
+                    ps.setDouble(10, executionLog.getCashGenerated() != null ? executionLog.getCashGenerated() : 0.0);
                     
                     // createdAt null 체크
                     if (executionLog.getCreatedAt() != null) {
-                        ps.setTimestamp(9, Timestamp.valueOf(executionLog.getCreatedAt()));
+                        ps.setTimestamp(11, Timestamp.valueOf(executionLog.getCreatedAt()));
                     } else {
                         log.warn("createdAt is null for execution log at index {}, using current time", i);
-                        ps.setTimestamp(9, Timestamp.valueOf(LocalDateTime.now()));
+                        ps.setTimestamp(11, Timestamp.valueOf(LocalDateTime.now()));
                     }
                 }
 
@@ -109,7 +111,7 @@ public class ExecutionLogJdbcRepository {
     public List<ExecutionLog> findByBacktestId(Long backtestId) {
         String SELECT_SQL = """
             SELECT id, backtest_id, log_date, action_type, category, 
-                   trigger_value, threshold_value, reason, portfolio_value, created_at
+                   trigger_value, threshold_value, reason, portfolio_value, sold_stocks, cash_generated, created_at
             FROM execution_logs 
             WHERE backtest_id = ? 
             ORDER BY log_date ASC
@@ -126,6 +128,8 @@ public class ExecutionLogJdbcRepository {
                     .thresholdValue(rs.getDouble("threshold_value"))
                     .reason(rs.getString("reason"))
                     .portfolioValue(rs.getDouble("portfolio_value"))
+                    .soldStocks(rs.getString("sold_stocks"))
+                    .cashGenerated(rs.getDouble("cash_generated"))
                     .build();
             }, backtestId);
         } catch (Exception e) {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 외부 백테스트 서버로부터 받는 응답 DTO
@@ -71,7 +72,15 @@ public record BacktestExecutionResponse(
     public record DailyResultResponse(
             LocalDateTime date,
             @JsonProperty("stocks")
-            List<DailyStockResponse> stocks
+            List<DailyStockResponse> stocks,
+            @JsonProperty("portfolio_value")
+            Double portfolioValue,
+            @JsonProperty("stock_value")
+            Double stockValue,
+            @JsonProperty("cash_balance")
+            Double cashBalance,
+            @JsonProperty("quantities")
+            Map<String, Integer> quantities
     ) {}
     
         public record DailyStockResponse(

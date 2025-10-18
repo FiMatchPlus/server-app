@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -306,13 +307,18 @@ public class BacktestReportService {
         
         BacktestDetailResponse.DailyEquityData firstData = dailyEquity.get(0);
         BacktestDetailResponse.DailyEquityData lastData = dailyEquity.get(dailyEquity.size() - 1);
-        double firstTotal = firstData.stocks().values().stream().mapToDouble(Double::doubleValue).sum();
-        double lastTotal = lastData.stocks().values().stream().mapToDouble(Double::doubleValue).sum();
+        
+        // 포트폴리오 총액만 사용하여 수익률 계산 (중복 계산 방지)
+        double firstTotal = getPortfolioTotal(firstData);
+        double lastTotal = getPortfolioTotal(lastData);
         double totalReturn = ((lastTotal - firstTotal) / firstTotal) * 100;
         
         result.append(String.format("시작일: %s, 포트폴리오 값: %,.0f원\n", firstData.date(), firstTotal));
         result.append(String.format("종료일: %s, 포트폴리오 값: %,.0f원\n", lastData.date(), lastTotal));
         result.append(String.format("전체 수익률: %.2f%% (%d일간)\n\n", totalReturn, dailyEquity.size()));
+        
+        // 자산 배분 분석 추가
+        result.append(formatAssetAllocationAnalysis(dailyEquity));
         
         result.append(formatConsistencyAnalysis(consistency));
         
@@ -334,6 +340,122 @@ public class BacktestReportService {
     }
 
     /**
+     * 포트폴리오 총액 추출 (중복 계산 방지)
+     */
+    private double getPortfolioTotal(BacktestDetailResponse.DailyEquityData data) {
+        Double portfolioTotal = data.stocks().get("포트폴리오 총액");
+        if (portfolioTotal != null) {
+            return portfolioTotal;
+        }
+        // 폴백: 모든 값의 합계
+        return data.stocks().values().stream().mapToDouble(Double::doubleValue).sum();
+    }
+
+    /**
+     * 자산 배분 분석
+     */
+    private String formatAssetAllocationAnalysis(List<BacktestDetailResponse.DailyEquityData> dailyEquity) {
+        StringBuilder result = new StringBuilder();
+        result.append("=== 자산 배분 분석 ===\n");
+        
+        BacktestDetailResponse.DailyEquityData firstData = dailyEquity.get(0);
+        BacktestDetailResponse.DailyEquityData lastData = dailyEquity.get(dailyEquity.size() - 1);
+        
+        // 시작일 자산 배분
+        Double firstStockValue = firstData.stocks().get("주식 평가액");
+        Double firstCashBalance = firstData.stocks().get("현금 잔고");
+        Double firstTotal = getPortfolioTotal(firstData);
+        
+        // 종료일 자산 배분
+        Double lastStockValue = lastData.stocks().get("주식 평가액");
+        Double lastCashBalance = lastData.stocks().get("현금 잔고");
+        Double lastTotal = getPortfolioTotal(lastData);
+        
+        if (firstStockValue != null && firstCashBalance != null && firstTotal > 0) {
+            double firstStockRatio = (firstStockValue / firstTotal) * 100;
+            double firstCashRatio = (firstCashBalance / firstTotal) * 100;
+            
+            result.append(String.format("시작일 자산 구성: 주식 %.1f%% (%s원), 현금 %.1f%% (%s원)\n", 
+                    firstStockRatio, formatCurrency(firstStockValue), 
+                    firstCashRatio, formatCurrency(firstCashBalance)));
+        }
+        
+        if (lastStockValue != null && lastCashBalance != null && lastTotal > 0) {
+            double lastStockRatio = (lastStockValue / lastTotal) * 100;
+            double lastCashRatio = (lastCashBalance / lastTotal) * 100;
+            
+            result.append(String.format("종료일 자산 구성: 주식 %.1f%% (%s원), 현금 %.1f%% (%s원)\n", 
+                    lastStockRatio, formatCurrency(lastStockValue), 
+                    lastCashRatio, formatCurrency(lastCashBalance)));
+            
+            // 자산 배분 변화 분석
+            if (firstStockValue != null && firstCashBalance != null) {
+                double stockChangeRatio = ((lastStockValue - firstStockValue) / firstStockValue) * 100;
+                double cashChangeRatio = ((lastCashBalance - firstCashBalance) / firstCashBalance) * 100;
+                
+                result.append(String.format("자산별 변화: 주식 %.2f%%, 현금 %.2f%%\n", stockChangeRatio, cashChangeRatio));
+            }
+        }
+        
+        // 현금 관리 효율성 분석
+        result.append(formatCashManagementAnalysis(dailyEquity));
+        
+        result.append("\n");
+        return result.toString();
+    }
+
+    /**
+     * 현금 관리 분석
+     */
+    private String formatCashManagementAnalysis(List<BacktestDetailResponse.DailyEquityData> dailyEquity) {
+        List<Double> cashBalances = dailyEquity.stream()
+                .map(data -> data.stocks().get("현금 잔고"))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        
+        if (cashBalances.isEmpty()) {
+            return "현금 관리 데이터 없음\n";
+        }
+        
+        double minCash = cashBalances.stream().mapToDouble(Double::doubleValue).min().orElse(0.0);
+        double maxCash = cashBalances.stream().mapToDouble(Double::doubleValue).max().orElse(0.0);
+        double avgCash = cashBalances.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        
+        StringBuilder result = new StringBuilder();
+        result.append(String.format("현금 관리: 최소 %s원, 최대 %s원, 평균 %s원\n", 
+                formatCurrency(minCash), formatCurrency(maxCash), formatCurrency(avgCash)));
+        
+        // 현금 비율의 일관성 분석
+        List<Double> cashRatios = dailyEquity.stream()
+                .filter(data -> {
+                    Double portfolioTotal = getPortfolioTotal(data);
+                    Double cashBalance = data.stocks().get("현금 잔고");
+                    return portfolioTotal > 0 && cashBalance != null;
+                })
+                .map(data -> {
+                    Double portfolioTotal = getPortfolioTotal(data);
+                    Double cashBalance = data.stocks().get("현금 잔고");
+                    return (cashBalance / portfolioTotal) * 100;
+                })
+                .collect(Collectors.toList());
+        
+        if (!cashRatios.isEmpty()) {
+            double avgCashRatio = cashRatios.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            result.append(String.format("평균 현금 비율: %.1f%%\n", avgCashRatio));
+        }
+        
+        return result.toString();
+    }
+
+    /**
+     * 통화 포맷팅 헬퍼
+     */
+    private String formatCurrency(Double value) {
+        if (value == null) return "0원";
+        return String.format("%,.0f원", value);
+    }
+
+    /**
      * 지속된 경향성 분석 (일정한 증가/감소 패턴 감지)
      */
     private ConsistencyAnalysis analyzeConsistency(List<BacktestDetailResponse.DailyEquityData> dailyEquity) {
@@ -343,10 +465,8 @@ public class BacktestReportService {
         
         List<Double> returns = new ArrayList<>();
         for (int i = 1; i < dailyEquity.size(); i++) {
-            double prevTotal = dailyEquity.get(i-1).stocks().values().stream()
-                    .mapToDouble(Double::doubleValue).sum();
-            double currTotal = dailyEquity.get(i).stocks().values().stream()
-                    .mapToDouble(Double::doubleValue).sum();
+            double prevTotal = getPortfolioTotal(dailyEquity.get(i-1));
+            double currTotal = getPortfolioTotal(dailyEquity.get(i));
             double dailyReturn = (currTotal - prevTotal) / prevTotal;
             returns.add(dailyReturn);
         }
@@ -408,7 +528,7 @@ public class BacktestReportService {
         
         for (int i = 0; i < dailyEquity.size(); i++) {
             BacktestDetailResponse.DailyEquityData data = dailyEquity.get(i);
-            double currentTotal = data.stocks().values().stream().mapToDouble(Double::doubleValue).sum();
+            double currentTotal = getPortfolioTotal(data);
             
             if (i == 0) {
                 previousTotal = currentTotal;
@@ -449,13 +569,142 @@ public class BacktestReportService {
      * ExecutionLog 포맷팅
      */
     private String formatExecutionLogs(List<ExecutionLog> executionLogs) {
-        return executionLogs.stream()
-                .map(log -> String.format("%s | %s | %s | %s", 
-                    log.getLogDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
-                    convertActionTypeToKorean(log.getActionType()),
-                    log.getCategory(),
-                    log.getReason()))
+        if (executionLogs.isEmpty()) {
+            return "거래 기록 없음";
+        }
+        
+        StringBuilder result = new StringBuilder();
+        
+        // 기본 거래 로그
+        String basicLogs = executionLogs.stream()
+                .map(log -> {
+                    StringBuilder logEntry = new StringBuilder();
+                    logEntry.append(String.format("%s | %s | %s | %s", 
+                        log.getLogDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                        convertActionTypeToKorean(log.getActionType()),
+                        log.getCategory(),
+                        log.getReason()));
+                    
+                    // 현금 생성 정보 추가
+                    if (log.getCashGenerated() != null && log.getCashGenerated() > 0) {
+                        logEntry.append(String.format(" | 현금 생성: %s", formatCurrency(log.getCashGenerated())));
+                    }
+                    
+                    return logEntry.toString();
+                })
                 .collect(Collectors.joining("\n"));
+        
+        result.append(basicLogs);
+        result.append("\n\n");
+        
+        // 매도 활동 분석
+        result.append(formatSellingActivityAnalysis(executionLogs));
+        
+        // 현금 관리 분석
+        result.append(formatCashFlowAnalysis(executionLogs));
+        
+        return result.toString();
+    }
+
+    /**
+     * 매도 활동 분석
+     */
+    private String formatSellingActivityAnalysis(List<ExecutionLog> executionLogs) {
+        StringBuilder result = new StringBuilder();
+        result.append("=== 매도 활동 분석 ===\n");
+        
+        // 매도 관련 로그 필터링 (SELL, STOP_LOSS, TAKE_PROFIT)
+        List<ExecutionLog> sellingLogs = executionLogs.stream()
+                .filter(log -> log.getActionType() == ActionType.SELL || 
+                              log.getActionType() == ActionType.STOP_LOSS || 
+                              log.getActionType() == ActionType.TAKE_PROFIT)
+                .collect(Collectors.toList());
+        
+        if (sellingLogs.isEmpty()) {
+            result.append("매도 활동 없음\n");
+        } else {
+            result.append(String.format("총 매도 횟수: %d회\n", sellingLogs.size()));
+            
+            // 매도 타입별 분석
+            Map<ActionType, Long> sellingTypeCount = sellingLogs.stream()
+                    .collect(Collectors.groupingBy(ExecutionLog::getActionType, Collectors.counting()));
+            
+            sellingTypeCount.forEach((actionType, count) -> {
+                String actionName = convertActionTypeToKorean(actionType);
+                result.append(String.format("- %s: %d회\n", actionName, count));
+            });
+            
+            // 총 현금 생성량 계산
+            double totalCashGenerated = sellingLogs.stream()
+                    .filter(log -> log.getCashGenerated() != null)
+                    .mapToDouble(ExecutionLog::getCashGenerated)
+                    .sum();
+            
+            if (totalCashGenerated > 0) {
+                result.append(String.format("매도를 통한 총 현금 생성: %s\n", formatCurrency(totalCashGenerated)));
+                
+                // 평균 매도 금액
+                double avgCashPerSell = totalCashGenerated / sellingLogs.size();
+                result.append(String.format("평균 매도 금액: %s\n", formatCurrency(avgCashPerSell)));
+            }
+        }
+        
+        result.append("\n");
+        return result.toString();
+    }
+
+    /**
+     * 현금 흐름 분석
+     */
+    private String formatCashFlowAnalysis(List<ExecutionLog> executionLogs) {
+        StringBuilder result = new StringBuilder();
+        result.append("=== 현금 흐름 분석 ===\n");
+        
+        // 현금 생성이 있었던 로그들
+        List<ExecutionLog> cashGeneratingLogs = executionLogs.stream()
+                .filter(log -> log.getCashGenerated() != null && log.getCashGenerated() > 0)
+                .collect(Collectors.toList());
+        
+        if (cashGeneratingLogs.isEmpty()) {
+            result.append("현금 생성 활동 없음\n");
+        } else {
+            double totalCashGenerated = cashGeneratingLogs.stream()
+                    .mapToDouble(ExecutionLog::getCashGenerated)
+                    .sum();
+            
+            result.append(String.format("총 현금 생성: %s (총 %d회 활동)\n", 
+                    formatCurrency(totalCashGenerated), cashGeneratingLogs.size()));
+            
+            // 최대 현금 생성 활동
+            ExecutionLog maxCashLog = cashGeneratingLogs.stream()
+                    .max(Comparator.comparing(ExecutionLog::getCashGenerated))
+                    .orElse(null);
+            
+            if (maxCashLog != null) {
+                result.append(String.format("최대 현금 생성: %s (%s, %s)\n", 
+                        formatCurrency(maxCashLog.getCashGenerated()),
+                        maxCashLog.getLogDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                        convertActionTypeToKorean(maxCashLog.getActionType())));
+            }
+            
+            // 월별 현금 생성 분석
+            Map<String, Double> monthlyCashFlow = cashGeneratingLogs.stream()
+                    .collect(Collectors.groupingBy(
+                            log -> log.getLogDate().format(DateTimeFormatter.ofPattern("yyyy-MM")),
+                            Collectors.summingDouble(ExecutionLog::getCashGenerated)
+                    ));
+            
+            if (!monthlyCashFlow.isEmpty()) {
+                result.append("\n월별 현금 생성 현황:\n");
+                monthlyCashFlow.entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())
+                        .forEach(entry -> 
+                                result.append(String.format("- %s: %s\n", entry.getKey(), formatCurrency(entry.getValue()))));
+            }
+        }
+        
+        result.append("\n");
+        return result.toString();
     }
     
     /**

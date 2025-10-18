@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -192,6 +193,8 @@ public class BacktestDataPersistenceService {
                     .thresholdValue(logResponse.thresholdValue())
                     .reason(logResponse.reason())
                     .portfolioValue(logResponse.portfolioValue())
+                    .soldStocks(convertSoldStocksToJson(logResponse.soldStocks()))
+                    .cashGenerated(logResponse.cashGenerated())
                     .createdAt(LocalDateTime.now()) // createdAt 값 명시적 설정
                     .build();
             })
@@ -205,19 +208,53 @@ public class BacktestDataPersistenceService {
             Long portfolioSnapshotId,
             List<BacktestExecutionResponse.DailyResultResponse> resultSummary
     ) {
-        return resultSummary.stream()
-            .flatMap(daily -> daily.stocks().stream().map(stock -> HoldingSnapshot.createWithDate(
-                stock.closePrice(),
-                stock.quantity(),
-                stock.getValue(),
-                stock.portfolioWeight(),
-                portfolioSnapshotId,
-                stock.stockCode(),
-                daily.date(),
-                stock.portfolioContribution(),
-                stock.dailyReturn()
-            )))
-            .toList();
+        List<HoldingSnapshot> snapshots = new ArrayList<>();
+        
+        for (BacktestExecutionResponse.DailyResultResponse daily : resultSummary) {
+            // 1. 개별 주식 데이터 저장 (기존 로직)
+            List<HoldingSnapshot> stockSnapshots = daily.stocks().stream()
+                .map(stock -> HoldingSnapshot.createWithDate(
+                    stock.closePrice(),
+                    stock.quantity(),
+                    stock.getValue(),
+                    stock.portfolioWeight(),
+                    portfolioSnapshotId,
+                    stock.stockCode(),
+                    daily.date(),
+                    stock.portfolioContribution(),
+                    stock.dailyReturn()
+                ))
+                .toList();
+            snapshots.addAll(stockSnapshots);
+            
+            // 2. 일별 포트폴리오 레벨 데이터 저장 (새로운 로직)
+            if (daily.portfolioValue() != null || daily.stockValue() != null || daily.cashBalance() != null) {
+                HoldingSnapshot portfolioSnapshot = HoldingSnapshot.createWithDate(
+                    0.0,                    // price = 0 (포트폴리오 레벨)
+                    0,                      // quantity = 0 (포트폴리오 레벨)
+                    daily.portfolioValue() != null ? daily.portfolioValue() : 0.0,  // value = portfolio_value
+                    0.0,                    // weight = 0 (포트폴리오 레벨)
+                    portfolioSnapshotId,
+                    "PORTFOLIO_DAILY",      // stock_code = 특별한 식별자
+                    daily.date(),
+                    daily.stockValue() != null ? daily.stockValue() : 0.0,      // contribution = stock_value
+                    daily.cashBalance() != null ? daily.cashBalance() : 0.0     // daily_ratio = cash_balance
+                );
+                snapshots.add(portfolioSnapshot);
+                
+                // quantities 정보가 있으면 로그로 기록 (나중에 필요시 별도 저장 방식 고려)
+                if (daily.quantities() != null && !daily.quantities().isEmpty()) {
+                    try {
+                        String quantitiesJson = objectMapper.writeValueAsString(daily.quantities());
+                        log.debug("Daily quantities for date {}: {}", daily.date(), quantitiesJson);
+                    } catch (Exception e) {
+                        log.warn("Failed to serialize quantities for date {}: {}", daily.date(), e.getMessage());
+                    }
+                }
+            }
+        }
+        
+        return snapshots;
     }
 
     /**
@@ -233,5 +270,21 @@ public class BacktestDataPersistenceService {
             case "liquidation" -> ActionType.LIQUIDATION;
             default -> throw new IllegalArgumentException("Unknown action type: " + action);
         };
+    }
+
+    /**
+     * soldStocks Map을 JSON 문자열로 변환
+     */
+    private String convertSoldStocksToJson(Map<String, Integer> soldStocks) {
+        if (soldStocks == null || soldStocks.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            return objectMapper.writeValueAsString(soldStocks);
+        } catch (Exception e) {
+            log.error("Failed to convert soldStocks to JSON", e);
+            return null;
+        }
     }
 }
