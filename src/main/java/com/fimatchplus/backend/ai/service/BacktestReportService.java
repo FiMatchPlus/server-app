@@ -15,6 +15,7 @@ import com.fimatchplus.backend.backtest.dto.BacktestMetrics;
 import com.fimatchplus.backend.common.exception.ResourceNotFoundException;
 import com.fimatchplus.backend.portfolio.domain.BenchmarkIndex;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -761,28 +762,96 @@ public class BacktestReportService {
     }
 
     /**
-     * 리포트 내용이 유효한 JSON인지 검증하고, 그렇지 않다면 JSON으로 포장
+     * 리포트 내용이 유효한 JSON인지 검증하고, 마크다운 코드 블록에서 JSON을 추출
      */
     private String validateAndFormatReportContent(String reportContent) {
         if (reportContent == null || reportContent.trim().isEmpty()) {
             return "{}";
         }
         
+        String cleanedContent = reportContent.trim();
+        
+        // 1. 이미 유효한 JSON인지 확인
         try {
-            // 이미 JSON인지 확인
-            objectMapper.readTree(reportContent);
-            return reportContent; // 유효한 JSON이면 그대로 반환
+            objectMapper.readTree(cleanedContent);
+            return cleanedContent; // 유효한 JSON이면 그대로 반환
         } catch (Exception e) {
-            // JSON이 아니면 텍스트로 포장해서 JSON으로 만들기
+            // JSON 파싱 실패 - 마크다운 코드 블록에서 JSON 추출 시도
+        }
+        
+        // 2. {"content": "```json\n{...}\n```"} 형태에서 내부 JSON 추출
+        try {
+            JsonNode wrapperNode = objectMapper.readTree(cleanedContent);
+            if (wrapperNode.has("content")) {
+                String contentValue = wrapperNode.get("content").asText();
+                String extractedJson = extractJsonFromMarkdown(contentValue);
+                if (extractedJson != null) {
+                    // 추출된 JSON이 유효한지 확인
+                    objectMapper.readTree(extractedJson);
+                    return extractedJson;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Failed to parse as wrapper JSON, trying direct markdown extraction");
+        }
+        
+        // 3. 직접 마크다운 코드 블록에서 JSON 추출
+        String extractedJson = extractJsonFromMarkdown(cleanedContent);
+        if (extractedJson != null) {
             try {
-                Object reportWrapper = Map.of("content", reportContent);
-                return objectMapper.writeValueAsString(reportWrapper);
-            } catch (Exception wrapperException) {
-                log.error("Failed to wrap report content as JSON", wrapperException);
-                // 최후의 수단: 기본 JSON 반환
-                return "{\"content\":\"Report generation failed\"}";
+                objectMapper.readTree(extractedJson);
+                return extractedJson;
+            } catch (Exception e) {
+                log.warn("Extracted content is not valid JSON: {}", extractedJson);
             }
         }
+        
+        // 4. 최후의 수단: 텍스트를 JSON으로 포장
+        try {
+            Object reportWrapper = Map.of("content", cleanedContent);
+            return objectMapper.writeValueAsString(reportWrapper);
+        } catch (Exception wrapperException) {
+            log.error("Failed to wrap report content as JSON", wrapperException);
+            return "{\"content\":\"Report generation failed\"}";
+        }
+    }
+
+    /**
+     * 마크다운 코드 블록에서 JSON 추출
+     */
+    private String extractJsonFromMarkdown(String content) {
+        if (content == null) {
+            return null;
+        }
+        
+        // ```json ... ``` 형태 찾기
+        String[] lines = content.split("\n");
+        boolean inCodeBlock = false;
+        boolean isJsonBlock = false;
+        StringBuilder jsonContent = new StringBuilder();
+        
+        for (String line : lines) {
+            String trimmedLine = line.trim();
+            
+            if (trimmedLine.startsWith("```json")) {
+                inCodeBlock = true;
+                isJsonBlock = true;
+                continue;
+            } else if (trimmedLine.startsWith("```") && inCodeBlock) {
+                // 코드 블록 끝
+                break;
+            }
+            
+            if (inCodeBlock && isJsonBlock) {
+                if (jsonContent.length() > 0) {
+                    jsonContent.append("\n");
+                }
+                jsonContent.append(line);
+            }
+        }
+        
+        String result = jsonContent.toString().trim();
+        return result.isEmpty() ? null : result;
     }
     
     /**
