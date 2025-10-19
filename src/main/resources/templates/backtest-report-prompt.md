@@ -5,6 +5,7 @@
 백테스팅 결과가 담긴 핵심 데이터 포인트 및 상세 로그를 입력으로 받습니다.
 {{backtestData}}
 
+
 **주요 분석 대상**:
 - **성과 지표**: 총 수익률, 샤프 비율, 최대 낙폭, 승률, 손익비
 - **거래 활동**: 매도/매수 기록, 손절/익절 실행 사례 및 현금 생성 정보
@@ -14,13 +15,13 @@
 **지표별 단위 정보**:
 
 1. **BacktestMetrics (포트폴리오 성과 지표)**:
-   - **total_return**: 소수점 단위 (예: 0.30 = 30%)
-   - **annualized_return**: 소수점 단위 (예: 0.18 = 18%)
-   - **volatility**: 소수점 단위 (예: 0.15 = 15%)
-   - **sharpe_ratio**: 무차원 (예: 1.89)
-   - **max_drawdown**: 소수점 단위 (예: -0.20 = -20%)
-   - **win_rate**: 소수점 단위 (예: 0.57 = 57%)
-   - **profit_loss_ratio**: 무차원 (예: 1.32)
+   - **total_return**: 비율로 읽고 판단
+   - **annualized_return**: 비율로 읽고 판단
+   - **volatility**: 비율로 읽고 판단
+   - **sharpe_ratio**: 무차원 배수값
+   - **max_drawdown**: 비율로 읽고 판단
+   - **win_rate**: 비율로 읽고 판단
+   - **profit_loss_ratio**: 무차원 배수값
 
 2. **BenchmarkMetrics (벤치마크 성과 지표)**:
    - **benchmark_total_return**: % 단위 (예: 25.5 = 25.5%)
@@ -166,7 +167,5 @@
 * JSON 응답 시 모든 텍스트 필드는 실제 백테스트 데이터를 기반으로 한 구체적인 수치와 해석을 포함해야 함
 
 **중요: 지표 단위 정보**:
-* **BacktestMetrics의 비율 지표들** (total_return, annualized_return, volatility, max_drawdown, win_rate)은 비율 형태로 제공됨. 예: 0.15는 15%를 의미
-* **무차원 지표들** (sharpe_ratio, profit_loss_ratio)은 배수 형태로 제공됨. 예: 1.32배
-* **BenchmarkMetrics의 % 지표들**은 퍼센트 단위로 저장됨. 예: 25.5는 25.5%
-* **지수값** (benchmark_max_price, benchmark_min_price)은 절대값으로 제공됨
+* **total_return (총 수익률)**과 **max_drawdown (최대 낙폭)**은 비율로 읽고 판단하세요.
+* **sharpe_ratio**와 **profit_loss_ratio**는 무차원 배수값입니다.
