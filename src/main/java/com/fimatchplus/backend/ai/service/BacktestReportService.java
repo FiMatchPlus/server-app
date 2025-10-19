@@ -273,12 +273,13 @@ public class BacktestReportService {
     private String formatMetrics(BacktestMetrics metrics) {
         StringBuilder metricsBuilder = new StringBuilder();
         
-        metricsBuilder.append(String.format("총 수익률: %.2f%%\n", metrics.totalReturn()));
-        metricsBuilder.append(String.format("연환산 수익률: %.2f%%\n", metrics.annualizedReturn()));
-        metricsBuilder.append(String.format("변동성: %.2f%%\n", metrics.volatility()));
+        // 비율 값을 백분위로 변환해서 표시
+        metricsBuilder.append(String.format("총 수익률: %.2f%%\n", metrics.totalReturn() * 100));
+        metricsBuilder.append(String.format("연환산 수익률: %.2f%%\n", metrics.annualizedReturn() * 100));
+        metricsBuilder.append(String.format("변동성: %.2f%%\n", metrics.volatility() * 100));
         metricsBuilder.append(String.format("샤프 비율: %.2f\n", metrics.sharpeRatio()));
-        metricsBuilder.append(String.format("최대 낙폭: %.2f%%\n", metrics.maxDrawdown()));
-        metricsBuilder.append(String.format("승률: %.2f%%\n", metrics.winRate()));
+        metricsBuilder.append(String.format("최대 낙폭: %.2f%%\n", metrics.maxDrawdown() * 100));
+        metricsBuilder.append(String.format("승률: %.2f%%\n", metrics.winRate() * 100));
         metricsBuilder.append(String.format("손익비: %.2f\n", metrics.profitLossRatio()));
         
         return metricsBuilder.toString();
