@@ -165,8 +165,8 @@
 * 입력 데이터에 해당 수치가 누락되어 해석이 불가능한 지표는 해당 JSON 필드를 null로 처리하거나 생략
 * JSON 응답 시 모든 텍스트 필드는 실제 백테스트 데이터를 기반으로 한 구체적인 수치와 해석을 포함해야 함
 
-**중요: 지표 단위 해석 원칙**:
-* **BacktestMetrics의 소수점 지표들** (total_return, annualized_return, volatility, max_drawdown, win_rate)은 소수점 값을 %로 변환하여 해석. 예: 0.15 → 15%
-* **무차원 지표들** (sharpe_ratio, profit_loss_ratio)은 그대로 해석. 예: 1.32 → 1.32배
-* **BenchmarkMetrics의 % 지표들**은 이미 퍼센트 단위로 저장되어 있으므로 그대로 해석. 예: 25.5 → 25.5%
-* **지수값** (benchmark_max_price, benchmark_min_price)은 절대값으로 해석
+**중요: 지표 단위 정보**:
+* **BacktestMetrics의 비율 지표들** (total_return, annualized_return, volatility, max_drawdown, win_rate)은 비율 형태로 제공됨. 예: 0.15는 15%를 의미
+* **무차원 지표들** (sharpe_ratio, profit_loss_ratio)은 배수 형태로 제공됨. 예: 1.32배
+* **BenchmarkMetrics의 % 지표들**은 퍼센트 단위로 저장됨. 예: 25.5는 25.5%
+* **지수값** (benchmark_max_price, benchmark_min_price)은 절대값으로 제공됨
