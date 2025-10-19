@@ -11,6 +11,25 @@
 - **자산 관리**: 주식/현금 비중 변화와 현금 관리 효과성
 - **벤치마크 비교**: 시장 대비 초과 성과 분석
 
+**지표별 단위 정보**:
+
+1. **BacktestMetrics (포트폴리오 성과 지표)**:
+   - **total_return**: 소수점 단위 (예: 0.30 = 30%)
+   - **annualized_return**: 소수점 단위 (예: 0.18 = 18%)
+   - **volatility**: 소수점 단위 (예: 0.15 = 15%)
+   - **sharpe_ratio**: 무차원 (예: 1.89)
+   - **max_drawdown**: 소수점 단위 (예: -0.20 = -20%)
+   - **win_rate**: 소수점 단위 (예: 0.57 = 57%)
+   - **profit_loss_ratio**: 무차원 (예: 1.32)
+
+2. **BenchmarkMetrics (벤치마크 성과 지표)**:
+   - **benchmark_total_return**: % 단위 (예: 25.5 = 25.5%)
+   - **benchmark_volatility**: % 단위 (예: 18.2 = 18.2%)
+   - **benchmark_max_price**: 지수값 (예: 2850.5)
+   - **benchmark_min_price**: 지수값 (예: 2100.0)
+   - **alpha**: % 단위 (예: 5.2 = 5.2%)
+   - **benchmark_daily_average**: % 단위 (예: 0.08 = 0.08%)
+
 (참고: 입력 데이터는 LLM에게 데이터 구조의 예시로만 제공되며, LLM은 이 데이터의 **수치와 로그 내용을 분석하여 해석**하는 역할에 집중합니다.)
 
 **보고서 생성 지침**:
@@ -145,3 +164,9 @@
 * **수치와 함께 구체적 의미 해석** 및 **투자 인사이트** 제공에 집중 
 * 입력 데이터에 해당 수치가 누락되어 해석이 불가능한 지표는 해당 JSON 필드를 null로 처리하거나 생략
 * JSON 응답 시 모든 텍스트 필드는 실제 백테스트 데이터를 기반으로 한 구체적인 수치와 해석을 포함해야 함
+
+**중요: 지표 단위 해석 원칙**:
+* **BacktestMetrics의 소수점 지표들** (total_return, annualized_return, volatility, max_drawdown, win_rate)은 소수점 값을 %로 변환하여 해석. 예: 0.15 → 15%
+* **무차원 지표들** (sharpe_ratio, profit_loss_ratio)은 그대로 해석. 예: 1.32 → 1.32배
+* **BenchmarkMetrics의 % 지표들**은 이미 퍼센트 단위로 저장되어 있으므로 그대로 해석. 예: 25.5 → 25.5%
+* **지수값** (benchmark_max_price, benchmark_min_price)은 절대값으로 해석

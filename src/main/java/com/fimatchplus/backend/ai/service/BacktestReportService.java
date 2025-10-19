@@ -225,7 +225,7 @@ public class BacktestReportService {
                 analysis.append(String.format("기간 최저가: %,.2f\n", benchmarkMinPrice));
                 analysis.append(String.format("초과수익률(Alpha): %.2f%%\n", alpha));
                 if (benchmarkDailyAverage != null && benchmarkDailyAverage != 0) {
-                    analysis.append(String.format("벤치마크 일일평균: %.3f%%\n", benchmarkDailyAverage * 100));
+                    analysis.append(String.format("벤치마크 일일평균: %.3f%%\n", benchmarkDailyAverage));
                 }
                 
                 if (alpha != null && alpha > 0) {
