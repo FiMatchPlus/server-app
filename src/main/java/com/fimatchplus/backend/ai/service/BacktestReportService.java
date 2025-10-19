@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -336,6 +337,9 @@ public class BacktestReportService {
                 result.append(String.format("  구간 지속: %d일간\n\n", changePoint.continuationDays));
             }
         }
+        
+        // 개별 종목 시계열 분석 추가
+        result.append(formatIndividualStockAnalysis(dailyEquity));
         
         return result.toString();
     }
@@ -877,6 +881,49 @@ public class BacktestReportService {
         }
     }
     
+    
+    /**
+     * 개별 종목 시계열 분석 포맷팅
+     */
+    private String formatIndividualStockAnalysis(List<BacktestDetailResponse.DailyEquityData> dailyEquity) {
+        if (dailyEquity.isEmpty()) {
+            return "\n=== 개별 종목 시계열 분석 ===\n데이터 없음\n";
+        }
+        
+        // 개별 종목 데이터만 추출 (포트폴리오 레벨 데이터 제외)
+        Set<String> individualStocks = dailyEquity.stream()
+                .flatMap(data -> data.stocks().keySet().stream())
+                .filter(stockName -> !stockName.equals("포트폴리오 총액") && 
+                                   !stockName.equals("주식 평가액") && 
+                                   !stockName.equals("현금 잔고"))
+                .collect(Collectors.toSet());
+        
+        if (individualStocks.isEmpty()) {
+            return "\n=== 개별 종목 시계열 분석 ===\n개별 종목 데이터 없음\n";
+        }
+        
+        StringBuilder result = new StringBuilder();
+        result.append("\n=== 개별 종목 시계열 분석 ===\n");
+        
+        // 각 종목별 수익률 계산
+        for (String stockName : individualStocks) {
+            List<Double> stockValues = dailyEquity.stream()
+                    .map(data -> data.stocks().get(stockName))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            
+            if (stockValues.size() >= 2) {
+                double firstValue = stockValues.get(0);
+                double lastValue = stockValues.get(stockValues.size() - 1);
+                double stockReturn = ((lastValue - firstValue) / firstValue) * 100;
+                
+                result.append(String.format("%s: %.2f%% 수익률 (%,.0f원 → %,.0f원)\n", 
+                        stockName, stockReturn, firstValue, lastValue));
+            }
+        }
+        
+        return result.toString();
+    }
     
     /**
      * 지속성 분석 결과를 담는 클래스
