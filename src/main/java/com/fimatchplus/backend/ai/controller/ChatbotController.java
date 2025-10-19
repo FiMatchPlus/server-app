@@ -24,19 +24,21 @@ public class ChatbotController {
     /**
      * 카테고리별 챗봇 질문 API
      * 
-     * @param category 챗봇 카테고리 (loss: 손절, profit: 익절, portfolio: 포트폴리오)
+     * @param category 챗봇 카테고리 (loss: 손절, profit: 익절, portfolio: 포트폴리오, benchmark: 벤치마크)
      * @param question 사용자 질문 (쿼리 파라미터)
+     * @param backtestId 벤치마크 카테고리일 때 백테스트 ID (선택사항)
      * @return 챗봇 응답
      */
     @GetMapping("/{category}")
     public ResponseEntity<ApiResponse<ChatbotResponse>> chat(
             @PathVariable String category,
-            @RequestParam String question) {
+            @RequestParam String question,
+            @RequestParam(required = false) Long backtestId) {
         
-        log.info("챗봇 질문 요청 - 카테고리: {}, 질문: {}", category, question);
+        log.info("챗봇 질문 요청 - 카테고리: {}, 질문: {}, 백테스트 ID: {}", category, question, backtestId);
         
         try {
-            String response = categoryChatbotService.generateCategoryResponse(category, question);
+            String response = categoryChatbotService.generateCategoryResponse(category, question, backtestId);
             
             String responsePreview = response.length() > 100 
                     ? response.substring(0, 100) + "..." 
